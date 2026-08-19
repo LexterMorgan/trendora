@@ -1,0 +1,42 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local toolchain (uv + CPython installs)
+.tools/
+
+# Environment and secrets
+.env
+.env.local
+*.pem
+
+# MCP local overrides (keep examples; never commit tokens)
+.cursor/mcp.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data and logs (not collected yet)
+data/
+logs/
+*.log
+
+# Alembic
+alembic/versions/*.pyc

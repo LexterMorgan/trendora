@@ -1,0 +1,33 @@
+[project]
+name = "trendora"
+version = "0.0.1"
+description = "AI-powered Social Media Intelligence Platform for Southeast Asian education, AI, and technology markets."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+authors = [{ name = "Trendora" }]
+dependencies = [
+    "sqlalchemy>=2.0.40,<3",
+    "psycopg[binary]>=3.2,<4",
+    "alembic>=1.14,<2",
+    "pydantic-settings>=2.4,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3,<9",
+]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = [
+    "integration: requires a configured PostgreSQL DATABASE_URL",
+]
