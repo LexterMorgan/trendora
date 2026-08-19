@@ -4,7 +4,7 @@ This file started as the Phase 0 audit (2026-08-18). The historical sections bel
 
 ## Current status (Milestone 1 — 2026-08-18)
 
-Milestone 1 (foundation + database schema) is implemented. Connectors, FastAPI, Streamlit, analytics, ML, and AI are still out of scope.
+Milestone 2A (YouTube curated watchlist connector) is implemented on top of Milestone 1. FastAPI, Streamlit, analytics, ML, AI, and other source connectors are still out of scope.
 
 - Git remote: `https://github.com/LexterMorgan/trendora.git` (branch `main`; no commits required by this milestone).
 - Python: `.venv` with CPython 3.12.14. Runtime packages: SQLAlchemy, psycopg, Alembic, pydantic-settings. Dev: pytest. FastAPI, Streamlit, pandas, and ML libraries are still not installed.
@@ -15,7 +15,7 @@ Milestone 1 (foundation + database schema) is implemented. Connectors, FastAPI, 
 
 Stale Phase 0 claims to ignore: “no remote”, “no application code”, “do not install SQLAlchemy”, “no Supabase project”, “development database is local PostgreSQL only”, “recommended next step is still Phase 0”.
 
-Recommended next milestone: YouTube connector only (curated watchlist + snapshot collection), staying inside documented quota and the 30-day non-authorized storage rule. Do not start it until that milestone is explicitly requested.
+Recommended next milestone: verify a real watchlist ingest against the V1 database (manual `python -m trendora.connectors.youtube`), then M2B only if requested (for example WebSub or regional mostPopular — not started).
 
 Research date: 2026-08-18.
 

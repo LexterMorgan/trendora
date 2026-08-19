@@ -2,9 +2,10 @@
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Annotated
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -22,6 +23,17 @@ class Settings(BaseSettings):
     app_name: str = Field(default="trendora", alias="APP_NAME")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     database_url: str = Field(alias="DATABASE_URL")
+    youtube_api_key: str | None = Field(default=None, alias="YOUTUBE_API_KEY")
+    youtube_channel_ids: Annotated[list[str], NoDecode] = Field(
+        default_factory=list,
+        alias="YOUTUBE_CHANNEL_IDS",
+    )
+    youtube_max_videos_per_channel: int = Field(
+        default=50,
+        ge=1,
+        le=500,
+        alias="YOUTUBE_MAX_VIDEOS_PER_CHANNEL",
+    )
 
     @field_validator("database_url")
     @classmethod
@@ -37,6 +49,26 @@ class Settings(BaseSettings):
                 "(postgresql+psycopg://, postgresql://, or postgres://)"
             )
         return url
+
+    @field_validator("youtube_api_key", mode="before")
+    @classmethod
+    def blank_youtube_key_to_none(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
+
+    @field_validator("youtube_channel_ids", mode="before")
+    @classmethod
+    def parse_youtube_channel_ids(cls, value: object) -> list[str]:
+        """Turn comma-separated YOUTUBE_CHANNEL_IDS into unique UC… IDs."""
+        from trendora.connectors.youtube.exceptions import InvalidYouTubeWatchlistError
+        from trendora.connectors.youtube.watchlist import parse_channel_ids
+
+        try:
+            return list(parse_channel_ids(value if value is not None else ()))
+        except InvalidYouTubeWatchlistError as exc:
+            raise ValueError(str(exc)) from exc
 
 
 @lru_cache

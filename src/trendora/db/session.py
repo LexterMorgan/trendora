@@ -1,6 +1,7 @@
 """Engine and session factory. URL comes from settings, never from code."""
 
 from collections.abc import Generator
+from contextlib import contextmanager
 
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -33,6 +34,7 @@ def get_session_factory() -> sessionmaker[Session]:
     return _session_factory
 
 
+@contextmanager
 def session_scope() -> Generator[Session, None, None]:
     factory = get_session_factory()
     session = factory()
