@@ -18,6 +18,7 @@ dependencies = [
 trendora-ingest-youtube = "trendora.connectors.youtube.cli:main"
 trendora-ingest-hackernews = "trendora.connectors.hackernews.cli:main"
 trendora-ingest-stackexchange = "trendora.connectors.stackexchange.cli:main"
+trendora-ingest-github = "trendora.connectors.github.cli:main"
 
 [project.optional-dependencies]
 dev = [

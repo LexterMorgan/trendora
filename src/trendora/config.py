@@ -35,6 +35,11 @@ class Settings(BaseSettings):
         alias="YOUTUBE_MAX_VIDEOS_PER_CHANNEL",
     )
     stackexchange_api_key: str | None = Field(default=None, alias="STACKEXCHANGE_API_KEY")
+    github_token: str | None = Field(default=None, alias="GITHUB_TOKEN")
+    github_repositories: Annotated[list[str], NoDecode] = Field(
+        default_factory=list,
+        alias="GITHUB_REPOSITORIES",
+    )
 
     @field_validator("database_url")
     @classmethod
@@ -51,7 +56,7 @@ class Settings(BaseSettings):
             )
         return url
 
-    @field_validator("youtube_api_key", "stackexchange_api_key", mode="before")
+    @field_validator("youtube_api_key", "stackexchange_api_key", "github_token", mode="before")
     @classmethod
     def blank_optional_key_to_none(cls, value: object) -> str | None:
         if value is None:
@@ -69,6 +74,18 @@ class Settings(BaseSettings):
         try:
             return list(parse_channel_ids(value if value is not None else ()))
         except InvalidYouTubeWatchlistError as exc:
+            raise ValueError(str(exc)) from exc
+
+    @field_validator("github_repositories", mode="before")
+    @classmethod
+    def parse_github_repositories(cls, value: object) -> list[str]:
+        """Turn comma-separated GITHUB_REPOSITORIES into unique owner/repo ids."""
+        from trendora.connectors.github.exceptions import GitHubConfigurationError
+        from trendora.connectors.github.connector import parse_repositories
+
+        try:
+            return list(parse_repositories(value if value is not None else ()))
+        except GitHubConfigurationError as exc:
             raise ValueError(str(exc)) from exc
 
 

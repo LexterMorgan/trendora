@@ -2,9 +2,9 @@
 
 This file started as the Phase 0 audit (2026-08-18). The historical sections below are kept. Where they conflict with Milestone 1, the status in this section wins.
 
-## Current status (Milestone 3B — 2026-08-20)
+## Current status (Milestone 4 — 2026-08-20)
 
-Milestone 2A (YouTube curated watchlist), Milestone 2B (regional YouTube `mostPopular`), Milestone 3A (Hacker News top/new/best stories), and Milestone 3B (Stack Exchange questions) are implemented on top of Milestone 1. They persist into the existing tables. FastAPI, Streamlit, analytics, ML, AI, WebSub, Atom, schedulers, GitHub, Wikimedia, and GDELT are still out of scope.
+Milestone 2A (YouTube curated watchlist), Milestone 2B (regional YouTube `mostPopular`), Milestone 3A (Hacker News top/new/best stories), Milestone 3B (Stack Exchange questions), and Milestone 4 (explicit GitHub repositories) are implemented on top of Milestone 1. They persist into the existing tables. FastAPI, Streamlit, analytics, ML, AI, WebSub, Atom, schedulers, Wikimedia, and GDELT are still out of scope.
 
 - Git remote: `https://github.com/LexterMorgan/trendora.git` (branch `main`; no commits required by this milestone).
 - Python: `.venv` with CPython 3.12.14. Runtime packages: SQLAlchemy, psycopg, Alembic, pydantic-settings. Dev: pytest. FastAPI, Streamlit, pandas, and ML libraries are still not installed.

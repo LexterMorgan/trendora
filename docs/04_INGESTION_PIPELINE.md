@@ -1,6 +1,6 @@
 # 04 — Ingestion pipeline
 
-Status: Milestone 2A implements a curated YouTube watchlist connector. Milestone 2B adds a sibling regional `mostPopular` ingest. Milestone 3A adds a sibling Hacker News connector. Milestone 3B adds a sibling Stack Exchange question connector. WebSub, Atom, FastAPI, scheduling, and other sources are not implemented.
+Status: Milestone 2A implements a curated YouTube watchlist connector. Milestone 2B adds a sibling regional `mostPopular` ingest. Milestone 3A adds a sibling Hacker News connector. Milestone 3B adds a sibling Stack Exchange question connector. Milestone 4 adds a sibling GitHub repository connector. WebSub, Atom, FastAPI, scheduling, and other sources are not implemented.
 
 ## Implemented flow (M2A — curated watchlist)
 
@@ -140,6 +140,48 @@ Existing tables only (no M3B migration):
 
 The seeded `stack_exchange` source row from Milestone 1 is reused. Question bodies are not requested or stored in M3B.
 
+## Implemented flow (M4 — GitHub)
+
+```text
+explicit owner/repository list
+        ↓
+GET /repos/{owner}/{repo}
+        ↓
+validate repository resource
+        ↓
+normalize to content_item / metric_snapshot records
+        ↓
+SQLAlchemy persist (existing Milestone 1 tables)
+        ↓
+PostgreSQL
+```
+
+GitHub is a repository-activity overlay, not a SEA-market signal. `market_id` is always unset. Repository owners are not persisted as publishers. Search, discovery, commits, issues, pull requests, releases, contributors, GraphQL, OAuth, and webhooks are not used.
+
+Identity is `(source=github, external_id="{owner}/{repo}")`. The numeric GitHub repository ID is stored in `source_metadata.github_id` when present. GitHub `topics` stay in `source_metadata` only; they are not mapped onto Trendora topics and do not create `content_item_topics` rows. One timezone-aware `collected_at` is used for the whole run.
+
+Optional `GITHUB_TOKEN` raises the unauthenticated rate limit. It is not required for public repositories. Rate-limit responses are surfaced as API errors. Requests are sequential. There is no retry loop.
+
+### How to run (manual)
+
+```bash
+python -m trendora.connectors.github
+python -m trendora.connectors.github --repos openai/openai-python --max-items 1
+python -m trendora.connectors.github --repos openai/openai-python,pytorch/pytorch --max-items 10
+```
+
+The default run uses `GITHUB_REPOSITORIES`. `--repos` overrides that list for the invocation. `--max-items` caps how many identifiers are fetched (default 50). URLs, handles, and search syntax are rejected. This is not a scheduler.
+
+### What is stored
+
+Existing tables only (no M4 migration):
+
+- `content_items` — repositories `(source=github, external_id=owner/repo)`, `content_type=repository`, `publisher_id` unset, `market_id` unset
+- `metric_snapshots` — append-only `stargazer_count`, `fork_count`, `open_issue_count`, and `watcher_count` when present and non-negative
+- GitHub extras in `source_metadata` JSONB (`github_id`, `full_name`, `owner_login`, `html_url`, `language`, `visibility`, `topics`, `license`, timestamps, flags)
+
+The seeded `github` source row from Milestone 1 is reused. Watcher snapshots use `subscribers_count` from the repository payload when present (GitHub's `watchers_count` field is a legacy alias of stargazers).
+
 ## How to configure
 
 Set these in `.env` (never commit the real key):
@@ -150,6 +192,8 @@ Set these in `.env` (never commit the real key):
 | `YOUTUBE_CHANNEL_IDS` | Comma-separated 24-character channel IDs starting with `UC`. Required for M2A only. M2B does not use this list. |
 | `YOUTUBE_MAX_VIDEOS_PER_CHANNEL` | Cap on uploads fetched per watchlist channel (default 50). M2A only. |
 | `STACKEXCHANGE_API_KEY` | Optional. Stack Exchange API key. M3B works without it. |
+| `GITHUB_TOKEN` | Optional. GitHub token. M4 works without it for public repositories. |
+| `GITHUB_REPOSITORIES` | Comma-separated `owner/repository` identifiers. Used when `--repos` is omitted. |
 
 Missing API key fails with an actionable error. Handles (`@name`) and channel URLs are rejected for the watchlist. M2B rejects unknown market codes.
 
@@ -201,9 +245,9 @@ No new retention period was invented. Cleanup jobs are still not implemented.
 
 ## Tests and quota
 
-Unit tests inject `httpx.MockTransport` or a fake client. They must not call Google, the live Hacker News API, or the live Stack Exchange API, and do not need a YouTube API key.
+Unit tests inject `httpx.MockTransport` or a fake client. They must not call Google, the live Hacker News API, the live Stack Exchange API, or the live GitHub API, and do not need a YouTube API key.
 
-PostgreSQL persistence tests are integration tests: they skip without `DATABASE_URL` / `TRENDORA_TEST_DATABASE_URL`, roll back, and never call YouTube, Hacker News, or Stack Exchange. Assertions are scoped to fixture `external_id` values because the database may already contain real ingested rows.
+PostgreSQL persistence tests are integration tests: they skip without `DATABASE_URL` / `TRENDORA_TEST_DATABASE_URL`, roll back, and never call YouTube, Hacker News, Stack Exchange, or GitHub. Assertions are scoped to fixture `external_id` values because the database may already contain real ingested rows.
 
 Approximate Data API costs (1 unit each): `videoCategories.list`, `videos.list`, `channels.list`. A six-market M2B run at 50 videos/market is on the order of tens of quota units. Do not use `search.list`.
 
@@ -235,6 +279,13 @@ src/trendora/connectors/
     persistence.py
     connector.py
     cli.py
+  github/
+    client.py
+    schemas.py
+    normalizer.py
+    persistence.py
+    connector.py
+    cli.py
 ```
 
 Future sources should add a sibling package. Do not put Instagram/TikTok/etc. stubs here.
@@ -246,7 +297,7 @@ Future sources should add a sibling package. Do not put Instagram/TikTok/etc. st
 - Never scrape YouTube.
 - Do not silently swallow HTTP, API, validation, or database integrity errors.
 
-## Not in M2A / M2B / M3A / M3B
+## Not in M2A / M2B / M3A / M3B / M4
 
 - Scheduler / cron / workers
 - OAuth / YouTube Analytics API
@@ -254,5 +305,6 @@ Future sources should add a sibling package. Do not put Instagram/TikTok/etc. st
 - `search.list` / playlist crawling of chart-discovered channels
 - HN Ask/Show/jobs feeds or user ingestion
 - Stack Exchange answers, users, comments, `/search`, site discovery, or body ingest
-- GitHub, Wikimedia, GDELT, or other source connectors
+- GitHub Search, discovery, commits, issues, PRs, releases, contributors, GraphQL, or owner-as-publisher
+- Wikimedia, GDELT, or other source connectors
 - FastAPI / Streamlit / analytics / ML / AI
