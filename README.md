@@ -2,7 +2,7 @@
 
 AI-powered Social Media Intelligence Platform for Southeast Asian education, AI, and technology markets.
 
-**Status:** Milestone 2A (curated YouTube watchlist) and Milestone 2B (regional YouTube `mostPopular`) ingest into the existing schema. FastAPI, Streamlit, analytics, ML, WebSub, and other source connectors are not implemented.
+**Status:** Milestone 2A (YouTube watchlist), Milestone 2B (regional YouTube `mostPopular`), and Milestone 3A (Hacker News stories) ingest into the existing schema. FastAPI, Streamlit, analytics, ML, WebSub, and other source connectors are not implemented.
 
 ## What Trendora will answer
 
@@ -22,9 +22,9 @@ The product dashboard will remain Streamlit. The frontend will not be switched t
 
 ## Current milestone
 
-Milestones 2A and 2B are the YouTube ingestion paths: a curated channel watchlist, plus regional `mostPopular` charts for the six seeded SEA markets. See:
+Milestones 2A, 2B, and 3A are the implemented ingestion paths: a curated YouTube watchlist, regional YouTube `mostPopular` charts, and Hacker News top/new/best stories. See:
 
-- [docs/04_INGESTION_PIPELINE.md](docs/04_INGESTION_PIPELINE.md) — M2A/M2B connectors, config, and how to run them
+- [docs/04_INGESTION_PIPELINE.md](docs/04_INGESTION_PIPELINE.md) — connectors, config, and how to run them
 - [PROJECT_PREP.md](PROJECT_PREP.md) — environment, MCP, and setup notes
 - [docs/01_ARCHITECTURE.md](docs/01_ARCHITECTURE.md) — layer boundaries and V1 database decision
 - [docs/02_DATABASE_SCHEMA.md](docs/02_DATABASE_SCHEMA.md) — tables, constraints, migrations
@@ -38,7 +38,7 @@ Milestones 2A and 2B are the YouTube ingestion paths: a curated channel watchlis
 | Database | PostgreSQL via SQLAlchemy + Alembic | Installed |
 | V1 development DB | Existing Supabase PostgreSQL project | In use |
 | HTTP | httpx (YouTube Data API v3 client) | Installed |
-| Connectors | YouTube watchlist + regional mostPopular | M2A + M2B |
+| Connectors | YouTube watchlist + mostPopular; Hacker News stories | M2A + M2B + M3A |
 | API | FastAPI | Not installed |
 | Dashboard | Streamlit + Plotly | Not installed |
 | Data / ML | Pandas, NumPy, scikit-learn, statsmodels | Not installed |
@@ -136,6 +136,25 @@ Both paths store publishers, content items, and append-only `metric_snapshots` (
 
 Unit tests mock HTTP and never send `YOUTUBE_API_KEY` to Google.
 
+### Hacker News ingestion (Milestone 3A)
+
+Manual, on-demand only. This is not a scheduler. Uses the official Firebase API. Does not scrape. Does not ingest HN users.
+
+```bash
+python -m trendora.connectors.hackernews
+# equivalent:
+trendora-ingest-hackernews
+```
+
+Optional overrides:
+
+```bash
+python -m trendora.connectors.hackernews --feeds topstories --max-items 5
+python -m trendora.connectors.hackernews --feeds topstories,beststories --max-items 20
+```
+
+Defaults are `topstories,newstories,beststories` and 50 items per feed. Stories are stored as `content_items` (`content_type=story`) with append-only `score` and `comment_count` snapshots. `market_id` is unset. HN authors are not created as publishers. Does not require YouTube configuration.
+
 ### Tests
 
 ```bash
@@ -158,7 +177,7 @@ src/trendora/          # application package
   db/                  # engine, session, declarative Base
   models/              # SQLAlchemy models
   reference.py         # deterministic V1 seed rows
-  connectors/          # source connectors (YouTube M2A watchlist + M2B mostPopular)
+  connectors/          # YouTube (M2A/M2B) and Hacker News (M3A)
 alembic/               # Alembic env + versions
 tests/unit/            # no database required
 tests/integration/     # PostgreSQL, skipped without DATABASE_URL

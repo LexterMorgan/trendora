@@ -1,6 +1,6 @@
 # 04 — Ingestion pipeline
 
-Status: Milestone 2A implements a curated YouTube watchlist connector. Milestone 2B adds a sibling regional `mostPopular` ingest. Other sources, WebSub, Atom, FastAPI, and scheduling are not implemented.
+Status: Milestone 2A implements a curated YouTube watchlist connector. Milestone 2B adds a sibling regional `mostPopular` ingest. Milestone 3A adds a sibling Hacker News connector. WebSub, Atom, FastAPI, scheduling, and other sources are not implemented.
 
 ## Implemented flow (M2A — curated watchlist)
 
@@ -54,6 +54,48 @@ Example: a US publisher appearing on the Indonesian mostPopular chart is stored 
 If the same video appears in multiple regional charts in one run, region codes are merged before persist. One timezone-aware `collected_at` is used for the whole run, so there is one metric snapshot set for that timestamp rather than one per region.
 
 YouTube category IDs are not mapped onto Trendora topics.
+
+## Implemented flow (M3A — Hacker News)
+
+```text
+topstories / newstories / beststories
+        ↓
+item/{id}.json (unique IDs only; feed membership merged)
+        ↓
+validate story items
+        ↓
+normalize to content_item / metric_snapshot records
+        ↓
+SQLAlchemy persist (existing Milestone 1 tables)
+        ↓
+PostgreSQL
+```
+
+Hacker News is a global technology-attention overlay, not a SEA-market signal. `market_id` is always unset. HN authors are not persisted as publishers. Ask HN / Show HN / jobs / user endpoints are not ingested.
+
+Official Firebase API only (`https://hacker-news.firebaseio.com/v0/`). No Algolia. No HTML scraping. No authentication.
+
+Stories that appear in multiple selected feeds in one run share one `(source=hacker_news, external_id=item_id)` identity. Feed names are merged into `source_metadata.feeds`. One timezone-aware `collected_at` is used for the whole run, so score/comment snapshots are not duplicated per feed.
+
+### How to run (manual)
+
+```bash
+python -m trendora.connectors.hackernews
+python -m trendora.connectors.hackernews --feeds topstories --max-items 5
+python -m trendora.connectors.hackernews --feeds topstories,beststories --max-items 20
+```
+
+Defaults: feeds `topstories,newstories,beststories`; 50 items per feed. Unknown feed names are rejected. Does not require `YOUTUBE_API_KEY` or `YOUTUBE_CHANNEL_IDS`. This is not a scheduler.
+
+### What is stored
+
+Existing tables only (no M3A migration):
+
+- `content_items` — stories `(source=hacker_news, external_id=item_id)`, `content_type=story`, `publisher_id` unset, `market_id` unset
+- `metric_snapshots` — append-only `score` and `comment_count` (from HN `descendants`) when present
+- HN-specific extras in `source_metadata` JSONB (`hn_type`, `author`, `feeds`, `url`, optional `text`)
+
+The seeded `hacker_news` source row from Milestone 1 is reused. YouTube retention policies are not applied to HN rows.
 
 ## How to configure
 
@@ -115,9 +157,9 @@ No new retention period was invented. Cleanup jobs are still not implemented.
 
 ## Tests and quota
 
-Unit tests inject `httpx.MockTransport` or a fake client. They must not call Google and do not need a real API key.
+Unit tests inject `httpx.MockTransport` or a fake client. They must not call Google or the live Hacker News API and do not need a YouTube API key.
 
-PostgreSQL persistence tests are integration tests: they skip without `DATABASE_URL` / `TRENDORA_TEST_DATABASE_URL`, roll back, and never call YouTube. Assertions are scoped to fixture `external_id` values because the database may already contain real M2A watchlist rows.
+PostgreSQL persistence tests are integration tests: they skip without `DATABASE_URL` / `TRENDORA_TEST_DATABASE_URL`, roll back, and never call YouTube or Hacker News. Assertions are scoped to fixture `external_id` values because the database may already contain real ingested rows.
 
 Approximate Data API costs (1 unit each): `videoCategories.list`, `videos.list`, `channels.list`. A six-market M2B run at 50 videos/market is on the order of tens of quota units. Do not use `search.list`.
 
@@ -135,6 +177,13 @@ src/trendora/connectors/
     most_popular.py       # M2B regional chart orchestration
     watchlist.py
     cli.py
+  hackernews/
+    client.py
+    schemas.py
+    normalizer.py
+    persistence.py
+    connector.py
+    cli.py
 ```
 
 Future sources should add a sibling package. Do not put Instagram/TikTok/etc. stubs here.
@@ -146,11 +195,12 @@ Future sources should add a sibling package. Do not put Instagram/TikTok/etc. st
 - Never scrape YouTube.
 - Do not silently swallow HTTP, API, validation, or database integrity errors.
 
-## Not in M2A / M2B
+## Not in M2A / M2B / M3A
 
 - Scheduler / cron / workers
 - OAuth / YouTube Analytics API
 - WebSub / Atom
 - `search.list` / playlist crawling of chart-discovered channels
-- Other source connectors
+- HN Ask/Show/jobs feeds or user ingestion
+- Stack Exchange, GitHub, Wikimedia, GDELT, or other source connectors
 - FastAPI / Streamlit / analytics / ML / AI
