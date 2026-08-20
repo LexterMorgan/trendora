@@ -71,3 +71,12 @@ class VideoResource(_IgnoreExtra):
     snippet: VideoSnippet = Field(default_factory=VideoSnippet)
     content_details: VideoContentDetails | None = Field(default=None, alias="contentDetails")
     statistics: dict[str, Any] = Field(default_factory=dict)
+
+
+class VideoCategorySnippet(_IgnoreExtra):
+    title: str | None = None
+
+
+class VideoCategoryResource(_IgnoreExtra):
+    id: str
+    snippet: VideoCategorySnippet = Field(default_factory=VideoCategorySnippet)

@@ -1,7 +1,5 @@
 """PostgreSQL integration tests. Skipped unless DATABASE_URL is configured."""
 
-import os
-
 import pytest
 from sqlalchemy import inspect, text
 
@@ -11,14 +9,9 @@ from trendora.db.session import get_engine, reset_engine
 pytestmark = pytest.mark.integration
 
 
-def _database_url() -> str | None:
-    return os.environ.get("DATABASE_URL") or os.environ.get("TRENDORA_TEST_DATABASE_URL")
-
-
 @pytest.fixture
-def engine():
-    if not _database_url():
-        pytest.skip("DATABASE_URL is not configured")
+def engine(database_url: str):
+    assert database_url
     reset_settings_cache()
     reset_engine()
     try:

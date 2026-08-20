@@ -100,6 +100,16 @@ def test_malformed_and_missing_statistics_skip_metrics() -> None:
     assert bundle.content_items[0].published_at is None
 
 
+def test_watchlist_normalization_does_not_attach_chart_metadata() -> None:
+    channel = ChannelResource.model_validate(CHANNELS_LIST_OK["items"][0])
+    videos = [VideoResource.model_validate(item) for item in VIDEOS_LIST_OK["items"]]
+    bundle = normalize_channel(channel, videos, collected_at=COLLECTED)
+    first = bundle.content_items[0]
+    assert "chart" not in first.source_metadata
+    assert "region_codes" not in first.source_metadata
+    assert first.source_metadata["category_id"] == "27"
+
+
 def test_naive_collected_at_is_rejected() -> None:
     channel = ChannelResource.model_validate(CHANNELS_LIST_OK["items"][0])
     with pytest.raises(ValueError, match="timezone-aware"):

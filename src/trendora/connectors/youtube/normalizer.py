@@ -80,7 +80,7 @@ class NormalizedSnapshot:
     retention_policy_code: str
     retain_until: datetime
     subject: Literal["publisher", "content_item"]
-    source_metadata: dict[str, str] | None = None
+    source_metadata: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)

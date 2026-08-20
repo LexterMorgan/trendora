@@ -5,7 +5,6 @@ These tests roll back and never call the YouTube API.
 
 from __future__ import annotations
 
-import os
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -26,14 +25,9 @@ COLLECTED = datetime(2026, 8, 19, 16, 0, tzinfo=timezone.utc)
 COLLECTED_LATER = datetime(2026, 8, 19, 17, 0, tzinfo=timezone.utc)
 
 
-def _database_url() -> str | None:
-    return os.environ.get("DATABASE_URL") or os.environ.get("TRENDORA_TEST_DATABASE_URL")
-
-
 @pytest.fixture
-def db_session() -> Session:
-    if not _database_url():
-        pytest.skip("DATABASE_URL is not configured")
+def db_session(database_url: str) -> Session:
+    assert database_url
     reset_settings_cache()
     reset_engine()
     engine = get_engine()

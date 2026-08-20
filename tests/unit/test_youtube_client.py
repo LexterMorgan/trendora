@@ -12,8 +12,12 @@ from trendora.connectors.youtube.exceptions import (
 )
 from tests.fixtures.youtube_responses import (
     CHANNEL_A,
+    CHANNEL_C,
     CHANNELS_LIST_OK,
     MALFORMED_LIST_ITEMS,
+    MOSTPOPULAR_EMPTY,
+    MOSTPOPULAR_ID_PAGE_1,
+    MOSTPOPULAR_ID_PAGE_2,
     PLAYLIST_MISSING_VIDEO_ID,
     PLAYLIST_PAGE_1,
     PLAYLIST_PAGE_2,
@@ -22,6 +26,8 @@ from tests.fixtures.youtube_responses import (
     VIDEO_1,
     VIDEO_2,
     VIDEO_3,
+    VIDEO_CHART_1,
+    VIDEO_CATEGORIES_ID,
     VIDEOS_LIST_OK,
 )
 
@@ -159,3 +165,138 @@ def test_api_key_is_not_written_to_logs(caplog: pytest.LogCaptureFixture) -> Non
     combined = "\n".join(record.getMessage() for record in caplog.records)
     assert TEST_KEY not in combined
     assert "key=" not in combined
+
+
+def test_video_categories_request_params() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/videoCategories")
+        assert request.url.params["part"] == "snippet"
+        assert request.url.params["regionCode"] == "ID"
+        assert request.url.params["key"] == TEST_KEY
+        assert "id" not in request.url.params
+        assert "search" not in request.url.path
+        return httpx.Response(200, json=VIDEO_CATEGORIES_ID)
+
+    categories = _client(handler).list_video_categories("ID")
+    assert [category.id for category in categories] == ["24", "27", "28"]
+    titles = {category.id: category.snippet.title for category in categories}
+    assert titles["27"] == "Education"
+
+
+def test_most_popular_request_params() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/videos")
+        assert request.url.params["part"] == "snippet,contentDetails,statistics"
+        assert request.url.params["chart"] == "mostPopular"
+        assert request.url.params["regionCode"] == "TH"
+        assert int(request.url.params["maxResults"]) <= 50
+        assert "id" not in request.url.params
+        assert "search" not in request.url.path
+        return httpx.Response(200, json=MOSTPOPULAR_ID_PAGE_1)
+
+    videos = _client(handler).list_most_popular_videos("TH", max_videos=2)
+    assert [video.id for video in videos] == [VIDEO_1, VIDEO_2]
+    assert videos[0].snippet.channel_id == CHANNEL_A
+
+
+def test_most_popular_pagination_stops_at_max_videos() -> None:
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        assert request.url.params["chart"] == "mostPopular"
+        assert request.url.params["regionCode"] == "ID"
+        if request.url.params.get("pageToken"):
+            raise AssertionError("must not request page 2 when max_videos is already satisfied")
+        assert request.url.params["maxResults"] == "2"
+        return httpx.Response(200, json=MOSTPOPULAR_ID_PAGE_1)
+
+    videos = _client(handler).list_most_popular_videos("ID", max_videos=2)
+    assert [video.id for video in videos] == [VIDEO_1, VIDEO_2]
+    assert calls == 1
+
+
+def test_most_popular_pagination_follows_next_page_token() -> None:
+    calls: list[str | None] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        token = request.url.params.get("pageToken")
+        calls.append(token)
+        remaining_hint = int(request.url.params["maxResults"])
+        assert remaining_hint <= 50
+        if token == "PAGE2":
+            return httpx.Response(200, json=MOSTPOPULAR_ID_PAGE_2)
+        return httpx.Response(200, json=MOSTPOPULAR_ID_PAGE_1)
+
+    videos = _client(handler).list_most_popular_videos("ID", max_videos=10)
+    assert [video.id for video in videos] == [VIDEO_1, VIDEO_2, VIDEO_CHART_1]
+    assert videos[2].snippet.channel_id == CHANNEL_C
+    assert calls == [None, "PAGE2"]
+
+
+def test_most_popular_max_results_never_exceeds_fifty() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert int(request.url.params["maxResults"]) == 50
+        return httpx.Response(200, json=MOSTPOPULAR_EMPTY)
+
+    videos = _client(handler).list_most_popular_videos("MY", max_videos=80)
+    assert videos == []
+
+
+def test_most_popular_empty_chart() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=MOSTPOPULAR_EMPTY)
+
+    assert _client(handler).list_most_popular_videos("VN", max_videos=50) == []
+
+
+def test_most_popular_quota_error() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(403, json=QUOTA_ERROR)
+
+    with pytest.raises(YouTubeApiError, match="quotaExceeded") as exc_info:
+        _client(handler).list_most_popular_videos("PH", max_videos=10)
+    assert exc_info.value.reason == "quotaExceeded"
+
+
+def test_video_categories_malformed_items() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=MALFORMED_LIST_ITEMS)
+
+    with pytest.raises(YouTubeResponseError, match="items"):
+        _client(handler).list_video_categories("ID")
+
+
+def test_most_popular_skips_malformed_video_resources() -> None:
+    payload = {
+        "items": [
+            {"snippet": {"title": "missing id"}},
+            MOSTPOPULAR_ID_PAGE_1["items"][0],
+        ]
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=payload)
+
+    videos = _client(handler).list_most_popular_videos("ID", max_videos=10)
+    assert [video.id for video in videos] == [VIDEO_1]
+
+
+def test_most_popular_malformed_items_payload() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=MALFORMED_LIST_ITEMS)
+
+    with pytest.raises(YouTubeResponseError, match="items"):
+        _client(handler).list_most_popular_videos("ID", max_videos=10)
+
+
+def test_watchlist_videos_list_still_uses_ids_not_chart() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/videos")
+        assert "chart" not in request.url.params
+        assert VIDEO_1 in request.url.params["id"]
+        return httpx.Response(200, json=VIDEOS_LIST_OK)
+
+    videos = _client(handler).list_videos([VIDEO_1, VIDEO_2])
+    assert [video.id for video in videos] == [VIDEO_1, VIDEO_2]

@@ -15,7 +15,7 @@ from trendora.connectors.youtube.exceptions import (
     YouTubeHttpError,
     YouTubeResponseError,
 )
-from trendora.connectors.youtube.schemas import ChannelResource, VideoResource
+from trendora.connectors.youtube.schemas import ChannelResource, VideoCategoryResource, VideoResource
 
 logger = logging.getLogger("trendora.connectors.youtube.client")
 
@@ -25,9 +25,10 @@ _USER_AGENT = "Trendora/0.0.1"
 
 
 class YouTubeClient:
-    """HTTPS client for the curated watchlist operations only.
+    """HTTPS client for YouTube Data API v3 list operations.
 
-    Implemented methods: channels.list, playlistItems.list, videos.list.
+    Implemented methods: channels.list, playlistItems.list, videos.list
+    (by id or chart=mostPopular), and videoCategories.list.
     search.list is intentionally not implemented.
     """
 
@@ -139,6 +140,74 @@ class YouTubeClient:
                     logger.warning("youtube.video.invalid_resource skipped malformed item")
         logger.info("youtube.videos.listed requested=%s returned=%s", len(unique_ids), len(resources))
         return resources
+
+    def list_video_categories(self, region_code: str) -> list[VideoCategoryResource]:
+        payload = self._get(
+            "videoCategories",
+            {
+                "part": "snippet",
+                "regionCode": region_code,
+            },
+        )
+        resources: list[VideoCategoryResource] = []
+        for raw in _items(payload):
+            try:
+                resources.append(VideoCategoryResource.model_validate(raw))
+            except ValidationError:
+                logger.warning("youtube.video_category.invalid_resource skipped malformed item")
+        logger.info(
+            "youtube.video_categories.listed region=%s returned=%s",
+            region_code,
+            len(resources),
+        )
+        return resources
+
+    def list_most_popular_videos(self, region_code: str, *, max_videos: int) -> list[VideoResource]:
+        if max_videos < 1:
+            return []
+        resources: list[VideoResource] = []
+        seen_ids: set[str] = set()
+        page_token: str | None = None
+        page = 0
+        while len(resources) < max_videos:
+            page += 1
+            remaining = max_videos - len(resources)
+            params: dict[str, str | int] = {
+                "part": "snippet,contentDetails,statistics",
+                "chart": "mostPopular",
+                "regionCode": region_code,
+                "maxResults": min(_MAX_IDS_PER_REQUEST, remaining),
+            }
+            if page_token:
+                params["pageToken"] = page_token
+            payload = self._get("videos", params)
+            items = _items(payload)
+            logger.info(
+                "youtube.most_popular.page region=%s page=%s items=%s collected=%s limit=%s",
+                region_code,
+                page,
+                len(items),
+                len(resources),
+                max_videos,
+            )
+            if not items:
+                break
+            for raw in items:
+                try:
+                    video = VideoResource.model_validate(raw)
+                except ValidationError:
+                    logger.warning("youtube.most_popular.invalid_resource skipped malformed item")
+                    continue
+                if video.id in seen_ids:
+                    continue
+                seen_ids.add(video.id)
+                resources.append(video)
+                if len(resources) >= max_videos:
+                    break
+            page_token = payload.get("nextPageToken")
+            if not page_token or len(resources) >= max_videos:
+                break
+        return resources[:max_videos]
 
     def _get(self, endpoint: str, params: Mapping[str, str | int]) -> dict[str, Any]:
         query = {**params, "key": self._api_key}

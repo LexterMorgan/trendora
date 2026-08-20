@@ -2,7 +2,7 @@
 
 AI-powered Social Media Intelligence Platform for Southeast Asian education, AI, and technology markets.
 
-**Status:** Milestone 2A complete — curated YouTube watchlist ingestion into the existing schema. FastAPI, Streamlit, analytics, ML, and other source connectors are not implemented.
+**Status:** Milestone 2A (curated YouTube watchlist) and Milestone 2B (regional YouTube `mostPopular`) ingest into the existing schema. FastAPI, Streamlit, analytics, ML, WebSub, and other source connectors are not implemented.
 
 ## What Trendora will answer
 
@@ -22,9 +22,9 @@ The product dashboard will remain Streamlit. The frontend will not be switched t
 
 ## Current milestone
 
-Milestone 2A is the first ingestion path: curated YouTube channels → connector → existing Trendora tables. See:
+Milestones 2A and 2B are the YouTube ingestion paths: a curated channel watchlist, plus regional `mostPopular` charts for the six seeded SEA markets. See:
 
-- [docs/04_INGESTION_PIPELINE.md](docs/04_INGESTION_PIPELINE.md) — M2A connector, config, and how to run it
+- [docs/04_INGESTION_PIPELINE.md](docs/04_INGESTION_PIPELINE.md) — M2A/M2B connectors, config, and how to run them
 - [PROJECT_PREP.md](PROJECT_PREP.md) — environment, MCP, and setup notes
 - [docs/01_ARCHITECTURE.md](docs/01_ARCHITECTURE.md) — layer boundaries and V1 database decision
 - [docs/02_DATABASE_SCHEMA.md](docs/02_DATABASE_SCHEMA.md) — tables, constraints, migrations
@@ -38,7 +38,7 @@ Milestone 2A is the first ingestion path: curated YouTube channels → connector
 | Database | PostgreSQL via SQLAlchemy + Alembic | Installed |
 | V1 development DB | Existing Supabase PostgreSQL project | In use |
 | HTTP | httpx (YouTube Data API v3 client) | Installed |
-| Connectors | YouTube curated watchlist only | M2A |
+| Connectors | YouTube watchlist + regional mostPopular | M2A + M2B |
 | API | FastAPI | Not installed |
 | Dashboard | Streamlit + Plotly | Not installed |
 | Data / ML | Pandas, NumPy, scikit-learn, statsmodels | Not installed |
@@ -84,8 +84,8 @@ Required for Alembic and any live database session:
 | `APP_NAME` | Optional. Defaults to `trendora`. |
 | `LOG_LEVEL` | Optional. Defaults to `INFO`. |
 | `YOUTUBE_API_KEY` | Required to run YouTube ingestion. YouTube Data API v3 key. Leave empty for unit tests. |
-| `YOUTUBE_CHANNEL_IDS` | Comma-separated 24-character channel IDs (`UC…`). Handles and URLs are rejected. |
-| `YOUTUBE_MAX_VIDEOS_PER_CHANNEL` | Optional. Caps uploads fetched per channel (default 50, max 500). |
+| `YOUTUBE_CHANNEL_IDS` | Comma-separated 24-character channel IDs (`UC…`). Handles and URLs are rejected. Required for watchlist ingest only; `most-popular` does not use this list. |
+| `YOUTUBE_MAX_VIDEOS_PER_CHANNEL` | Optional. Caps uploads fetched per watchlist channel (default 50, max 500). |
 
 V1 development uses the existing Supabase project (`https://ymzloduyggkcmapmiics.supabase.co`, database `postgres`). Copy the URI from Supabase → Project Settings → Database. Do not put the password in source, tests, or docs.
 
@@ -104,9 +104,11 @@ The initial revision is `0001_initial_schema`. It creates Trendora application t
 
 If the V1 database already has `alembic_version.version_num = 0001_initial_schema`, `alembic upgrade head` is a no-op.
 
-### YouTube ingestion (Milestone 2A)
+### YouTube ingestion (Milestones 2A and 2B)
 
 Manual, on-demand only. This is not a scheduler.
+
+Watchlist (M2A):
 
 ```bash
 python -m trendora.connectors.youtube
@@ -114,13 +116,23 @@ python -m trendora.connectors.youtube
 trendora-ingest-youtube
 ```
 
-Optional overrides:
+Optional watchlist overrides:
 
 ```bash
 python -m trendora.connectors.youtube --channel-ids UCxxxxxxxxxxxxxxxxxxxxxx --max-videos 20
 ```
 
-The connector stores publishers, content items, and append-only `metric_snapshots` (view/like/comment counts, plus channel view/subscriber/video counts when present). YouTube non-authorized stats and metadata get `retain_until` from the existing 30-day policies. It does not use `search.list`.
+Regional mostPopular (M2B). Default markets are ID, TH, MY, SG, VN, PH. Default cap is 50 videos per market. Does not require `YOUTUBE_CHANNEL_IDS`. Does not crawl discovered channels with `playlistItems.list`.
+
+```bash
+python -m trendora.connectors.youtube most-popular
+python -m trendora.connectors.youtube most-popular --markets ID,SG
+python -m trendora.connectors.youtube most-popular --max-videos 20
+```
+
+`regionCode` is stored as chart-origin metadata. `market_id` is still taken only from the channel `snippet.country` when it is a seeded SEA code.
+
+Both paths store publishers, content items, and append-only `metric_snapshots` (view/like/comment counts, plus channel view/subscriber/video counts when present). YouTube non-authorized stats and metadata get `retain_until` from the existing 30-day policies. Neither path uses `search.list`.
 
 Unit tests mock HTTP and never send `YOUTUBE_API_KEY` to Google.
 
@@ -146,7 +158,7 @@ src/trendora/          # application package
   db/                  # engine, session, declarative Base
   models/              # SQLAlchemy models
   reference.py         # deterministic V1 seed rows
-  connectors/          # source connectors (YouTube only in M2A)
+  connectors/          # source connectors (YouTube M2A watchlist + M2B mostPopular)
 alembic/               # Alembic env + versions
 tests/unit/            # no database required
 tests/integration/     # PostgreSQL, skipped without DATABASE_URL

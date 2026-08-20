@@ -2,9 +2,9 @@
 
 This file started as the Phase 0 audit (2026-08-18). The historical sections below are kept. Where they conflict with Milestone 1, the status in this section wins.
 
-## Current status (Milestone 1 — 2026-08-18)
+## Current status (Milestone 2B — 2026-08-20)
 
-Milestone 2A (YouTube curated watchlist connector) is implemented on top of Milestone 1. FastAPI, Streamlit, analytics, ML, AI, and other source connectors are still out of scope.
+Milestone 2A (YouTube curated watchlist connector) and Milestone 2B (regional YouTube `mostPopular` ingest for ID, TH, MY, SG, VN, PH) are implemented on top of Milestone 1. They persist into the existing tables. FastAPI, Streamlit, analytics, ML, AI, WebSub, Atom, schedulers, and other source connectors are still out of scope.
 
 - Git remote: `https://github.com/LexterMorgan/trendora.git` (branch `main`; no commits required by this milestone).
 - Python: `.venv` with CPython 3.12.14. Runtime packages: SQLAlchemy, psycopg, Alembic, pydantic-settings. Dev: pytest. FastAPI, Streamlit, pandas, and ML libraries are still not installed.
@@ -15,7 +15,7 @@ Milestone 2A (YouTube curated watchlist connector) is implemented on top of Mile
 
 Stale Phase 0 claims to ignore: “no remote”, “no application code”, “do not install SQLAlchemy”, “no Supabase project”, “development database is local PostgreSQL only”, “recommended next step is still Phase 0”.
 
-Recommended next milestone: verify a real watchlist ingest against the V1 database (manual `python -m trendora.connectors.youtube`), then M2B only if requested (for example WebSub or regional mostPopular — not started).
+Recommended next milestone: only if requested. Do not assume WebSub, Atom, other sources, or a scheduler. M2B is regional `mostPopular` only (`python -m trendora.connectors.youtube most-popular`).
 
 Research date: 2026-08-18.
 

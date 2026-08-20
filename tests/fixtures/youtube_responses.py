@@ -4,10 +4,13 @@ from __future__ import annotations
 
 CHANNEL_A = "UCAAAAAAAAAAAAAAAAAAAAAA"
 CHANNEL_B = "UCBBBBBBBBBBBBBBBBBBBBBB"
+CHANNEL_C = "UCCCCCCCCCCCCCCCCCCCCCCC"
 UPLOADS_A = "UUAAAAAAAAAAAAAAAAAAAAAA"
 VIDEO_1 = "videoAAAAAA"
 VIDEO_2 = "videoBBBBBB"
 VIDEO_3 = "videoCCCCCC"
+VIDEO_CHART_1 = "videoCHART01"
+VIDEO_NO_CHANNEL = "videoNOCHAN1"
 
 CHANNELS_LIST_OK = {
     "kind": "youtube#channelListResponse",
@@ -141,3 +144,140 @@ QUOTA_ERROR = {
 }
 
 MALFORMED_LIST_ITEMS = {"items": "not-a-list"}
+
+VIDEO_CATEGORIES_ID = {
+    "kind": "youtube#videoCategoryListResponse",
+    "items": [
+        {
+            "kind": "youtube#videoCategory",
+            "id": "24",
+            "snippet": {"title": "Entertainment", "assignable": True},
+        },
+        {
+            "kind": "youtube#videoCategory",
+            "id": "27",
+            "snippet": {"title": "Education", "assignable": True},
+        },
+        {
+            "kind": "youtube#videoCategory",
+            "id": "28",
+            "snippet": {"title": "Science & Technology", "assignable": True},
+        },
+    ],
+}
+
+VIDEO_CATEGORIES_SG = {
+    "kind": "youtube#videoCategoryListResponse",
+    "items": [
+        {
+            "kind": "youtube#videoCategory",
+            "id": "24",
+            "snippet": {"title": "Entertainment", "assignable": True},
+        },
+        {
+            "kind": "youtube#videoCategory",
+            "id": "27",
+            "snippet": {"title": "Education (SG)", "assignable": True},
+        },
+        {
+            "kind": "youtube#videoCategory",
+            "id": "28",
+            "snippet": {"title": "Science & Technology", "assignable": True},
+        },
+    ],
+}
+
+
+def _chart_video(
+    video_id: str,
+    *,
+    channel_id: str | None,
+    title: str,
+    category_id: str = "27",
+    view_count: str = "100",
+) -> dict:
+    snippet: dict = {
+        "title": title,
+        "publishedAt": "2024-06-01T00:00:00Z",
+        "categoryId": category_id,
+    }
+    if channel_id is not None:
+        snippet["channelId"] = channel_id
+    return {
+        "id": video_id,
+        "snippet": snippet,
+        "contentDetails": {"duration": "PT1M", "definition": "hd", "caption": "false"},
+        "statistics": {
+            "viewCount": view_count,
+            "likeCount": "1",
+            "commentCount": "0",
+        },
+    }
+
+
+MOSTPOPULAR_ID_PAGE_1 = {
+    "nextPageToken": "PAGE2",
+    "items": [
+        _chart_video(VIDEO_1, channel_id=CHANNEL_A, title="Intro to Python", category_id="27"),
+        _chart_video(VIDEO_2, channel_id=CHANNEL_A, title="Stats missing likes", category_id="27"),
+    ],
+}
+
+MOSTPOPULAR_ID_PAGE_2 = {
+    "items": [
+        _chart_video(
+            VIDEO_CHART_1,
+            channel_id=CHANNEL_C,
+            title="US viral clip",
+            category_id="24",
+            view_count="9000",
+        ),
+    ]
+}
+
+MOSTPOPULAR_SG = {
+    "items": [
+        _chart_video(VIDEO_1, channel_id=CHANNEL_A, title="Intro to Python", category_id="27"),
+        _chart_video(
+            VIDEO_CHART_1,
+            channel_id=CHANNEL_C,
+            title="US viral clip",
+            category_id="24",
+            view_count="9000",
+        ),
+    ]
+}
+
+MOSTPOPULAR_EMPTY = {"items": []}
+
+MOSTPOPULAR_NO_CHANNEL_ID = {
+    "items": [
+        _chart_video(VIDEO_NO_CHANNEL, channel_id=None, title="Orphan chart video"),
+        _chart_video(VIDEO_1, channel_id=CHANNEL_A, title="Intro to Python"),
+    ]
+}
+
+CHANNELS_LIST_A_AND_C = {
+    "kind": "youtube#channelListResponse",
+    "items": [
+        CHANNELS_LIST_OK["items"][0],
+        {
+            "kind": "youtube#channel",
+            "id": CHANNEL_C,
+            "snippet": {
+                "title": "US Chart Channel",
+                "description": "Not a SEA publisher",
+                "customUrl": "@uschart",
+                "publishedAt": "2019-01-01T00:00:00Z",
+                "country": "US",
+            },
+            "contentDetails": {"relatedPlaylists": {"uploads": "UUCCCCCCCCCCCCCCCCCCCCCC"}},
+            "statistics": {
+                "viewCount": "50000",
+                "subscriberCount": "800",
+                "hiddenSubscriberCount": False,
+                "videoCount": "12",
+            },
+        },
+    ],
+}
