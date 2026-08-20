@@ -1,6 +1,6 @@
 # 04 — Ingestion pipeline
 
-Status: Milestone 2A implements a curated YouTube watchlist connector. Milestone 2B adds a sibling regional `mostPopular` ingest. Milestone 3A adds a sibling Hacker News connector. WebSub, Atom, FastAPI, scheduling, and other sources are not implemented.
+Status: Milestone 2A implements a curated YouTube watchlist connector. Milestone 2B adds a sibling regional `mostPopular` ingest. Milestone 3A adds a sibling Hacker News connector. Milestone 3B adds a sibling Stack Exchange question connector. WebSub, Atom, FastAPI, scheduling, and other sources are not implemented.
 
 ## Implemented flow (M2A — curated watchlist)
 
@@ -97,6 +97,49 @@ Existing tables only (no M3A migration):
 
 The seeded `hacker_news` source row from Milestone 1 is reused. YouTube retention policies are not applied to HN rows.
 
+## Implemented flow (M3B — Stack Exchange)
+
+```text
+site slug(s) (default stackoverflow, datascience)
+        ↓
+GET /2.3/questions (sort=activity, order=desc, paginated, capped)
+        ↓
+validate wrapper + question resources
+        ↓
+normalize to content_item / metric_snapshot records
+        ↓
+SQLAlchemy persist (existing Milestone 1 tables)
+        ↓
+PostgreSQL
+```
+
+Stack Exchange is a programming/data-science Q&A overlay, not a SEA-market signal. `market_id` is always unset. Question authors are not persisted as publishers. Answers, comments, and users are not ingested as separate Trendora entities. `/search` and `/search/advanced` are not used. Sites are explicit CLI inputs; the connector does not discover or crawl the rest of the network.
+
+Question IDs are site-scoped, so identity is `(source=stack_exchange, external_id="{site}:{question_id}")`. The numeric `question_id` remains in `source_metadata`. Native tags stay in `source_metadata` only; they are not mapped onto Trendora topics and do not create `content_item_topics` rows. One timezone-aware `collected_at` is used for the whole run (every selected site).
+
+Optional `STACKEXCHANGE_API_KEY` raises the API quota. It is not required. If the API returns `backoff`, the client waits at least that many seconds before the next Stack Exchange request. Requests are sequential.
+
+### How to run (manual)
+
+```bash
+python -m trendora.connectors.stackexchange
+python -m trendora.connectors.stackexchange --sites stackoverflow --max-items 5
+python -m trendora.connectors.stackexchange --sites stackoverflow,datascience --max-items 10
+python -m trendora.connectors.stackexchange --sites stackoverflow --max-items 20 --tags python,sql
+```
+
+Defaults: sites `stackoverflow,datascience`; 50 questions per site. URLs and domain names are rejected. More than five tags is a configuration error. This is not a scheduler.
+
+### What is stored
+
+Existing tables only (no M3B migration):
+
+- `content_items` — questions `(source=stack_exchange, external_id=site:question_id)`, `content_type=question`, `publisher_id` unset, `market_id` unset
+- `metric_snapshots` — append-only `score`, `view_count`, and `answer_count` when present and non-negative
+- Stack Exchange extras in `source_metadata` JSONB (`site`, `question_id`, `tags`, `is_answered`, `answer_count`, optional `accepted_answer_id` / `owner` / `content_license`)
+
+The seeded `stack_exchange` source row from Milestone 1 is reused. Question bodies are not requested or stored in M3B.
+
 ## How to configure
 
 Set these in `.env` (never commit the real key):
@@ -106,6 +149,7 @@ Set these in `.env` (never commit the real key):
 | `YOUTUBE_API_KEY` | YouTube Data API v3 key from Google Cloud Console. Required for both M2A and M2B. |
 | `YOUTUBE_CHANNEL_IDS` | Comma-separated 24-character channel IDs starting with `UC`. Required for M2A only. M2B does not use this list. |
 | `YOUTUBE_MAX_VIDEOS_PER_CHANNEL` | Cap on uploads fetched per watchlist channel (default 50). M2A only. |
+| `STACKEXCHANGE_API_KEY` | Optional. Stack Exchange API key. M3B works without it. |
 
 Missing API key fails with an actionable error. Handles (`@name`) and channel URLs are rejected for the watchlist. M2B rejects unknown market codes.
 
@@ -157,9 +201,9 @@ No new retention period was invented. Cleanup jobs are still not implemented.
 
 ## Tests and quota
 
-Unit tests inject `httpx.MockTransport` or a fake client. They must not call Google or the live Hacker News API and do not need a YouTube API key.
+Unit tests inject `httpx.MockTransport` or a fake client. They must not call Google, the live Hacker News API, or the live Stack Exchange API, and do not need a YouTube API key.
 
-PostgreSQL persistence tests are integration tests: they skip without `DATABASE_URL` / `TRENDORA_TEST_DATABASE_URL`, roll back, and never call YouTube or Hacker News. Assertions are scoped to fixture `external_id` values because the database may already contain real ingested rows.
+PostgreSQL persistence tests are integration tests: they skip without `DATABASE_URL` / `TRENDORA_TEST_DATABASE_URL`, roll back, and never call YouTube, Hacker News, or Stack Exchange. Assertions are scoped to fixture `external_id` values because the database may already contain real ingested rows.
 
 Approximate Data API costs (1 unit each): `videoCategories.list`, `videos.list`, `channels.list`. A six-market M2B run at 50 videos/market is on the order of tens of quota units. Do not use `search.list`.
 
@@ -184,6 +228,13 @@ src/trendora/connectors/
     persistence.py
     connector.py
     cli.py
+  stackexchange/
+    client.py
+    schemas.py
+    normalizer.py
+    persistence.py
+    connector.py
+    cli.py
 ```
 
 Future sources should add a sibling package. Do not put Instagram/TikTok/etc. stubs here.
@@ -195,12 +246,13 @@ Future sources should add a sibling package. Do not put Instagram/TikTok/etc. st
 - Never scrape YouTube.
 - Do not silently swallow HTTP, API, validation, or database integrity errors.
 
-## Not in M2A / M2B / M3A
+## Not in M2A / M2B / M3A / M3B
 
 - Scheduler / cron / workers
 - OAuth / YouTube Analytics API
 - WebSub / Atom
 - `search.list` / playlist crawling of chart-discovered channels
 - HN Ask/Show/jobs feeds or user ingestion
-- Stack Exchange, GitHub, Wikimedia, GDELT, or other source connectors
+- Stack Exchange answers, users, comments, `/search`, site discovery, or body ingest
+- GitHub, Wikimedia, GDELT, or other source connectors
 - FastAPI / Streamlit / analytics / ML / AI

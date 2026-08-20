@@ -2,7 +2,7 @@
 
 AI-powered Social Media Intelligence Platform for Southeast Asian education, AI, and technology markets.
 
-**Status:** Milestone 2A (YouTube watchlist), Milestone 2B (regional YouTube `mostPopular`), and Milestone 3A (Hacker News stories) ingest into the existing schema. FastAPI, Streamlit, analytics, ML, WebSub, and other source connectors are not implemented.
+**Status:** Milestone 2A (YouTube watchlist), Milestone 2B (regional YouTube `mostPopular`), Milestone 3A (Hacker News stories), and Milestone 3B (Stack Exchange questions) ingest into the existing schema. FastAPI, Streamlit, analytics, ML, WebSub, and other source connectors are not implemented.
 
 ## What Trendora will answer
 
@@ -22,7 +22,7 @@ The product dashboard will remain Streamlit. The frontend will not be switched t
 
 ## Current milestone
 
-Milestones 2A, 2B, and 3A are the implemented ingestion paths: a curated YouTube watchlist, regional YouTube `mostPopular` charts, and Hacker News top/new/best stories. See:
+Milestones 2A, 2B, 3A, and 3B are the implemented ingestion paths: a curated YouTube watchlist, regional YouTube `mostPopular` charts, Hacker News top/new/best stories, and Stack Exchange questions. See:
 
 - [docs/04_INGESTION_PIPELINE.md](docs/04_INGESTION_PIPELINE.md) — connectors, config, and how to run them
 - [PROJECT_PREP.md](PROJECT_PREP.md) — environment, MCP, and setup notes
@@ -38,7 +38,7 @@ Milestones 2A, 2B, and 3A are the implemented ingestion paths: a curated YouTube
 | Database | PostgreSQL via SQLAlchemy + Alembic | Installed |
 | V1 development DB | Existing Supabase PostgreSQL project | In use |
 | HTTP | httpx (YouTube Data API v3 client) | Installed |
-| Connectors | YouTube watchlist + mostPopular; Hacker News stories | M2A + M2B + M3A |
+| Connectors | YouTube watchlist + mostPopular; Hacker News stories; Stack Exchange questions | M2A + M2B + M3A + M3B |
 | API | FastAPI | Not installed |
 | Dashboard | Streamlit + Plotly | Not installed |
 | Data / ML | Pandas, NumPy, scikit-learn, statsmodels | Not installed |
@@ -86,6 +86,7 @@ Required for Alembic and any live database session:
 | `YOUTUBE_API_KEY` | Required to run YouTube ingestion. YouTube Data API v3 key. Leave empty for unit tests. |
 | `YOUTUBE_CHANNEL_IDS` | Comma-separated 24-character channel IDs (`UC…`). Handles and URLs are rejected. Required for watchlist ingest only; `most-popular` does not use this list. |
 | `YOUTUBE_MAX_VIDEOS_PER_CHANNEL` | Optional. Caps uploads fetched per watchlist channel (default 50, max 500). |
+| `STACKEXCHANGE_API_KEY` | Optional. Stack Exchange API key for a higher request quota. M3B works without it. |
 
 V1 development uses the existing Supabase project (`https://ymzloduyggkcmapmiics.supabase.co`, database `postgres`). Copy the URI from Supabase → Project Settings → Database. Do not put the password in source, tests, or docs.
 
@@ -155,6 +156,27 @@ python -m trendora.connectors.hackernews --feeds topstories,beststories --max-it
 
 Defaults are `topstories,newstories,beststories` and 50 items per feed. Stories are stored as `content_items` (`content_type=story`) with append-only `score` and `comment_count` snapshots. `market_id` is unset. HN authors are not created as publishers. Does not require YouTube configuration.
 
+### Stack Exchange ingestion (Milestone 3B)
+
+Manual, on-demand only. This is not a scheduler. Uses the official Stack Exchange API v2.3 `/questions` endpoint. Does not scrape. Does not ingest answers, comments, or users as Trendora entities.
+
+```bash
+python -m trendora.connectors.stackexchange \
+  --sites stackoverflow \
+  --max-items 5
+# equivalent:
+trendora-ingest-stackexchange --sites stackoverflow --max-items 5
+```
+
+Optional overrides:
+
+```bash
+python -m trendora.connectors.stackexchange --sites stackoverflow,datascience --max-items 10
+python -m trendora.connectors.stackexchange --sites stackoverflow --max-items 20 --tags python,sql
+```
+
+The default M3B run observes `stackoverflow` and `datascience` with a bounded cap of 50 questions per site. Sites must be explicit slugs (not URLs or domain names). At most five tags are accepted; they are sent as `tagged=` and stored only in `source_metadata`. Questions are stored as `content_items` (`content_type=question`) with append-only `score`, `view_count`, and `answer_count` snapshots. `publisher_id` and `market_id` stay unset. Does not require `STACKEXCHANGE_API_KEY`.
+
 ### Tests
 
 ```bash
@@ -177,7 +199,7 @@ src/trendora/          # application package
   db/                  # engine, session, declarative Base
   models/              # SQLAlchemy models
   reference.py         # deterministic V1 seed rows
-  connectors/          # YouTube (M2A/M2B) and Hacker News (M3A)
+  connectors/          # YouTube (M2A/M2B), Hacker News (M3A), Stack Exchange (M3B)
 alembic/               # Alembic env + versions
 tests/unit/            # no database required
 tests/integration/     # PostgreSQL, skipped without DATABASE_URL

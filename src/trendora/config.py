@@ -34,6 +34,7 @@ class Settings(BaseSettings):
         le=500,
         alias="YOUTUBE_MAX_VIDEOS_PER_CHANNEL",
     )
+    stackexchange_api_key: str | None = Field(default=None, alias="STACKEXCHANGE_API_KEY")
 
     @field_validator("database_url")
     @classmethod
@@ -50,9 +51,9 @@ class Settings(BaseSettings):
             )
         return url
 
-    @field_validator("youtube_api_key", mode="before")
+    @field_validator("youtube_api_key", "stackexchange_api_key", mode="before")
     @classmethod
-    def blank_youtube_key_to_none(cls, value: object) -> str | None:
+    def blank_optional_key_to_none(cls, value: object) -> str | None:
         if value is None:
             return None
         text = str(value).strip()
