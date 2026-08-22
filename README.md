@@ -2,7 +2,7 @@
 
 AI-powered Social Media Intelligence Platform for Southeast Asian education, AI, and technology markets.
 
-**Status:** Milestones 2A–4 ingest into the existing schema. Milestone 5 is the analytics read layer. Milestone 6A adds in-memory forecasting baselines (naive, moving average, simple exponential smoothing) over M5 series. FastAPI, Streamlit, advanced ML, WebSub, and other source connectors are not implemented.
+**Status:** Milestones 2A–4 ingest; M5 analytics; M6A in-memory forecast baselines. M6B documents evaluation/model-selection boundaries (no new forecast code). FastAPI, Streamlit, advanced ML, WebSub, and other source connectors are not implemented.
 
 ## What Trendora will answer
 
@@ -22,11 +22,11 @@ The product dashboard will remain Streamlit. The frontend will not be switched t
 
 ## Current milestone
 
-Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 5 is the analytics read layer. Milestone 6A is in-memory forecasting baselines. See:
+Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 5 is the analytics read layer. Milestone 6A is in-memory forecasting baselines. Milestone 6B is evaluation/model-selection documentation only. See:
 
 - [docs/04_INGESTION_PIPELINE.md](docs/04_INGESTION_PIPELINE.md) — connectors, config, and how to run them
 - [docs/05_ANALYTICS_SPEC.md](docs/05_ANALYTICS_SPEC.md) — observation contracts and candidate KPI caveats
-- [docs/06_ML_FORECASTING.md](docs/06_ML_FORECASTING.md) — M6A baselines, holdout MAE, and later ML non-goals
+- [docs/06_ML_FORECASTING.md](docs/06_ML_FORECASTING.md) — M6A baselines, M6B evaluation protocol, open decisions
 - [PROJECT_PREP.md](PROJECT_PREP.md) — environment, MCP, and setup notes
 - [docs/01_ARCHITECTURE.md](docs/01_ARCHITECTURE.md) — layer boundaries and V1 database decision
 - [docs/02_DATABASE_SCHEMA.md](docs/02_DATABASE_SCHEMA.md) — tables, constraints, migrations
@@ -205,7 +205,7 @@ Use `AnalyticsService.from_session(session)` to load a `MetricSeries` or a Trend
 
 ### Forecasting (Milestone 6A)
 
-In-memory baselines over M5 `MetricSeries`: naive, moving average, and simple exponential smoothing. `ForecastingService` calls `AnalyticsService`; it does not query snapshots or write. Interval and horizon are explicit. No resampling or imputation. Chronological holdout MAE only. See [docs/06_ML_FORECASTING.md](docs/06_ML_FORECASTING.md). Not ARIMA, dashboards, or persisted forecasts.
+In-memory baselines over M5 `MetricSeries`: naive, moving average, and simple exponential smoothing. `ForecastingService` calls `AnalyticsService`; it does not query snapshots or write. Interval and horizon are explicit. No resampling or imputation. Chronological holdout MAE only. Evaluation and model-selection **decisions** (which series, horizons, vs-naive rule, persistence) are documented as open in [docs/06_ML_FORECASTING.md](docs/06_ML_FORECASTING.md). Not ARIMA, dashboards, or persisted forecasts.
 
 ### Tests
 

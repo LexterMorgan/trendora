@@ -2,9 +2,9 @@
 
 This file started as the Phase 0 audit (2026-08-18). The historical sections below are kept. Where they conflict with Milestone 1, the status in this section wins.
 
-## Current status (Milestone 6A — 2026-08-22)
+## Current status (Milestone 6B — 2026-08-22)
 
-Milestone 2A–4 ingestion, Milestone 5 (analytics over `metric_snapshots`), and Milestone 6A (in-memory naive / moving-average / SES forecasts over M5 series) are implemented on top of Milestone 1. FastAPI, Streamlit, advanced ML, AI, WebSub, Atom, schedulers, Wikimedia, and GDELT are still out of scope.
+Milestone 2A–4 ingestion, Milestone 5 (analytics), and Milestone 6A (in-memory naive / moving-average / SES) are implemented. Milestone 6B updates [docs/06_ML_FORECASTING.md](docs/06_ML_FORECASTING.md) only: evaluation protocol, candidate-model matrix, and open product decisions. No new forecast code, schema, or ML libraries. FastAPI, Streamlit, advanced ML, AI, WebSub, Atom, schedulers, Wikimedia, and GDELT are still out of scope.
 
 - Git remote: `https://github.com/LexterMorgan/trendora.git` (branch `main`; no commits required by this milestone).
 - Python: `.venv` with CPython 3.12.14. Runtime packages: SQLAlchemy, psycopg, Alembic, pydantic-settings. Dev: pytest. FastAPI, Streamlit, pandas, and ML libraries are still not installed. M6A baselines use the standard library.
