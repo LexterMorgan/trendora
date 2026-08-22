@@ -6,6 +6,8 @@ from trendora.forecasting.exceptions import (
     InsufficientHistoryError,
 )
 from trendora.forecasting.models import (
+    ComparisonRequest,
+    ComparisonResult,
     EvaluationRequest,
     EvaluationResult,
     ForecastModel,
@@ -16,6 +18,8 @@ from trendora.forecasting.models import (
 from trendora.forecasting.service import ForecastingService
 
 __all__ = [
+    "ComparisonRequest",
+    "ComparisonResult",
     "EvaluationRequest",
     "EvaluationResult",
     "ForecastModel",

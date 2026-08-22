@@ -1,6 +1,6 @@
 # 10 — Testing and evaluation
 
-Status: Phase 0 placeholder for API/dashboard tests. Application unit/integration tests exist under `tests/`. Forecast evaluation for M6A is implemented as observation-count chronological holdout + MAE; the protocol and open decisions live in [06_ML_FORECASTING.md](06_ML_FORECASTING.md).
+Status: Phase 0 placeholder for API/dashboard tests. Application unit/integration tests exist under `tests/`. Forecast evaluation for M6A is observation-count chronological holdout + MAE. M6C adds naive-vs-challenger MAE comparison. Protocol and open decisions live in [06_ML_FORECASTING.md](06_ML_FORECASTING.md).
 
 ## Later layers
 
@@ -9,7 +9,7 @@ Status: Phase 0 placeholder for API/dashboard tests. Application unit/integratio
 | Unit | validators, quota math, normalization |
 | Connector contract | recorded official JSON fixtures (no live quota burn in CI by default) |
 | Analytics | KPI formulas vs golden snapshots |
-| Forecast | M6A: chronological observation holdout, MAE, positional compare on irregular times. Naive-vs-challenger **comparison object** and calendar-time holdouts: see [06](06_ML_FORECASTING.md) (open / next slice) |
+| Forecast | M6A: chronological observation holdout, MAE, positional compare on irregular times. M6C: naive-vs-challenger MAE comparison object (in-memory). Calendar-time holdouts remain open in [06](06_ML_FORECASTING.md) |
 | API | FastAPI TestClient |
 | Dashboard | smoke that Streamlit pages import |
 

@@ -10,6 +10,8 @@ from trendora.analytics.repository import ObservationQuery, validate_observation
 from trendora.analytics.service import AnalyticsService
 from trendora.forecasting.exceptions import ForecastingValidationError, InsufficientHistoryError
 from trendora.forecasting.models import (
+    ComparisonRequest,
+    ComparisonResult,
     EvaluationRequest,
     EvaluationResult,
     ForecastModel,
@@ -36,6 +38,11 @@ class ForecastingService:
         _validate_evaluation_request(request)
         series = self._analytics.get_metric_series(request.query)
         return evaluate_series(series, request)
+
+    def compare(self, request: ComparisonRequest) -> ComparisonResult:
+        _validate_comparison_request(request)
+        series = self._analytics.get_metric_series(request.query)
+        return compare_series(series, request)
 
 
 def forecast_series(series: MetricSeries, request: ForecastRequest) -> ForecastResult:
@@ -101,6 +108,53 @@ def evaluate_series(series: MetricSeries, request: EvaluationRequest) -> Evaluat
     )
 
 
+def compare_series(series: MetricSeries, request: ComparisonRequest) -> ComparisonResult:
+    _validate_comparison_request(request)
+    naive = evaluate_series(
+        series,
+        EvaluationRequest(
+            query=request.query,
+            model=ForecastModel.NAIVE,
+            holdout=request.holdout,
+            interval=request.interval,
+        ),
+    )
+    challenger = evaluate_series(
+        series,
+        EvaluationRequest(
+            query=request.query,
+            model=request.challenger,
+            holdout=request.holdout,
+            interval=request.interval,
+            window=request.window,
+            alpha=request.alpha,
+        ),
+    )
+    assert naive.training_observation_count == challenger.training_observation_count
+    assert naive.test_observation_count == challenger.test_observation_count
+    assert naive.holdout_start == challenger.holdout_start
+    assert naive.holdout_end == challenger.holdout_end
+    assert request.query.source_code is not None
+    assert request.query.metric_name is not None
+    return ComparisonResult(
+        source_code=request.query.source_code,
+        metric_name=request.query.metric_name,
+        holdout=request.holdout,
+        interval=request.interval,
+        challenger=request.challenger,
+        naive_mae=naive.mae,
+        challenger_mae=challenger.mae,
+        training_observation_count=naive.training_observation_count,
+        test_observation_count=naive.test_observation_count,
+        holdout_start=naive.holdout_start,
+        holdout_end=naive.holdout_end,
+        challenger_beats_naive=challenger.mae < naive.mae,
+        origin=_ORIGIN,
+        content_item_id=request.query.content_item_id,
+        publisher_id=request.query.publisher_id,
+    )
+
+
 def _validate_forecast_request(request: ForecastRequest) -> None:
     _validate_identity(request.query)
     _validate_model_params(request.model, request.window, request.alpha)
@@ -115,6 +169,31 @@ def _validate_evaluation_request(request: EvaluationRequest) -> None:
     if request.holdout < 1:
         raise ForecastingValidationError("holdout must be a positive integer")
     _require_positive_interval(request.interval)
+
+
+def _validate_comparison_request(request: ComparisonRequest) -> None:
+    if request.challenger is ForecastModel.NAIVE:
+        raise ForecastingValidationError(
+            "challenger must be moving_average or simple_exponential_smoothing"
+        )
+    _validate_evaluation_request(
+        EvaluationRequest(
+            query=request.query,
+            model=ForecastModel.NAIVE,
+            holdout=request.holdout,
+            interval=request.interval,
+        )
+    )
+    _validate_evaluation_request(
+        EvaluationRequest(
+            query=request.query,
+            model=request.challenger,
+            holdout=request.holdout,
+            interval=request.interval,
+            window=request.window,
+            alpha=request.alpha,
+        )
+    )
 
 
 def _validate_identity(query: ObservationQuery) -> None:

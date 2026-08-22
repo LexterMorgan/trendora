@@ -1,6 +1,6 @@
 # 06 — ML and forecasting
 
-Status: **M6A implemented** (in-memory baselines). **M6B is documentation only** (evaluation and model-selection research). This is not a complete ML platform and not a dashboard/API.
+Status: **M6A implemented** (in-memory baselines). **M6B** documented evaluation boundaries. **M6C implemented** (in-memory naive vs one challenger). Not a complete ML platform and not a dashboard/API.
 
 Architecture (unchanged):
 
@@ -8,6 +8,7 @@ Architecture (unchanged):
 connectors → persistence → metric_snapshots
   → M5 AnalyticsRepository / AnalyticsService → MetricSeries
   → M6A ForecastingService → ForecastResult / EvaluationResult
+  → M6C compare → ComparisonResult
 ```
 
 Forecasting must consume M5. It must not query `metric_snapshots` directly, call connectors, or add a second SQL path.
@@ -36,7 +37,9 @@ No trend, seasonality, ARIMA, Prophet, ensembles, neural nets, or LLM-as-forecas
 
 **Evaluation (M6A):** chronological holdout of the last `holdout` observations. Train is the strict prefix. MAE only. Forecast `holdout` steps with the supplied interval; compare **positionally** (forecast `i` vs held-out observation `i`). Held-out timestamps need not equal generated forecast timestamps. Test rows do not enter fitting. Evaluation reuses `forecast_series`.
 
-**Not in M6A:** persistence, FastAPI, Streamlit, scheduler, new dependencies, prediction intervals, daily aggregation, model-vs-naive comparison API, production model selection.
+**Comparison (M6C):** `ComparisonRequest` → one M5 load → `evaluate_series` twice (naive, then one challenger). Same series, same `holdout`, same `interval`. `window` / `alpha` stay explicit (no defaults). `challenger_beats_naive` is `challenger_mae < naive_mae`; a tie is false. Evaluation artifact only; not a production winner.
+
+**Not in M6A/M6C:** persistence, FastAPI, Streamlit, scheduler, new dependencies, prediction intervals, daily aggregation, production model selection.
 
 Connectors currently set `observed_at = collected_at` at ingest. Collection cadence is whatever the operator runs; it is not a regular daily grid.
 
@@ -185,20 +188,9 @@ FastAPI and Streamlit remain future milestones.
 
 ## 9. Next implementation slice
 
-**Not next:** FastAPI, Streamlit, schema, resampling, Holt/ARIMA, pandas/sklearn, anomaly/NLP, connector changes, invented horizons.
+**M6C (implemented):** `ForecastingService.compare` / `compare_series`. Same M5 series, same observation-count holdout, same explicit interval. Evaluates naive and exactly one caller-chosen M6A challenger (`moving_average` or `simple_exponential_smoothing`) via existing `evaluate_series`. `window` / `alpha` remain required and explicit. Result includes both MAEs and `challenger_beats_naive` (`challenger_mae < naive_mae`; tie is false). Origin `trendora_forecast`. This is an evaluation artifact, not a production winner.
 
-**Smallest unambiguous code slice (M6C), only if requested:**
-
-In-memory **naive comparison** on top of existing `ForecastingService.evaluate`:
-
-- Same M5 query, same `holdout`, same `interval`.
-- Evaluate `naive` and one implemented challenger (`moving_average` or `simple_exponential_smoothing`) with caller-supplied `window`/`alpha` (still explicit; no search).
-- Return both MAEs, counts, holdout bounds, and whether challenger MAE is strictly less than naive MAE.
-- No new models, no writes, no new dependencies, no dashboard.
-
-That implements the “naive baseline comparison” intent in [10](10_TESTING_EVALUATION.md) without resolving decisions 1–12 as product law. It must **not** declare a dashboard winner or a default `window`/`alpha`.
-
-Anything larger (volume KPIs, Holt, persistence, API) stays blocked on section 8.
+**Still not next:** FastAPI, Streamlit, schema, resampling, Holt/ARIMA, pandas/sklearn, anomaly/NLP, connector changes, invented horizons/defaults. Anything larger stays blocked on section 8.
 
 ---
 

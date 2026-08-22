@@ -71,3 +71,37 @@ class EvaluationResult:
     holdout_start: datetime
     holdout_end: datetime
     origin: str
+
+
+@dataclass(frozen=True)
+class ComparisonRequest:
+    """Naive vs one M6A challenger on the same M5 series and holdout.
+
+    Not a production model-selection decision.
+    """
+
+    query: ObservationQuery
+    challenger: ForecastModel
+    holdout: int
+    interval: timedelta
+    window: int | None = None
+    alpha: float | None = None
+
+
+@dataclass(frozen=True)
+class ComparisonResult:
+    source_code: str
+    metric_name: str
+    holdout: int
+    interval: timedelta
+    challenger: ForecastModel
+    naive_mae: float
+    challenger_mae: float
+    training_observation_count: int
+    test_observation_count: int
+    holdout_start: datetime
+    holdout_end: datetime
+    challenger_beats_naive: bool
+    origin: str
+    content_item_id: UUID | None = None
+    publisher_id: UUID | None = None
