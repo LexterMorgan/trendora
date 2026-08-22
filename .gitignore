@@ -40,3 +40,6 @@ logs/
 
 # Alembic
 alembic/versions/*.pyc
+
+# Local Cursor MCP configuration
+.cursor/mcp.json
