@@ -37,7 +37,7 @@ Safe aggregations only:
 
 Source observations remain distinguishable from Trendora-derived aggregates. Official API fields (for example YouTube `view_count`) are returned as stored. They are not rewritten into new business metrics.
 
-M6 is forecasting. Later milestones may consume these contracts. M5 is not forecasting, not a dashboard, and not AI.
+M5 is not a dashboard and not AI. M6A consumes these contracts for in-memory baselines.
 
 ## Candidate KPI families (not finalized)
 

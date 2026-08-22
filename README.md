@@ -2,7 +2,7 @@
 
 AI-powered Social Media Intelligence Platform for Southeast Asian education, AI, and technology markets.
 
-**Status:** Milestones 2A–4 ingest into the existing schema. Milestone 5 adds a deterministic, read-only analytics foundation over `metric_snapshots`. FastAPI, Streamlit, forecasting, ML, WebSub, and other source connectors are not implemented.
+**Status:** Milestones 2A–4 ingest into the existing schema. Milestone 5 is the analytics read layer. Milestone 6A adds in-memory forecasting baselines (naive, moving average, simple exponential smoothing) over M5 series. FastAPI, Streamlit, advanced ML, WebSub, and other source connectors are not implemented.
 
 ## What Trendora will answer
 
@@ -22,10 +22,11 @@ The product dashboard will remain Streamlit. The frontend will not be switched t
 
 ## Current milestone
 
-Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 5 is the analytics read layer over those observations. See:
+Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 5 is the analytics read layer. Milestone 6A is in-memory forecasting baselines. See:
 
 - [docs/04_INGESTION_PIPELINE.md](docs/04_INGESTION_PIPELINE.md) — connectors, config, and how to run them
 - [docs/05_ANALYTICS_SPEC.md](docs/05_ANALYTICS_SPEC.md) — observation contracts and candidate KPI caveats
+- [docs/06_ML_FORECASTING.md](docs/06_ML_FORECASTING.md) — M6A baselines, holdout MAE, and later ML non-goals
 - [PROJECT_PREP.md](PROJECT_PREP.md) — environment, MCP, and setup notes
 - [docs/01_ARCHITECTURE.md](docs/01_ARCHITECTURE.md) — layer boundaries and V1 database decision
 - [docs/02_DATABASE_SCHEMA.md](docs/02_DATABASE_SCHEMA.md) — tables, constraints, migrations
@@ -41,6 +42,7 @@ Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 
 | HTTP | httpx (YouTube Data API v3 client) | Installed |
 | Connectors | YouTube watchlist + mostPopular; Hacker News stories; Stack Exchange questions; GitHub repositories | M2A + M2B + M3A + M3B + M4 |
 | Analytics | Read-only observation/query layer over `metric_snapshots` | M5 |
+| Forecasting | In-memory naive / moving average / SES over M5 series | M6A |
 | API | FastAPI | Not installed |
 | Dashboard | Streamlit + Plotly | Not installed |
 | Data / ML | Pandas, NumPy, scikit-learn, statsmodels | Not installed |
@@ -199,7 +201,11 @@ Configured list from `GITHUB_REPOSITORIES`, or override with `--repos`. `--max-i
 
 Read-only Python contracts over existing `metric_snapshots`. No CLI is required. Does not call source APIs. Does not mutate the database. Does not invent KPI formulas, engagement ratios, or a Trendora Score.
 
-Use `AnalyticsService.from_session(session)` to load a `MetricSeries` or a Trendora-derived `AggregateSummary` (`count`, `earliest_observed_at`, `latest_observed_at`, `latest_value`). Time windows are `observed_from <= observed_at < observed_until`. Missing observations stay missing. Candidate KPI families in [docs/05_ANALYTICS_SPEC.md](docs/05_ANALYTICS_SPEC.md) remain unfinalized. Forecasting is M6.
+Use `AnalyticsService.from_session(session)` to load a `MetricSeries` or a Trendora-derived `AggregateSummary` (`count`, `earliest_observed_at`, `latest_observed_at`, `latest_value`). Time windows are `observed_from <= observed_at < observed_until`. Missing observations stay missing. Candidate KPI families in [docs/05_ANALYTICS_SPEC.md](docs/05_ANALYTICS_SPEC.md) remain unfinalized.
+
+### Forecasting (Milestone 6A)
+
+In-memory baselines over M5 `MetricSeries`: naive, moving average, and simple exponential smoothing. `ForecastingService` calls `AnalyticsService`; it does not query snapshots or write. Interval and horizon are explicit. No resampling or imputation. Chronological holdout MAE only. See [docs/06_ML_FORECASTING.md](docs/06_ML_FORECASTING.md). Not ARIMA, dashboards, or persisted forecasts.
 
 ### Tests
 
@@ -225,6 +231,7 @@ src/trendora/          # application package
   reference.py         # deterministic V1 seed rows
   connectors/          # YouTube (M2A/M2B), Hacker News (M3A), Stack Exchange (M3B), GitHub (M4)
   analytics/           # M5 read-only observation queries
+  forecasting/         # M6A in-memory baselines over M5 series
 alembic/               # Alembic env + versions
 tests/unit/            # no database required
 tests/integration/     # PostgreSQL, skipped without DATABASE_URL
