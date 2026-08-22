@@ -2,7 +2,7 @@
 
 AI-powered Social Media Intelligence Platform for Southeast Asian education, AI, and technology markets.
 
-**Status:** Milestone 2A (YouTube watchlist), Milestone 2B (regional YouTube `mostPopular`), Milestone 3A (Hacker News stories), Milestone 3B (Stack Exchange questions), and Milestone 4 (GitHub repositories) ingest into the existing schema. FastAPI, Streamlit, analytics, ML, WebSub, and other source connectors are not implemented.
+**Status:** Milestones 2A–4 ingest into the existing schema. Milestone 5 adds a deterministic, read-only analytics foundation over `metric_snapshots`. FastAPI, Streamlit, forecasting, ML, WebSub, and other source connectors are not implemented.
 
 ## What Trendora will answer
 
@@ -22,9 +22,10 @@ The product dashboard will remain Streamlit. The frontend will not be switched t
 
 ## Current milestone
 
-Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths: a curated YouTube watchlist, regional YouTube `mostPopular` charts, Hacker News top/new/best stories, Stack Exchange questions, and explicit GitHub repositories. See:
+Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 5 is the analytics read layer over those observations. See:
 
 - [docs/04_INGESTION_PIPELINE.md](docs/04_INGESTION_PIPELINE.md) — connectors, config, and how to run them
+- [docs/05_ANALYTICS_SPEC.md](docs/05_ANALYTICS_SPEC.md) — observation contracts and candidate KPI caveats
 - [PROJECT_PREP.md](PROJECT_PREP.md) — environment, MCP, and setup notes
 - [docs/01_ARCHITECTURE.md](docs/01_ARCHITECTURE.md) — layer boundaries and V1 database decision
 - [docs/02_DATABASE_SCHEMA.md](docs/02_DATABASE_SCHEMA.md) — tables, constraints, migrations
@@ -39,6 +40,7 @@ Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths: a curated 
 | V1 development DB | Existing Supabase PostgreSQL project | In use |
 | HTTP | httpx (YouTube Data API v3 client) | Installed |
 | Connectors | YouTube watchlist + mostPopular; Hacker News stories; Stack Exchange questions; GitHub repositories | M2A + M2B + M3A + M3B + M4 |
+| Analytics | Read-only observation/query layer over `metric_snapshots` | M5 |
 | API | FastAPI | Not installed |
 | Dashboard | Streamlit + Plotly | Not installed |
 | Data / ML | Pandas, NumPy, scikit-learn, statsmodels | Not installed |
@@ -193,6 +195,12 @@ trendora-ingest-github --repos openai/openai-python --max-items 1
 
 Configured list from `GITHUB_REPOSITORIES`, or override with `--repos`. `--max-items` caps how many of those identifiers are fetched (default 50). Identifiers must be `owner/repository` slugs, not URLs, handles, or search queries. Repositories are stored as `content_items` (`content_type=repository`) with append-only `stargazer_count`, `fork_count`, `open_issue_count`, and `watcher_count` snapshots. `publisher_id` and `market_id` stay unset. GitHub topics remain source metadata. Does not require `GITHUB_TOKEN`.
 
+### Analytics (Milestone 5)
+
+Read-only Python contracts over existing `metric_snapshots`. No CLI is required. Does not call source APIs. Does not mutate the database. Does not invent KPI formulas, engagement ratios, or a Trendora Score.
+
+Use `AnalyticsService.from_session(session)` to load a `MetricSeries` or a Trendora-derived `AggregateSummary` (`count`, `earliest_observed_at`, `latest_observed_at`, `latest_value`). Time windows are `observed_from <= observed_at < observed_until`. Missing observations stay missing. Candidate KPI families in [docs/05_ANALYTICS_SPEC.md](docs/05_ANALYTICS_SPEC.md) remain unfinalized. Forecasting is M6.
+
 ### Tests
 
 ```bash
@@ -216,6 +224,7 @@ src/trendora/          # application package
   models/              # SQLAlchemy models
   reference.py         # deterministic V1 seed rows
   connectors/          # YouTube (M2A/M2B), Hacker News (M3A), Stack Exchange (M3B), GitHub (M4)
+  analytics/           # M5 read-only observation queries
 alembic/               # Alembic env + versions
 tests/unit/            # no database required
 tests/integration/     # PostgreSQL, skipped without DATABASE_URL
