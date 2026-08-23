@@ -2,14 +2,14 @@
 
 This file started as the Phase 0 audit (2026-08-18). The historical sections below are kept. Where they conflict with Milestone 1, the status in this section wins.
 
-## Current status (Milestone 6C — 2026-08-22)
+## Current status (Milestone 7 — 2026-08-23)
 
-Milestone 2A–4 ingestion, Milestone 5 (analytics), Milestone 6A (in-memory naive / MA / SES), and Milestone 6C (in-memory naive-vs-challenger MAE comparison) are implemented. Milestone 6B remains the evaluation/model-selection write-up in [docs/06_ML_FORECASTING.md](docs/06_ML_FORECASTING.md). Open product decisions in that doc are not resolved. No forecast tables, FastAPI, Streamlit, or ML libraries.
+Milestone 2A–4 ingestion, Milestone 5 (analytics), Milestone 6A (in-memory naive / MA / SES), Milestone 6C (in-memory naive-vs-challenger MAE comparison), and Milestone 7 (in-memory series diagnostics) are implemented. Milestone 6B remains the evaluation/model-selection write-up in [docs/06_ML_FORECASTING.md](docs/06_ML_FORECASTING.md). Open product decisions in that doc are not resolved. No forecast tables, FastAPI, Streamlit, or ML libraries.
 
 - Git remote: `https://github.com/LexterMorgan/trendora.git` (branch `main`; no commits required by this milestone).
 - Python: `.venv` with CPython 3.12.14. Runtime packages: SQLAlchemy, psycopg, Alembic, pydantic-settings. Dev: pytest. FastAPI, Streamlit, pandas, and ML libraries are still not installed. M6A baselines use the standard library.
 - V1 development database: existing Supabase PostgreSQL project `https://ymzloduyggkcmapmiics.supabase.co` (database `postgres`). Local PostgreSQL remains a portable target for the same SQLAlchemy models; it is not required for V1.
-- Application tables live in `public` and were created by Alembic revision `0001_initial_schema`. Milestones 5–6C reuse that schema; no analytics or forecast tables were added. Details: [docs/02_DATABASE_SCHEMA.md](docs/02_DATABASE_SCHEMA.md).
+- Application tables live in `public` and were created by Alembic revision `0001_initial_schema`. Milestones 5–7 reuse that schema; no analytics, forecast, or diagnostic tables were added. Details: [docs/02_DATABASE_SCHEMA.md](docs/02_DATABASE_SCHEMA.md).
 - Required env var: `DATABASE_URL`. Copy `.env.example` to `.env` locally. Never commit `.env` or `.cursor/mcp.json`.
 - Supabase MCP is available in this development environment and was used to verify the applied schema. Prefer `read_only=true` for day-to-day inspection. Do not treat MCP as a production component.
 

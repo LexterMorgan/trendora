@@ -1,6 +1,6 @@
 # 06 — ML and forecasting
 
-Status: **M6A implemented** (in-memory baselines). **M6B** documented evaluation boundaries. **M6C implemented** (in-memory naive vs one challenger). Not a complete ML platform and not a dashboard/API.
+Status: **M6A implemented** (in-memory baselines). **M6B** documented evaluation boundaries. **M6C implemented** (in-memory naive vs one challenger). **M7 implemented** (in-memory series diagnostics). Not a complete ML platform and not a dashboard/API.
 
 Architecture (unchanged):
 
@@ -9,9 +9,10 @@ connectors → persistence → metric_snapshots
   → M5 AnalyticsRepository / AnalyticsService → MetricSeries
   → M6A ForecastingService → ForecastResult / EvaluationResult
   → M6C compare → ComparisonResult
+  → M7 diagnose → SeriesDiagnostics
 ```
 
-Forecasting must consume M5. It must not query `metric_snapshots` directly, call connectors, or add a second SQL path.
+Forecasting and diagnostics must consume M5. They must not query `metric_snapshots` directly, call connectors, or add a second SQL path.
 
 ---
 
@@ -39,7 +40,7 @@ No trend, seasonality, ARIMA, Prophet, ensembles, neural nets, or LLM-as-forecas
 
 **Comparison (M6C):** `ComparisonRequest` → one M5 load → `evaluate_series` twice (naive, then one challenger). Same series, same `holdout`, same `interval`. `window` / `alpha` stay explicit (no defaults). `challenger_beats_naive` is `challenger_mae < naive_mae`; a tie is false. Evaluation artifact only; not a production winner.
 
-**Not in M6A/M6C:** persistence, FastAPI, Streamlit, scheduler, new dependencies, prediction intervals, daily aggregation, production model selection.
+**Not in M6A/M6C:** persistence, FastAPI, Streamlit, scheduler, new dependencies, prediction intervals, daily aggregation, production model selection. M7 adds read-only series diagnostics only (below).
 
 Connectors currently set `observed_at = collected_at` at ingest. Collection cadence is whatever the operator runs; it is not a regular daily grid.
 
@@ -184,17 +185,105 @@ FastAPI and Streamlit remain future milestones.
 11. **YouTube terms:** displaying Python forecasts of official YouTube fields.
 12. **Multi-year YouTube history** (storage amendment) vs living with ≤30-day public stats.
 
----
-
-## 9. Next implementation slice
-
-**M6C (implemented):** `ForecastingService.compare` / `compare_series`. Same M5 series, same observation-count holdout, same explicit interval. Evaluates naive and exactly one caller-chosen M6A challenger (`moving_average` or `simple_exponential_smoothing`) via existing `evaluate_series`. `window` / `alpha` remain required and explicit. Result includes both MAEs and `challenger_beats_naive` (`challenger_mae < naive_mae`; tie is false). Origin `trendora_forecast`. This is an evaluation artifact, not a production winner.
-
-**Still not next:** FastAPI, Streamlit, schema, resampling, Holt/ARIMA, pandas/sklearn, anomaly/NLP, connector changes, invented horizons/defaults. Anything larger stays blocked on section 8.
+M7 does not close any of these. A later product decision may *use* M7 evidence; it is not encoded as a rule in code.
 
 ---
 
-## Constraints (all M6)
+## 9. M7 series diagnostics (implemented)
+
+### Purpose
+
+M7 inspects an M5 `MetricSeries` and reports deterministic facts about history length, timestamp spacing, duplicates, and value changes. It exists so later product decisions can be made against actual series behavior instead of assuming that “a baseline can emit a number” means the series is product-forecastable.
+
+M7 is not a new forecasting model, not AutoML, not anomaly detection, and not a dashboard feature.
+
+### What M6A and M6C already provide
+
+Unchanged by M7:
+
+- M6A: naive / moving average / SES over M5 series; explicit interval and horizon; chronological observation-count holdout; MAE; irregular timestamps compared positionally.
+- M6C: naive vs one caller-chosen M6A challenger on the same series, holdout, and interval; `challenger_beats_naive` is an evaluation artifact only.
+
+M7 does not call `forecast`, `evaluate`, or `compare`. It does not tune `window` or `alpha`.
+
+### Contract
+
+`diagnose_series(series)` is a pure function over a `MetricSeries`. `DiagnosticsService.diagnose(query)` loads that series once through `AnalyticsService.get_metric_series` (M5). No SQL in the diagnostic layer. Input series are not mutated. Naive `observed_at` / `collected_at` are rejected, matching M5/M6.
+
+`SeriesDiagnostics` (`origin=trendora_diagnostic`) reports:
+
+| Field | Meaning |
+| --- | --- |
+| `source_code`, `metric_name`, `content_item_id`, `publisher_id` | Identity copied from the series / unique observation subject. Mixed subjects yield `None` for that id. |
+| `observation_count` | Number of M5 observations after M5 ordering (`observed_at`, `collected_at`, snapshot id). |
+| `first_observed_at`, `last_observed_at` | First and last `observed_at` in that order. `None` if empty. |
+| `elapsed_duration` | `last_observed_at - first_observed_at`. `timedelta(0)` for a single point. `None` if empty. Not a claim that observations fill that calendar span. |
+| `gap_count` | `max(observation_count - 1, 0)` consecutive `observed_at` differences. |
+| `min_gap`, `max_gap`, `mean_gap`, `median_gap` | Statistics of those differences. `mean` / `median` are computed on seconds then converted back to `timedelta`. `None` if there are no gaps. |
+| `zero_gap_count` | Gaps equal to `timedelta(0)` (tied `observed_at`). |
+| `unique_gap_count` | Distinct gap lengths. |
+| `gaps_differing_from_median_count` | Gaps `!=` the median gap. For an even gap count, `statistics.median` averages the two central values, so every gap may differ from that average. |
+| `gap_coefficient_of_variation` | Sample standard deviation of gap seconds divided by the mean gap seconds (`statistics.stdev` / `statistics.mean`). `None` if fewer than two gaps, or if the mean is 0. |
+| `cadence` | `no_gap_data` (fewer than two observations); `effectively_constant_cadence` (exactly one distinct gap length); `variable_cadence` (two or more distinct gap lengths). Not a product “regular / irregular” requirement. |
+| `duplicate_observed_at_group_count` | Distinct `observed_at` values that occur more than once. |
+| `duplicate_observed_at_observation_count` | Observations that belong to those groups. |
+| `duplicate_observed_at_conflicting_value_group_count` | Duplicate-`observed_at` groups whose `metric_value` is not unique. |
+| `duplicate_observed_at_groups_resolved_by_collected_at` | Duplicate groups whose `collected_at` values are all distinct (M5 can order them without using snapshot id). |
+| `duplicate_observed_at_groups_with_tied_collected_at` | Duplicate groups whose `collected_at` values are all identical (M5 then uses snapshot id). |
+| `delta_count` | Consecutive `metric_value` differences after M5 order. |
+| `positive_delta_count`, `negative_delta_count`, `zero_delta_count` | Sign counts of those deltas. |
+| `min_delta`, `max_delta`, `mean_delta`, `mean_absolute_delta`, `max_absolute_delta`, `stdev_delta` | Delta statistics. `stdev_delta` is sample standard deviation (`statistics.stdev`); `None` with fewer than two deltas. |
+| `monotonicity` | `no_delta_data` / `constant` / `non_decreasing` / `non_increasing` / `mixed`. `constant` is used when every delta is 0 (not also labeled non-decreasing). Not a cumulative-metric registry. |
+| `fraction_non_decreasing`, `fraction_decreasing`, `fraction_flat` | Shares of deltas with `>= 0`, `< 0`, and `== 0`. `None` if there are no deltas. |
+| `total_positive_movement` | Sum of positive deltas (0 if none). |
+| `total_negative_movement` | Absolute sum of negative deltas (0 if none). |
+
+There is no `forecastable` flag, no 0–1 score, and no recommended model.
+
+**M5 value contract:** `metric_value` is a non-null `int`. Diagnostics do not invent nulls, zeros for missing calendar slots, or interpolated points. A timestamp gap is a gap, not zero activity.
+
+**Observation spacing vs forecast interval:** gap statistics describe stored `observed_at` differences. They do not set M6A `interval`. Median gap is not inferred as the product cadence.
+
+### Data characteristics (repository + current development DB)
+
+From connectors and M5, not from a semantic registry:
+
+| Source code | Stored metrics | Subject | Timestamp behavior | Value behavior (connector, not a product class) |
+| --- | --- | --- | --- | --- |
+| `youtube` | `view_count`, `like_count`, `comment_count` (video); `view_count`, `subscriber_count`, `video_count` (channel) | video content / channel publisher | `observed_at = collected_at` at ingest | Counters that usually do not fall; YouTube public stats retention remains a policy constraint |
+| `hacker_news` | `score`, `comment_count` | story content | same ingest timestamp rule | `score` can move either way |
+| `stack_exchange` | `score`, `view_count`, `answer_count` | question content | same | `score` mutable; `view_count` typically non-decreasing; `answer_count` is a current count |
+| `github` | `stargazer_count`, `fork_count`, `open_issue_count`, `watcher_count` | repository content | same | stars/forks/watchers usually non-decreasing; `open_issue_count` can fall |
+
+A non-decreasing diagnostic is not a product “cumulative” label. GitHub `open_issue_count` and HN/SE `score` are the clearest stored counterexamples.
+
+A read-only count of the current development database (2026-08-23, not a product requirement) found 1921 `metric_snapshots`. Grouped by subject + metric name, 1861 series had **one** observation and 30 had **two**. No series had three or more. That is evidence that many stored series currently lack holdout-length history; it is not a rule that V1 forecasts must use two points.
+
+### What M7 does not decide
+
+M7 does not choose: production forecast model; product horizon; product interval; level vs increment vs volume; minimum history to display; resampling policy; forecast persistence; API/dashboard behavior; YouTube derived-metric policy; a metric-semantics registry.
+
+### Product implications (not requirements)
+
+- Mechanical M6A success on a series is weaker evidence than history length, gap pattern, and delta sign structure.
+- Irregular or operator-driven collection is the stored cadence today. Calendar models stay blocked until a resampling policy exists (open decision 9).
+- Duplicate `observed_at` can exist in a `MetricSeries` even if connectors usually set `observed_at = collected_at`; M7 reports them and leaves M5 order unchanged.
+- Cumulative-looking YouTube/GitHub levels can make naive MAE look strong; M7 only reports decrease rates, it does not switch evaluation to increments.
+- Current development data is short. That supports caution about user-facing forecasts; it does not by itself choose which metric to forecast later.
+
+---
+
+## 10. Next implementation slice
+
+**M7 (implemented):** `DiagnosticsService.diagnose` / `diagnose_series`. One M5 `MetricSeries` in; a frozen `SeriesDiagnostics` out. No new models, no resampling, no forecastability score, no production winner.
+
+**Still not next:** FastAPI, Streamlit, schema, resampling, Holt/ARIMA, pandas/sklearn, anomaly/NLP, connector changes, invented horizons/defaults, a metric-semantics registry, or treating “a model can emit a number” as “this series is product-forecastable”.
+
+M7 does **not** make a new forecasting-model milestone unambiguous. Section 8 remains open. Repeated ingest can lengthen series operationally; that is not a new model.
+
+---
+
+## Constraints (all M6 / M7)
 
 - No paid AutoML.
 - No LLM-as-forecaster for numeric KPIs.
