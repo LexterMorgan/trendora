@@ -1,6 +1,6 @@
 # 06 — ML and forecasting
 
-Status: **M6A implemented** (in-memory baselines). **M6B** documented evaluation boundaries. **M6C implemented** (in-memory naive vs one challenger). **M7 implemented** (in-memory series diagnostics). Not a complete ML platform and not a dashboard/API.
+Status: **M6A implemented** (in-memory baselines). **M6B** documented evaluation boundaries. **M6C implemented** (in-memory naive vs one challenger). **M7 implemented** (in-memory series diagnostics). **M8** defines the product-level contract and readiness gate in [11_FORECASTING_PRODUCT_SPEC.md](11_FORECASTING_PRODUCT_SPEC.md); this document remains the technical forecasting/evaluation reference. Not a complete ML platform and not a dashboard/API.
 
 Architecture (unchanged):
 
@@ -279,7 +279,7 @@ M7 does not choose: production forecast model; product horizon; product interval
 
 **Still not next:** FastAPI, Streamlit, schema, resampling, Holt/ARIMA, pandas/sklearn, anomaly/NLP, connector changes, invented horizons/defaults, a metric-semantics registry, or treating “a model can emit a number” as “this series is product-forecastable”.
 
-M7 does **not** make a new forecasting-model milestone unambiguous. Section 8 remains open. Repeated ingest can lengthen series operationally; that is not a new model.
+M7 does **not** make a new forecasting-model milestone unambiguous. Section 8 remains open. [11_FORECASTING_PRODUCT_SPEC.md](11_FORECASTING_PRODUCT_SPEC.md) (M8) records that no product-facing implementation milestone is unambiguous until the product decisions there are resolved. Repeated ingest can lengthen series operationally; that is not a new model.
 
 ---
 

@@ -2,9 +2,9 @@
 
 This file started as the Phase 0 audit (2026-08-18). The historical sections below are kept. Where they conflict with Milestone 1, the status in this section wins.
 
-## Current status (Milestone 7 — 2026-08-23)
+## Current status (Milestone 8 — 2026-08-30)
 
-Milestone 2A–4 ingestion, Milestone 5 (analytics), Milestone 6A (in-memory naive / MA / SES), Milestone 6C (in-memory naive-vs-challenger MAE comparison), and Milestone 7 (in-memory series diagnostics) are implemented. Milestone 6B remains the evaluation/model-selection write-up in [docs/06_ML_FORECASTING.md](docs/06_ML_FORECASTING.md). Open product decisions in that doc are not resolved. No forecast tables, FastAPI, Streamlit, or ML libraries.
+Milestone 2A–4 ingestion, Milestone 5 (analytics), Milestone 6A (in-memory naive / MA / SES), Milestone 6C (in-memory naive-vs-challenger MAE comparison), and Milestone 7 (in-memory series diagnostics) are implemented. Milestone 6B remains the evaluation/model-selection write-up in [docs/06_ML_FORECASTING.md](docs/06_ML_FORECASTING.md). Milestone 8 adds the forecasting product contract and readiness gate in [docs/11_FORECASTING_PRODUCT_SPEC.md](docs/11_FORECASTING_PRODUCT_SPEC.md); that contract is **not fully specified** — the first product question, V1 scope, interval, horizon, minimum history, model policy, persistence, API/dashboard contracts, and YouTube derived-forecast policy remain OPEN, so forecasting is not implementation/API/dashboard/production ready. Open product decisions in [06](docs/06_ML_FORECASTING.md) are not resolved. No forecast tables, FastAPI, Streamlit, or ML libraries.
 
 - Git remote: `https://github.com/LexterMorgan/trendora.git` (branch `main`; no commits required by this milestone).
 - Python: `.venv` with CPython 3.12.14. Runtime packages: SQLAlchemy, psycopg, Alembic, pydantic-settings. Dev: pytest. FastAPI, Streamlit, pandas, and ML libraries are still not installed. M6A baselines use the standard library.
