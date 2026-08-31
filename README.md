@@ -26,7 +26,7 @@ The product dashboard will remain Streamlit. The frontend will not be switched t
 
 ## Current milestone
 
-Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 5 is the analytics read layer. Milestone 6A is in-memory forecasting baselines. Milestone 6B is evaluation/model-selection documentation. Milestone 6C is in-memory naive-vs-challenger MAE comparison. Milestone 7 is in-memory series diagnostics. Milestone 8 defines the forecasting product contract and readiness gate. Milestone 9 decides the V1 forecasting product requirements. Milestone 10 implements the V1 GitHub forecast slice over M5/M6A/M7. Milestone 11A defines the forecast API contract. Milestone 11B implements the FastAPI adapter. Milestone 12 re-baselines the product toward evidence-backed content intelligence (forecasting becomes a secondary signal). See:
+Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 5 is the analytics read layer. Milestone 6A is in-memory forecasting baselines. Milestone 6B is evaluation/model-selection documentation. Milestone 6C is in-memory naive-vs-challenger MAE comparison. Milestone 7 is in-memory series diagnostics. Milestone 8 defines the forecasting product contract and readiness gate. Milestone 9 decides the V1 forecasting product requirements. Milestone 10 implements the V1 GitHub forecast slice over M5/M6A/M7. Milestone 11A defines the forecast API contract. Milestone 11B implements the FastAPI adapter. Milestone 12 re-baselines the product toward evidence-backed content intelligence (forecasting becomes a secondary signal). Milestone 13 implements the research core (ResearchQuery, capabilities, coverage, ResearchRun). See:
 
 - [docs/04_INGESTION_PIPELINE.md](docs/04_INGESTION_PIPELINE.md) — connectors, config, and how to run them
 - [docs/05_ANALYTICS_SPEC.md](docs/05_ANALYTICS_SPEC.md) — observation contracts and candidate KPI caveats
@@ -35,6 +35,7 @@ Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 
 - [docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md](docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md) — M9 V1 forecasting product requirements & decisions
 - [docs/13_FORECASTING_API_CONTRACT.md](docs/13_FORECASTING_API_CONTRACT.md) — M11A/M11B forecast API contract; FastAPI adapter implemented in [src/trendora/api/](src/trendora/api/)
 - [docs/14_PRODUCT_ARCHITECTURE_REBASELINE.md](docs/14_PRODUCT_ARCHITECTURE_REBASELINE.md) — M12 product & architecture re-baseline (evidence-backed content intelligence direction)
+- [docs/15_RESEARCH_CORE.md](docs/15_RESEARCH_CORE.md) — M13 research core (ResearchQuery, capabilities, coverage, ResearchRun)
 - [PROJECT_PREP.md](PROJECT_PREP.md) — environment, MCP, and setup notes
 - [docs/01_ARCHITECTURE.md](docs/01_ARCHITECTURE.md) — layer boundaries and V1 database decision
 - [docs/02_DATABASE_SCHEMA.md](docs/02_DATABASE_SCHEMA.md) — tables, constraints, migrations
@@ -251,6 +252,7 @@ src/trendora/          # application package
   diagnostics/         # M7 in-memory series diagnostics over M5 series
   product/             # M10 V1 GitHub forecast product layer over M5/M6A/M7 (in-memory)
   api/                 # M11B FastAPI adapter over the M10 product (one read endpoint)
+  research/            # M13 research core: ResearchQuery, capabilities, coverage, ResearchRun (in-memory)
 alembic/               # Alembic env + versions
 tests/unit/            # no database required
 tests/integration/     # PostgreSQL, skipped without DATABASE_URL
