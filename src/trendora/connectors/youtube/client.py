@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from collections.abc import Mapping, Sequence
 from typing import Any
 
@@ -15,7 +16,12 @@ from trendora.connectors.youtube.exceptions import (
     YouTubeHttpError,
     YouTubeResponseError,
 )
-from trendora.connectors.youtube.schemas import ChannelResource, VideoCategoryResource, VideoResource
+from trendora.connectors.youtube.schemas import (
+    ChannelResource,
+    SearchResource,
+    VideoCategoryResource,
+    VideoResource,
+)
 
 logger = logging.getLogger("trendora.connectors.youtube.client")
 
@@ -28,8 +34,9 @@ class YouTubeClient:
     """HTTPS client for YouTube Data API v3 list operations.
 
     Implemented methods: channels.list, playlistItems.list, videos.list
-    (by id or chart=mostPopular), and videoCategories.list.
-    search.list is intentionally not implemented.
+    (by id or chart=mostPopular), videoCategories.list, and search.list
+    (type=video). search.list is capped at 100 calls/day in its own Search
+    Queries quota bucket (June 2026); the client does not enforce quota.
     """
 
     def __init__(self, api_key: str, *, http_client: httpx.Client | None = None) -> None:
@@ -161,6 +168,74 @@ class YouTubeClient:
             len(resources),
         )
         return resources
+
+    def search_videos(
+        self,
+        *,
+        query: str,
+        region_code: str,
+        published_after: str | None,
+        published_before: str | None,
+        limit: int,
+    ) -> list[SearchResource]:
+        """search.list (type=video, order=relevance) with deterministic pagination.
+
+        ``published_after`` / ``published_before`` are RFC 3339 timestamps
+        passed through to the API. Page size is capped at 50; at most
+        ``ceil(limit / 50)`` pages are requested. Results preserve source
+        order and are deduplicated by video id. Never returns more than
+        ``limit`` items.
+        """
+        if limit < 1:
+            return []
+        results: list[SearchResource] = []
+        seen_ids: set[str] = set()
+        page_token: str | None = None
+        page = 0
+        max_pages = math.ceil(limit / _MAX_IDS_PER_REQUEST)
+        while len(results) < limit and page < max_pages:
+            page += 1
+            remaining = limit - len(results)
+            params: dict[str, str | int] = {
+                "part": "snippet",
+                "type": "video",
+                "q": query,
+                "regionCode": region_code,
+                "order": "relevance",
+                "maxResults": min(_MAX_IDS_PER_REQUEST, remaining),
+            }
+            if published_after:
+                params["publishedAfter"] = published_after
+            if published_before:
+                params["publishedBefore"] = published_before
+            if page_token:
+                params["pageToken"] = page_token
+            payload = self._get("search", params)
+            items = _items(payload)
+            logger.info(
+                "youtube.search.page page=%s items=%s collected=%s limit=%s",
+                page,
+                len(items),
+                len(results),
+                limit,
+            )
+            for raw in items:
+                try:
+                    resource = SearchResource.model_validate(raw)
+                except ValidationError:
+                    logger.warning("youtube.search.invalid_resource skipped malformed item")
+                    continue
+                video_id = resource.video_id
+                if video_id is None or video_id in seen_ids:
+                    continue
+                seen_ids.add(video_id)
+                results.append(resource)
+                if len(results) >= limit:
+                    break
+            page_token = payload.get("nextPageToken")
+            if not page_token or len(results) >= limit:
+                break
+        return results[:limit]
 
     def list_most_popular_videos(self, region_code: str, *, max_videos: int) -> list[VideoResource]:
         if max_videos < 1:

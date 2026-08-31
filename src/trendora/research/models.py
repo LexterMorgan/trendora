@@ -13,8 +13,8 @@ Persistence and retrieval are deliberately deferred to M14+.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import date
+from dataclasses import dataclass, field
+from datetime import date, datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING, Final
 
@@ -23,6 +23,7 @@ from trendora.research.exceptions import ResearchValidationError
 
 if TYPE_CHECKING:
     from trendora.research.service import ResearchCapabilityResolver
+    from trendora.research.youtube import YouTubeResearchRetriever
 
 MAX_RESULT_LIMIT: Final[int] = 100
 DEFAULT_SOURCE_CODES: Final[tuple[str, ...]] = ("youtube",)
@@ -145,6 +146,17 @@ class CoverageReason(StrEnum):
     AUTHORIZATION_REQUIRED = "authorization_required"
 
 
+class MarketBasis(StrEnum):
+    """What a reference's ``market_context`` actually means.
+
+    For YouTube, ``regionCode`` selects content available/viewable in a
+    region. It is NOT creator nationality, publisher nationality, or
+    content country-of-origin evidence, and it says nothing about language.
+    """
+
+    YOUTUBE_REGION_AVAILABILITY = "youtube_region_availability"
+
+
 @dataclass(frozen=True, kw_only=True)
 class SourceCoverage:
     """Resolution of one requested source for one required capability."""
@@ -174,27 +186,93 @@ class ResearchCoverage:
     completeness: CoverageCompleteness
 
 
+@dataclass(frozen=True, slots=True)
+class ResearchMetrics:
+    """Immutable raw YouTube video statistics (M14).
+
+    Exactly three official source facts: ``view_count``, ``like_count``,
+    ``comment_count``. A missing statistic is ``None`` (never zero; zero is
+    distinct from missing). No derived metrics and no generic metric bag:
+    the set of fields is fixed and cannot be mutated after construction.
+    """
+
+    view_count: int | None = None
+    like_count: int | None = None
+    comment_count: int | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class ResearchReference:
+    """One normalized in-memory research reference (M14).
+
+    Carries official source facts only: metadata plus public statistics
+    (``ResearchMetrics``). Missing raw metrics are explicit ``None``, never
+    zero. No derived metrics, no scores, no Trendora-derived claims. All
+    fields are immutable after construction.
+
+    ``description`` is YouTube source metadata (search/video snippet). It is
+    NOT a transcript, caption, or analysis of the video content, and it must
+    never be presented as such.
+
+    ``market_context`` is the requested market code (e.g. ``"SG"``);
+    ``market_basis`` states exactly what that market means for this source.
+    For YouTube it is ``youtube_region_availability``: regionCode reflects
+    regional availability/viewability, NOT creator/publisher/content origin
+    country and NOT language. No country-of-origin field is ever inferred.
+
+    ``source_rank`` is the 1-based position of the video in the deduplicated
+    source search order. It is source order only, not a relevance,
+    performance, confidence, or opportunity score.
+    """
+
+    source_code: str
+    content_external_id: str
+    collected_at: datetime
+    url: str | None = None
+    title: str | None = None
+    description: str | None = None
+    published_at: datetime | None = None
+    channel_external_id: str | None = None
+    channel_title: str | None = None
+    market_context: str | None = None
+    market_basis: MarketBasis | None = None
+    source_rank: int | None = None
+    metrics: ResearchMetrics = field(default_factory=ResearchMetrics)
+
+
 class ResearchRunStatus(StrEnum):
     """Execution status of a research run.
 
-    M13 only resolves capabilities; it never collects content. READY means at
-    least one requested source can satisfy the required capability and the run
-    is eligible for future collection. BLOCKED means no requested source can
-    satisfy the required capability (coverage completeness is NONE). A run is
-    never reported completed here: capability resolution success is not
-    research execution completion.
+    M13 resolves capabilities; M14 extends READY into real retrieval
+    execution. READY means at least one requested source can satisfy the
+    required capability and the run is eligible for collection. BLOCKED means
+    no requested source can satisfy it. COLLECTING / NORMALIZING / COMPLETED /
+    FAILED describe actual retrieval execution. Capability resolution success
+    is not research execution completion: a run must pass through collection
+    and normalization before it is COMPLETED.
     """
 
     REQUESTED = "requested"
     RESOLVING_CAPABILITIES = "resolving_capabilities"
     READY = "ready"
     BLOCKED = "blocked"
+    COLLECTING = "collecting"
+    NORMALIZING = "normalizing"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
 
 _TRANSITIONS: dict[ResearchRunStatus, frozenset[ResearchRunStatus]] = {
     ResearchRunStatus.REQUESTED: frozenset({ResearchRunStatus.RESOLVING_CAPABILITIES}),
     ResearchRunStatus.RESOLVING_CAPABILITIES: frozenset(
         {ResearchRunStatus.READY, ResearchRunStatus.BLOCKED}
+    ),
+    ResearchRunStatus.READY: frozenset({ResearchRunStatus.COLLECTING}),
+    ResearchRunStatus.COLLECTING: frozenset(
+        {ResearchRunStatus.NORMALIZING, ResearchRunStatus.FAILED}
+    ),
+    ResearchRunStatus.NORMALIZING: frozenset(
+        {ResearchRunStatus.COMPLETED, ResearchRunStatus.FAILED}
     ),
 }
 
@@ -206,19 +284,19 @@ def _terminal_status(completeness: CoverageCompleteness) -> ResearchRunStatus:
 
 
 class ResearchRun:
-    """Synchronous in-memory research run lifecycle (docs/14 section 8).
+    """Synchronous in-memory research run lifecycle.
 
-    M13 performs no retrieval; ``resolve_capabilities`` only resolves source
-    coverage. The terminal states are READY (at least one executable source)
-    and BLOCKED (no executable source). Collection states are intentionally
-    absent until M14, when a READY run may move into collecting/normalizing.
-    Execution status and coverage completeness are separate concepts.
+    M13: ``resolve_capabilities`` resolves source coverage into READY or
+    BLOCKED. M14: ``execute`` runs real retrieval (collection + normalization)
+    on a READY run, ending in COMPLETED with references, or FAILED. Execution
+    status and coverage completeness are separate concepts.
     """
 
     def __init__(self, query: ResearchQuery) -> None:
         self._query = query
         self._status = ResearchRunStatus.REQUESTED
         self._coverage: ResearchCoverage | None = None
+        self._references: tuple[ResearchReference, ...] | None = None
 
     @property
     def query(self) -> ResearchQuery:
@@ -232,12 +310,33 @@ class ResearchRun:
     def coverage(self) -> ResearchCoverage | None:
         return self._coverage
 
+    @property
+    def references(self) -> tuple[ResearchReference, ...] | None:
+        return self._references
+
     def resolve_capabilities(self, resolver: ResearchCapabilityResolver) -> None:
         """Resolve source coverage, then move to the matching terminal state."""
         self._transition(ResearchRunStatus.RESOLVING_CAPABILITIES)
         coverage = resolver.resolve(self._query)
         self._coverage = coverage
         self._transition(_terminal_status(coverage.completeness))
+
+    def execute(self, retriever: YouTubeResearchRetriever) -> None:
+        """Execute retrieval on a READY run (collection then normalization).
+
+        On failure the run is marked FAILED and the original error is
+        re-raised so callers can handle it.
+        """
+        self._transition(ResearchRunStatus.COLLECTING)
+        try:
+            collected = retriever.collect(self._query)
+            self._transition(ResearchRunStatus.NORMALIZING)
+            references = retriever.normalize(collected)
+            self._references = tuple(references)
+            self._transition(ResearchRunStatus.COMPLETED)
+        except Exception:
+            self._transition(ResearchRunStatus.FAILED)
+            raise
 
     def _transition(self, target: ResearchRunStatus) -> None:
         from trendora.research.exceptions import ResearchStateError

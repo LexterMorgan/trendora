@@ -281,3 +281,83 @@ CHANNELS_LIST_A_AND_C = {
         },
     ],
 }
+
+SEARCH_PAGE_1 = {
+    "kind": "youtube#searchListResponse",
+    "nextPageToken": "SEARCHPAGE2",
+    "items": [
+        {
+            "kind": "youtube#searchResult",
+            "id": {"kind": "youtube#video", "videoId": VIDEO_1},
+            "snippet": {
+                "title": "Intro to Python",
+                "description": "Learn Python basics in this lesson.",
+                "publishedAt": "2024-01-01T12:00:00Z",
+                "channelId": CHANNEL_A,
+                "channelTitle": "SEA AI Education",
+            },
+        },
+        {
+            "kind": "youtube#searchResult",
+            "id": {"kind": "youtube#video", "videoId": VIDEO_2},
+            "snippet": {
+                "title": "Stats missing likes",
+                "description": "Second search result.",
+                "publishedAt": "2024-01-02T12:00:00Z",
+                "channelId": CHANNEL_A,
+                "channelTitle": "SEA AI Education",
+            },
+        },
+    ],
+}
+
+SEARCH_PAGE_2 = {
+    "kind": "youtube#searchListResponse",
+    "items": [
+        {
+            "kind": "youtube#searchResult",
+            "id": {"kind": "youtube#video", "videoId": VIDEO_3},
+            "snippet": {
+                "title": "Advanced Python",
+                "description": "Deeper Python topics.",
+                "publishedAt": "2024-01-03T12:00:00Z",
+                "channelId": CHANNEL_B,
+                "channelTitle": "Tech Channel B",
+            },
+        },
+    ],
+}
+
+SEARCH_SINGLE_PAGE_NO_TOKEN = {
+    "kind": "youtube#searchListResponse",
+    "items": [
+        {
+            "kind": "youtube#searchResult",
+            "id": {"kind": "youtube#video", "videoId": VIDEO_1},
+            "snippet": {
+                "title": "Only result",
+                "description": "A single result.",
+                "publishedAt": "2024-01-01T00:00:00Z",
+                "channelTitle": "SEA AI Education",
+            },
+        },
+    ],
+}
+
+SEARCH_MIXED_KINDS = {
+    "kind": "youtube#searchListResponse",
+    "items": [
+        {
+            "kind": "youtube#searchResult",
+            "id": {"kind": "youtube#channel", "channelId": CHANNEL_C},
+            "snippet": {"title": "A channel result", "publishedAt": "2024-01-01T00:00:00Z"},
+        },
+        {
+            "kind": "youtube#searchResult",
+            "id": {"kind": "youtube#video", "videoId": VIDEO_1},
+            "snippet": {"title": "A video result", "publishedAt": "2024-01-02T00:00:00Z"},
+        },
+    ],
+}
+
+SEARCH_EMPTY = {"kind": "youtube#searchListResponse", "items": []}

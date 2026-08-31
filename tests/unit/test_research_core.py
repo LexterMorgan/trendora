@@ -230,13 +230,16 @@ class TestResearchRun:
         run = ResearchRun(_query(source_codes=("youtube",)))
         run.resolve_capabilities(ResearchCapabilityResolver())
         assert run.status is ResearchRunStatus.READY
-        # M13 has no collection/completion states; READY only means the run is
-        # eligible for future collection.
+        # M14 extends READY into execution states; READY alone never means done.
         assert {s.value for s in ResearchRunStatus} == {
             "requested",
             "resolving_capabilities",
             "ready",
             "blocked",
+            "collecting",
+            "normalizing",
+            "completed",
+            "failed",
         }
 
     def test_invalid_transition_rejected(self) -> None:

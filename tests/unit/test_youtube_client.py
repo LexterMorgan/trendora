@@ -22,6 +22,11 @@ from tests.fixtures.youtube_responses import (
     PLAYLIST_PAGE_1,
     PLAYLIST_PAGE_2,
     QUOTA_ERROR,
+    SEARCH_EMPTY,
+    SEARCH_MIXED_KINDS,
+    SEARCH_PAGE_1,
+    SEARCH_PAGE_2,
+    SEARCH_SINGLE_PAGE_NO_TOKEN,
     UPLOADS_A,
     VIDEO_1,
     VIDEO_2,
@@ -300,3 +305,144 @@ def test_watchlist_videos_list_still_uses_ids_not_chart() -> None:
 
     videos = _client(handler).list_videos([VIDEO_1, VIDEO_2])
     assert [video.id for video in videos] == [VIDEO_1, VIDEO_2]
+
+
+def test_search_single_page_builds_correct_params() -> None:
+    captured: list[dict[str, object]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.append(dict(request.url.params))
+        assert request.url.path.endswith("/search")
+        assert request.url.params["key"] == TEST_KEY
+        assert request.url.params["q"] == "AI education"
+        assert request.url.params["regionCode"] == "SG"
+        assert request.url.params["type"] == "video"
+        assert request.url.params["order"] == "relevance"
+        assert request.url.params["maxResults"] == "50"
+        assert request.url.params["publishedAfter"] == "2026-08-01T00:00:00Z"
+        assert request.url.params["publishedBefore"] == "2026-08-31T00:00:00Z"
+        return httpx.Response(200, json=SEARCH_PAGE_1)
+
+    results = _client(handler).search_videos(
+        query="AI education",
+        region_code="SG",
+        published_after="2026-08-01T00:00:00Z",
+        published_before="2026-08-31T00:00:00Z",
+        limit=50,
+    )
+    assert [r.video_id for r in results] == [VIDEO_1, VIDEO_2]
+    assert len(captured) == 1
+
+
+def test_search_paginates_up_to_two_pages_for_limit_over_fifty() -> None:
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.params.get("pageToken"))
+        if request.url.params.get("pageToken") == "SEARCHPAGE2":
+            return httpx.Response(200, json=SEARCH_PAGE_2)
+        return httpx.Response(200, json=SEARCH_PAGE_1)
+
+    results = _client(handler).search_videos(
+        query="python",
+        region_code="SG",
+        published_after=None,
+        published_before=None,
+        limit=55,
+    )
+    assert [r.video_id for r in results] == [VIDEO_1, VIDEO_2, VIDEO_3]
+    assert calls == [None, "SEARCHPAGE2"]
+
+
+def test_search_stops_when_next_page_token_absent() -> None:
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        return httpx.Response(200, json=SEARCH_SINGLE_PAGE_NO_TOKEN)
+
+    results = _client(handler).search_videos(
+        query="python",
+        region_code="SG",
+        published_after=None,
+        published_before=None,
+        limit=55,
+    )
+    assert [r.video_id for r in results] == [VIDEO_1]
+    assert len(calls) == 1
+
+
+def test_search_never_returns_more_than_limit() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=SEARCH_PAGE_1)
+
+    results = _client(handler).search_videos(
+        query="python",
+        region_code="SG",
+        published_after=None,
+        published_before=None,
+        limit=3,
+    )
+    assert [r.video_id for r in results] == [VIDEO_1, VIDEO_2]
+    assert len(results) <= 3
+
+
+def test_search_dedupes_video_ids() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = {
+            "items": [
+                {"id": {"kind": "youtube#video", "videoId": VIDEO_1}, "snippet": {"title": "A"}},
+                {"id": {"kind": "youtube#video", "videoId": VIDEO_1}, "snippet": {"title": "B"}},
+                {"id": {"kind": "youtube#video", "videoId": VIDEO_2}, "snippet": {"title": "C"}},
+            ]
+        }
+        return httpx.Response(200, json=payload)
+
+    results = _client(handler).search_videos(
+        query="python",
+        region_code="SG",
+        published_after=None,
+        published_before=None,
+        limit=10,
+    )
+    assert [r.video_id for r in results] == [VIDEO_1, VIDEO_2]
+
+
+def test_search_skips_items_without_video_id() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=SEARCH_MIXED_KINDS)
+
+    results = _client(handler).search_videos(
+        query="python",
+        region_code="SG",
+        published_after=None,
+        published_before=None,
+        limit=10,
+    )
+    assert [r.video_id for r in results] == [VIDEO_1]
+
+
+def test_search_zero_limit_returns_empty_without_calls() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("no request expected")
+
+    assert _client(handler).search_videos(
+        query="python",
+        region_code="SG",
+        published_after=None,
+        published_before=None,
+        limit=0,
+    ) == []
+
+
+def test_search_empty_results() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=SEARCH_EMPTY)
+
+    assert _client(handler).search_videos(
+        query="python",
+        region_code="SG",
+        published_after=None,
+        published_before=None,
+        limit=10,
+    ) == []

@@ -1,9 +1,10 @@
-"""Trendora research core (M13).
+"""Trendora research core (M13) and YouTube research retrieval (M14).
 
 Deterministic, in-memory domain contracts for the evidence-backed research
-direction (docs/14, docs/15): ``ResearchQuery``, platform capability
-declarations, coverage resolution, and the synchronous ``ResearchRun``
-lifecycle. No network, no persistence, no connectors, no LLM.
+direction (docs/14, docs/15, docs/16): ``ResearchQuery``, platform capability
+declarations, coverage resolution, the ``ResearchRun`` lifecycle, and the
+YouTube-first retrieval that produces normalized in-memory research
+references. No persistence, no LLM.
 """
 
 from trendora.research.capabilities import (
@@ -24,9 +25,12 @@ from trendora.research.models import (
     CoverageCompleteness,
     CoverageReason,
     CoverageStatus,
+    MarketBasis,
     PlatformCapability,
     ResearchCoverage,
+    ResearchMetrics,
     ResearchQuery,
+    ResearchReference,
     ResearchRun,
     ResearchRunStatus,
     SourceCapabilities,
@@ -34,6 +38,7 @@ from trendora.research.models import (
     validate_research_query,
 )
 from trendora.research.service import ResearchCapabilityResolver
+from trendora.research.youtube import YouTubeResearchRetriever
 
 __all__ = [
     "DEFAULT_RESULT_LIMIT",
@@ -44,17 +49,21 @@ __all__ = [
     "CoverageCompleteness",
     "CoverageReason",
     "CoverageStatus",
+    "MarketBasis",
     "PlatformCapability",
     "ResearchCapabilityResolver",
     "ResearchCoverage",
     "ResearchError",
+    "ResearchMetrics",
     "ResearchQuery",
+    "ResearchReference",
     "ResearchRun",
     "ResearchRunStatus",
     "ResearchStateError",
     "ResearchValidationError",
     "SourceCapabilities",
     "SourceCoverage",
+    "YouTubeResearchRetriever",
     "default_declarations",
     "required_capabilities",
     "validate_research_query",

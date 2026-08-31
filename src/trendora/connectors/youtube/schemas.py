@@ -80,3 +80,29 @@ class VideoCategorySnippet(_IgnoreExtra):
 class VideoCategoryResource(_IgnoreExtra):
     id: str
     snippet: VideoCategorySnippet = Field(default_factory=VideoCategorySnippet)
+
+
+class SearchResourceId(_IgnoreExtra):
+    kind: str | None = None
+    video_id: str | None = Field(default=None, alias="videoId")
+
+
+class SearchResourceSnippet(_IgnoreExtra):
+    title: str | None = None
+    description: str | None = None
+    published_at: str | None = Field(default=None, alias="publishedAt")
+    channel_id: str | None = Field(default=None, alias="channelId")
+    channel_title: str | None = Field(default=None, alias="channelTitle")
+
+
+class SearchResource(_IgnoreExtra):
+    """One ``search.list`` result. ``type=video`` results carry a video id."""
+
+    id: SearchResourceId | None = None
+    snippet: SearchResourceSnippet = Field(default_factory=SearchResourceSnippet)
+
+    @property
+    def video_id(self) -> str | None:
+        if self.id is None:
+            return None
+        return self.id.video_id
