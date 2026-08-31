@@ -2,7 +2,7 @@
 
 AI-powered Social Media Intelligence Platform for Southeast Asian education, AI, and technology markets.
 
-**Status:** Milestones 2A–4 ingest; M5 analytics; M6A in-memory forecast baselines; M6B evaluation docs; M6C naive-vs-challenger MAE comparison (in-memory); M7 series diagnostics (in-memory); M8 forecasting product contract & readiness gate ([docs/11](docs/11_FORECASTING_PRODUCT_SPEC.md)); M9 forecasting product requirements decided ([docs/12](docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md)) — V1 = naive level forecasts of GitHub repository `stargazer_count`/`fork_count`, 4 weekly points, on demand from M5, ≥4 observations; not yet implemented. FastAPI, Streamlit, advanced ML, WebSub, and other source connectors are not implemented.
+**Status:** Milestones 2A–4 ingest; M5 analytics; M6A in-memory forecast baselines; M6B evaluation docs; M6C naive-vs-challenger MAE comparison (in-memory); M7 series diagnostics (in-memory); M8 forecasting product contract & readiness gate ([docs/11](docs/11_FORECASTING_PRODUCT_SPEC.md)); M9 forecasting product requirements decided ([docs/12](docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md)); M10 V1 GitHub forecasting slice implemented ([src/trendora/product/](src/trendora/product/)) — naive level forecasts of GitHub repository `stargazer_count`/`fork_count`, 4 weekly points, on demand from M5, ≥4 observations, in-memory; M11A forecast API contract defined ([docs/13](docs/13_FORECASTING_API_CONTRACT.md)); M11B FastAPI adapter implemented ([src/trendora/api/](src/trendora/api/)) — one read endpoint, no auth/persistence. Streamlit, advanced ML, WebSub, and other source connectors are not implemented.
 
 ## What Trendora will answer
 
@@ -22,13 +22,14 @@ The product dashboard will remain Streamlit. The frontend will not be switched t
 
 ## Current milestone
 
-Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 5 is the analytics read layer. Milestone 6A is in-memory forecasting baselines. Milestone 6B is evaluation/model-selection documentation. Milestone 6C is in-memory naive-vs-challenger MAE comparison. Milestone 7 is in-memory series diagnostics. Milestone 8 defines the forecasting product contract and readiness gate. Milestone 9 decides the V1 forecasting product requirements (see below). See:
+Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 5 is the analytics read layer. Milestone 6A is in-memory forecasting baselines. Milestone 6B is evaluation/model-selection documentation. Milestone 6C is in-memory naive-vs-challenger MAE comparison. Milestone 7 is in-memory series diagnostics. Milestone 8 defines the forecasting product contract and readiness gate. Milestone 9 decides the V1 forecasting product requirements. Milestone 10 implements the V1 GitHub forecast slice over M5/M6A/M7. Milestone 11A defines the forecast API contract. Milestone 11B implements the FastAPI adapter (see below). See:
 
 - [docs/04_INGESTION_PIPELINE.md](docs/04_INGESTION_PIPELINE.md) — connectors, config, and how to run them
 - [docs/05_ANALYTICS_SPEC.md](docs/05_ANALYTICS_SPEC.md) — observation contracts and candidate KPI caveats
 - [docs/06_ML_FORECASTING.md](docs/06_ML_FORECASTING.md) — M6A baselines, M6B evaluation protocol, M6C comparison, M7 diagnostics, open decisions
 - [docs/11_FORECASTING_PRODUCT_SPEC.md](docs/11_FORECASTING_PRODUCT_SPEC.md) — M8 forecasting product contract & readiness gate
 - [docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md](docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md) — M9 V1 forecasting product requirements & decisions
+- [docs/13_FORECASTING_API_CONTRACT.md](docs/13_FORECASTING_API_CONTRACT.md) — M11A forecast API contract (request/response/errors; FastAPI not yet implemented)
 - [PROJECT_PREP.md](PROJECT_PREP.md) — environment, MCP, and setup notes
 - [docs/01_ARCHITECTURE.md](docs/01_ARCHITECTURE.md) — layer boundaries and V1 database decision
 - [docs/02_DATABASE_SCHEMA.md](docs/02_DATABASE_SCHEMA.md) — tables, constraints, migrations
@@ -44,8 +45,8 @@ Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 
 | HTTP | httpx (YouTube Data API v3 client) | Installed |
 | Connectors | YouTube watchlist + mostPopular; Hacker News stories; Stack Exchange questions; GitHub repositories | M2A + M2B + M3A + M3B + M4 |
 | Analytics | Read-only observation/query layer over `metric_snapshots` | M5 |
-| Forecasting | In-memory naive / moving average / SES over M5 series; naive-vs-challenger MAE; series diagnostics | M6A + M6C + M7 |
-| API | FastAPI | Not installed |
+| Forecasting | In-memory naive / moving average / SES over M5 series; naive-vs-challenger MAE; series diagnostics; V1 GitHub forecast product | M6A + M6C + M7 + M10 |
+| API | FastAPI read model over the M10 GitHub forecast product; one endpoint | M11B |
 | Dashboard | Streamlit + Plotly | Not installed |
 | Data / ML | Pandas, NumPy, scikit-learn, statsmodels | Not installed |
 | AI | Provider-agnostic, optional, $0-safe | Not installed |
@@ -209,6 +210,14 @@ Use `AnalyticsService.from_session(session)` to load a `MetricSeries` or a Trend
 
 In-memory baselines over M5 `MetricSeries`: naive, moving average, and simple exponential smoothing. `ForecastingService` calls `AnalyticsService`; it does not query snapshots or write. Interval and horizon are explicit. No resampling or imputation. Chronological holdout MAE only. M6C compares naive vs one caller-chosen M6A challenger on the same series and holdout (`challenger_mae < naive_mae`; ties are false). That is an evaluation artifact, not a production winner. M7 reports deterministic series diagnostics (history length, gaps, duplicates, deltas) over the same M5 series. It does not score forecastability or select a model. The M9 V1 product requirements are decided in [docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md](docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md) (V1 = naive level forecasts of GitHub repository `stargazer_count`/`fork_count`, 4 weekly points, ≥4 observations, on demand from M5); the product contract is in [docs/11_FORECASTING_PRODUCT_SPEC.md](docs/11_FORECASTING_PRODUCT_SPEC.md) and the technical open decisions remain in [docs/06_ML_FORECASTING.md](docs/06_ML_FORECASTING.md). Not ARIMA, dashboards, or persisted forecasts.
 
+### V1 GitHub forecast product (Milestone 10)
+
+`GitHubForecastProduct` ([src/trendora/product/](src/trendora/product/)) is a thin in-memory layer over M5/M6A/M7 implementing the M9 V1 contract: `github` source, repository `content_item` subject, `stargazer_count` / `fork_count`, naive level forecast, exactly 4 points at a 7-day generation interval (a labeling convention, not a cadence claim), minimum 4 observations (fewer raises `InsufficientHistoryError`), `origin=trendora_forecast`, plus factual history/freshness/cadence context. Unsupported source/metric/publisher-subject requests raise `ForecastingValidationError`. No SQL, no connectors, no persistence, no resampling. FastAPI/Streamlit not involved. The HTTP exposure contract is defined in [docs/13_FORECASTING_API_CONTRACT.md](docs/13_FORECASTING_API_CONTRACT.md).
+
+### V1 forecast API (Milestones 11A / 11B)
+
+`create_app()` ([src/trendora/api/](src/trendora/api/)) builds a FastAPI app with one read endpoint: `GET /api/v1/forecasts/github/{content_item_id}?metric=stargazer_count|fork_count`. It is a pure adapter: it validates the metric, calls `GitHubForecastProduct`, and serializes the result (`origin=trendora_forecast`, 4 points, `interval_days=7`, history/freshness/cadence context). Errors use the `{"error": {"code", "message"}}` envelope (422 `invalid_metric` / `invalid_request` / `forecast_insufficient_history`; 500 `analytics_query_error` / `internal_error`). No auth, no rate limiting, no persistence, no other endpoints. FastAPI (`fastapi>=0.115,<1`) is the only new dependency; no ASGI server was added (tests use `TestClient`).
+
 ### Tests
 
 ```bash
@@ -235,6 +244,8 @@ src/trendora/          # application package
   analytics/           # M5 read-only observation queries
   forecasting/         # M6A baselines and M6C naive-vs-challenger comparison over M5 series
   diagnostics/         # M7 in-memory series diagnostics over M5 series
+  product/             # M10 V1 GitHub forecast product layer over M5/M6A/M7 (in-memory)
+  api/                 # M11B FastAPI adapter over the M10 product (one read endpoint)
 alembic/               # Alembic env + versions
 tests/unit/            # no database required
 tests/integration/     # PostgreSQL, skipped without DATABASE_URL
