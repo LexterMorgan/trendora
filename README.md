@@ -4,6 +4,10 @@ AI-powered Social Media Intelligence Platform for Southeast Asian education, AI,
 
 **Status:** Milestones 2A–4 ingest; M5 analytics; M6A in-memory forecast baselines; M6B evaluation docs; M6C naive-vs-challenger MAE comparison (in-memory); M7 series diagnostics (in-memory); M8 forecasting product contract & readiness gate ([docs/11](docs/11_FORECASTING_PRODUCT_SPEC.md)); M9 forecasting product requirements decided ([docs/12](docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md)); M10 V1 GitHub forecasting slice implemented ([src/trendora/product/](src/trendora/product/)) — naive level forecasts of GitHub repository `stargazer_count`/`fork_count`, 4 weekly points, on demand from M5, ≥4 observations, in-memory; M11A forecast API contract defined ([docs/13](docs/13_FORECASTING_API_CONTRACT.md)); M11B FastAPI adapter implemented ([src/trendora/api/](src/trendora/api/)) — one read endpoint, no auth/persistence. Streamlit, advanced ML, WebSub, and other source connectors are not implemented.
 
+## Product direction (M12 re-baseline)
+
+The product is evolving from a forecasting-first surface to an **evidence-backed social content intelligence and research platform**: “What should we post, why should we post it, and what evidence supports that decision?” Forecasting (M6–M11) remains a capability but becomes a secondary signal. The current plan is YouTube-first research → references → patterns → opportunities → ideas/briefs. See [docs/14_PRODUCT_ARCHITECTURE_REBASELINE.md](docs/14_PRODUCT_ARCHITECTURE_REBASELINE.md).
+
 ## What Trendora will answer
 
 > What is happening across Southeast Asian education and technology markets, why is it happening, what is likely to happen next, and what should we do next?
@@ -22,14 +26,15 @@ The product dashboard will remain Streamlit. The frontend will not be switched t
 
 ## Current milestone
 
-Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 5 is the analytics read layer. Milestone 6A is in-memory forecasting baselines. Milestone 6B is evaluation/model-selection documentation. Milestone 6C is in-memory naive-vs-challenger MAE comparison. Milestone 7 is in-memory series diagnostics. Milestone 8 defines the forecasting product contract and readiness gate. Milestone 9 decides the V1 forecasting product requirements. Milestone 10 implements the V1 GitHub forecast slice over M5/M6A/M7. Milestone 11A defines the forecast API contract. Milestone 11B implements the FastAPI adapter (see below). See:
+Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 5 is the analytics read layer. Milestone 6A is in-memory forecasting baselines. Milestone 6B is evaluation/model-selection documentation. Milestone 6C is in-memory naive-vs-challenger MAE comparison. Milestone 7 is in-memory series diagnostics. Milestone 8 defines the forecasting product contract and readiness gate. Milestone 9 decides the V1 forecasting product requirements. Milestone 10 implements the V1 GitHub forecast slice over M5/M6A/M7. Milestone 11A defines the forecast API contract. Milestone 11B implements the FastAPI adapter. Milestone 12 re-baselines the product toward evidence-backed content intelligence (forecasting becomes a secondary signal). See:
 
 - [docs/04_INGESTION_PIPELINE.md](docs/04_INGESTION_PIPELINE.md) — connectors, config, and how to run them
 - [docs/05_ANALYTICS_SPEC.md](docs/05_ANALYTICS_SPEC.md) — observation contracts and candidate KPI caveats
 - [docs/06_ML_FORECASTING.md](docs/06_ML_FORECASTING.md) — M6A baselines, M6B evaluation protocol, M6C comparison, M7 diagnostics, open decisions
 - [docs/11_FORECASTING_PRODUCT_SPEC.md](docs/11_FORECASTING_PRODUCT_SPEC.md) — M8 forecasting product contract & readiness gate
 - [docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md](docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md) — M9 V1 forecasting product requirements & decisions
-- [docs/13_FORECASTING_API_CONTRACT.md](docs/13_FORECASTING_API_CONTRACT.md) — M11A forecast API contract (request/response/errors; FastAPI not yet implemented)
+- [docs/13_FORECASTING_API_CONTRACT.md](docs/13_FORECASTING_API_CONTRACT.md) — M11A/M11B forecast API contract; FastAPI adapter implemented in [src/trendora/api/](src/trendora/api/)
+- [docs/14_PRODUCT_ARCHITECTURE_REBASELINE.md](docs/14_PRODUCT_ARCHITECTURE_REBASELINE.md) — M12 product & architecture re-baseline (evidence-backed content intelligence direction)
 - [PROJECT_PREP.md](PROJECT_PREP.md) — environment, MCP, and setup notes
 - [docs/01_ARCHITECTURE.md](docs/01_ARCHITECTURE.md) — layer boundaries and V1 database decision
 - [docs/02_DATABASE_SCHEMA.md](docs/02_DATABASE_SCHEMA.md) — tables, constraints, migrations
