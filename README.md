@@ -26,7 +26,7 @@ The product dashboard will remain Streamlit. The frontend will not be switched t
 
 ## Current milestone
 
-Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 5 is the analytics read layer. Milestone 6A is in-memory forecasting baselines. Milestone 6B is evaluation/model-selection documentation. Milestone 6C is in-memory naive-vs-challenger MAE comparison. Milestone 7 is in-memory series diagnostics. Milestone 8 defines the forecasting product contract and readiness gate. Milestone 9 decides the V1 forecasting product requirements. Milestone 10 implements the V1 GitHub forecast slice over M5/M6A/M7. Milestone 11A defines the forecast API contract. Milestone 11B implements the FastAPI adapter. Milestone 12 re-baselines the product toward evidence-backed content intelligence (forecasting becomes a secondary signal). Milestone 13 implements the research core (ResearchQuery, capabilities, coverage, ResearchRun). Milestone 14 implements YouTube-first research retrieval (search + enrichment → in-memory references). Milestone 15 exposes the research workflow via `POST /api/v1/research`. See:
+Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 5 is the analytics read layer. Milestone 6A is in-memory forecasting baselines. Milestone 6B is evaluation/model-selection documentation. Milestone 6C is in-memory naive-vs-challenger MAE comparison. Milestone 7 is in-memory series diagnostics. Milestone 8 defines the forecasting product contract and readiness gate. Milestone 9 decides the V1 forecasting product requirements. Milestone 10 implements the V1 GitHub forecast slice over M5/M6A/M7. Milestone 11A defines the forecast API contract. Milestone 11B implements the FastAPI adapter. Milestone 12 re-baselines the product toward evidence-backed content intelligence (forecasting becomes a secondary signal). Milestone 13 implements the research core (ResearchQuery, capabilities, coverage, ResearchRun). Milestone 14 implements YouTube-first research retrieval (search + enrichment → in-memory references). Milestone 15 exposes the research workflow via `POST /api/v1/research`. Milestone 16 adds the research workspace UI (`web/`). See:
 
 - [docs/04_INGESTION_PIPELINE.md](docs/04_INGESTION_PIPELINE.md) — connectors, config, and how to run them
 - [docs/05_ANALYTICS_SPEC.md](docs/05_ANALYTICS_SPEC.md) — observation contracts and candidate KPI caveats
@@ -38,6 +38,7 @@ Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 
 - [docs/15_RESEARCH_CORE.md](docs/15_RESEARCH_CORE.md) — M13 research core (ResearchQuery, capabilities, coverage, ResearchRun)
 - [docs/16_YOUTUBE_RESEARCH_RETRIEVAL.md](docs/16_YOUTUBE_RESEARCH_RETRIEVAL.md) — M14 YouTube-first research retrieval (search + enrichment → in-memory references)
 - [docs/17_RESEARCH_API.md](docs/17_RESEARCH_API.md) — M15 research API (`POST /api/v1/research`)
+- [docs/18_RESEARCH_WORKSPACE.md](docs/18_RESEARCH_WORKSPACE.md) — M16 research workspace UI (`web/`, Next.js)
 - [PROJECT_PREP.md](PROJECT_PREP.md) — environment, MCP, and setup notes
 - [docs/01_ARCHITECTURE.md](docs/01_ARCHITECTURE.md) — layer boundaries and V1 database decision
 - [docs/02_DATABASE_SCHEMA.md](docs/02_DATABASE_SCHEMA.md) — tables, constraints, migrations
@@ -255,6 +256,7 @@ src/trendora/          # application package
   product/             # M10 V1 GitHub forecast product layer over M5/M6A/M7 (in-memory)
   api/                 # M11B FastAPI adapter over the M10 product (one read endpoint)
   research/            # M13 research core + M14 YouTube retrieval + M15 application service
+web/                   # M16 research workspace UI (Next.js App Router + TypeScript)
 alembic/               # Alembic env + versions
 tests/unit/            # no database required
 tests/integration/     # PostgreSQL, skipped without DATABASE_URL
