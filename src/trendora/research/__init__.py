@@ -13,6 +13,20 @@ from trendora.research.capabilities import (
     default_declarations,
     required_capabilities,
 )
+from trendora.research.evidence import (
+    AnalysisBasis,
+    ClaimType,
+    ContentObservation,
+    EvidenceFact,
+    EvidenceField,
+    ObservationType,
+    ReferenceAnalysis,
+    ReferenceId,
+    analyze_reference,
+    analyze_references,
+    extract_evidence,
+    reference_id,
+)
 from trendora.research.exceptions import (
     ResearchError,
     ResearchNoCoverageError,
@@ -44,11 +58,23 @@ from trendora.research.service import ResearchCapabilityResolver
 from trendora.research.youtube import YouTubeResearchRetriever
 
 __all__ = [
+    "AnalysisBasis",
+    "ClaimType",
+    "ContentObservation",
     "DEFAULT_RESULT_LIMIT",
     "DEFAULT_SOURCE_CODES",
+    "EvidenceFact",
+    "EvidenceField",
     "KNOWN_SOURCE_CODES",
     "MAX_RESULT_LIMIT",
     "MARKET_CODES",
+    "ObservationType",
+    "ReferenceAnalysis",
+    "ReferenceId",
+    "analyze_reference",
+    "analyze_references",
+    "extract_evidence",
+    "reference_id",
     "CoverageCompleteness",
     "CoverageReason",
     "CoverageStatus",
