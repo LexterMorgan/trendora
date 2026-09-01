@@ -27,10 +27,17 @@ _HTTP_URL_RE = re.compile(r"https?://", re.IGNORECASE)
 
 
 class ClaimType(StrEnum):
-    """Claim categories M17 may emit. AI/recommendation types come later."""
+    """Claim categories.
+
+    M17 emits FACT (direct source value) and OBSERVATION (deterministic
+    derivation). M19 adds AI_INTERPRETATION (future model meaning grounded in
+    deterministic evidence). Recommendation/opportunity/gap/idea categories
+    are later milestones.
+    """
 
     FACT = "fact"
     OBSERVATION = "observation"
+    AI_INTERPRETATION = "ai_interpretation"
 
 
 class EvidenceField(StrEnum):

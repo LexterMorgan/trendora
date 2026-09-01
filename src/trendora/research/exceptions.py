@@ -26,3 +26,7 @@ class ResearchSourceNotConfiguredError(ResearchError):
 
 class ResearchAggregationError(ResearchError):
     """Malformed input to pattern aggregation (duplicates, invalid values)."""
+
+
+class ResearchInterpretationError(ResearchError):
+    """Invalid AI-interpretation input or ungrounded citations."""
