@@ -28,6 +28,7 @@ from trendora.research.evidence import (
     reference_id,
 )
 from trendora.research.exceptions import (
+    ResearchAggregationError,
     ResearchError,
     ResearchNoCoverageError,
     ResearchSourceNotConfiguredError,
@@ -54,11 +55,17 @@ from trendora.research.models import (
     SourceCoverage,
     validate_research_query,
 )
+from trendora.research.patterns import (
+    BOOLEAN_OBSERVATION_TYPES,
+    PatternAggregate,
+    aggregate_patterns,
+)
 from trendora.research.service import ResearchCapabilityResolver
 from trendora.research.youtube import YouTubeResearchRetriever
 
 __all__ = [
     "AnalysisBasis",
+    "BOOLEAN_OBSERVATION_TYPES",
     "ClaimType",
     "ContentObservation",
     "DEFAULT_RESULT_LIMIT",
@@ -69,8 +76,11 @@ __all__ = [
     "MAX_RESULT_LIMIT",
     "MARKET_CODES",
     "ObservationType",
+    "PatternAggregate",
     "ReferenceAnalysis",
     "ReferenceId",
+    "ResearchAggregationError",
+    "aggregate_patterns",
     "analyze_reference",
     "analyze_references",
     "extract_evidence",

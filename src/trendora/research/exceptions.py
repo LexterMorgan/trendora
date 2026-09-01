@@ -22,3 +22,7 @@ class ResearchNoCoverageError(ResearchError):
 
 class ResearchSourceNotConfiguredError(ResearchError):
     """A source supports the capability but no runtime retriever is configured."""
+
+
+class ResearchAggregationError(ResearchError):
+    """Malformed input to pattern aggregation (duplicates, invalid values)."""
