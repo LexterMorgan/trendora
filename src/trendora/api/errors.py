@@ -19,6 +19,10 @@ from trendora.analytics.exceptions import AnalyticsQueryError
 from trendora.connectors.youtube.exceptions import YouTubeConnectorError
 from trendora.forecasting.exceptions import ForecastingValidationError, InsufficientHistoryError
 from trendora.research.exceptions import (
+    ResearchAIProviderError,
+    ResearchAIProviderNotConfiguredError,
+    ResearchAIResponseError,
+    ResearchInterpretationError,
     ResearchNoCoverageError,
     ResearchSourceNotConfiguredError,
     ResearchValidationError,
@@ -69,6 +73,24 @@ async def _handle_youtube_upstream(_request: Request, exc: YouTubeConnectorError
     return _error(502, "research_upstream_error", str(exc))
 
 
+async def _handle_ai_not_configured(
+    _request: Request, _exc: ResearchAIProviderNotConfiguredError
+) -> JSONResponse:
+    return _error(503, "ai_provider_not_configured", "AI provider is not configured.")
+
+
+async def _handle_ai_provider(_request: Request, _exc: ResearchAIProviderError) -> JSONResponse:
+    return _error(502, "ai_provider_error", "AI provider failed.")
+
+
+async def _handle_ai_response(_request: Request, _exc: ResearchAIResponseError) -> JSONResponse:
+    return _error(502, "ai_response_invalid", "AI provider returned an invalid response.")
+
+
+async def _handle_interpretation(_request: Request, _exc: ResearchInterpretationError) -> JSONResponse:
+    return _error(502, "ai_response_invalid", "AI provider returned an invalid response.")
+
+
 def register_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(InsufficientHistoryError, _handle_insufficient_history)
     app.add_exception_handler(ForecastingValidationError, _handle_forecasting_validation)
@@ -80,4 +102,8 @@ def register_error_handlers(app: FastAPI) -> None:
         ResearchSourceNotConfiguredError, _handle_research_source_not_configured
     )
     app.add_exception_handler(YouTubeConnectorError, _handle_youtube_upstream)
+    app.add_exception_handler(ResearchAIProviderNotConfiguredError, _handle_ai_not_configured)
+    app.add_exception_handler(ResearchAIProviderError, _handle_ai_provider)
+    app.add_exception_handler(ResearchAIResponseError, _handle_ai_response)
+    app.add_exception_handler(ResearchInterpretationError, _handle_interpretation)
     app.add_exception_handler(Exception, _handle_unexpected)

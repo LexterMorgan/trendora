@@ -16,6 +16,7 @@ from __future__ import annotations
 from collections.abc import Generator
 from uuid import UUID
 
+import httpx
 from fastapi import Depends, FastAPI, Query
 
 from trendora.analytics.service import AnalyticsService
@@ -24,9 +25,14 @@ from trendora.connectors.youtube.client import YouTubeClient
 from trendora.db.session import get_session_factory
 from trendora.forecasting.exceptions import ForecastingValidationError
 from trendora.product import V1_METRICS, GitHubForecastProduct, GitHubForecastRequest
+from trendora.research.ai_provider import build_ai_provider_config
 from trendora.research.application import ResearchApplicationService, build_research_application_service
 from trendora.research.exceptions import ResearchNoCoverageError
 from trendora.research.models import ResearchRunStatus
+from trendora.research.reporting import (
+    ResearchReportService,
+    build_research_report_service,
+)
 
 from trendora.api.errors import register_error_handlers
 from trendora.api.models import ForecastResponse, to_forecast_response
@@ -34,6 +40,11 @@ from trendora.api.research_models import (
     ResearchRequest,
     ResearchResponse,
     to_research_response,
+)
+from trendora.api.research_report_models import (
+    ResearchReportRequest,
+    ResearchReportResponse,
+    to_report_response,
 )
 
 
@@ -69,6 +80,39 @@ def get_research_application_service() -> Generator[ResearchApplicationService, 
     finally:
         if client is not None:
             client.close()
+
+
+def get_research_report_service() -> Generator[ResearchReportService, None, None]:
+    """FastAPI dependency: report pipeline service.
+
+    Fails fast when AI configuration is missing (missing provider config is
+    never ``no_evidence`` or empty AI output). Owns one YouTube client and one
+    shared HTTP client for the three AI adapters; both close exactly once.
+    Tests override this dependency.
+    """
+
+    settings = get_settings()
+    config = build_ai_provider_config(
+        provider=settings.ai_provider,
+        model=settings.ai_model,
+        endpoint_url=settings.ai_endpoint_url,
+        api_key=settings.ai_api_key,
+    )
+    youtube_client = (
+        YouTubeClient(settings.youtube_api_key) if settings.youtube_api_key else None
+    )
+    http = httpx.Client(timeout=config.timeout_seconds)
+    service = build_research_report_service(
+        youtube_client=youtube_client,
+        http_client=http,
+        config=config,
+    )
+    try:
+        yield service
+    finally:
+        http.close()
+        if youtube_client is not None:
+            youtube_client.close()
 
 
 def create_app() -> FastAPI:
@@ -146,5 +190,36 @@ def create_app() -> FastAPI:
                 "no requested source can satisfy the required capability"
             )
         return to_research_response(run)
+
+    @app.post(
+        "/api/v1/research/report",
+        response_model=ResearchReportResponse,
+        summary="Run full research report",
+        description=(
+            "Run one synchronous full research report: research → evidence → "
+            "patterns → grounded interpretation → gaps/opportunities → ideas/"
+            "briefs. Returns the validated report with provenance at every "
+            "stage. Requires AI provider configuration; no persistence, no "
+            "ranking, no performance claims."
+        ),
+        responses={
+            422: {"description": "Invalid research request, or no requested source has usable coverage"},
+            503: {"description": "AI provider is not configured"},
+            502: {"description": "AI provider or upstream failure / invalid AI response"},
+        },
+    )
+    def research_report(
+        payload: ResearchReportRequest,
+        service: ResearchReportService = Depends(get_research_report_service),
+    ) -> ResearchReportResponse:
+        report = service.build_report(
+            topic=payload.topic,
+            market=payload.market,
+            date_from=payload.date_from,
+            date_to=payload.date_to,
+            sources=payload.sources,
+            result_limit=payload.result_limit,
+        )
+        return to_report_response(report)
 
     return app

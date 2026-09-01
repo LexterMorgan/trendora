@@ -99,6 +99,13 @@ from trendora.research.patterns import (
     PatternAggregate,
     aggregate_patterns,
 )
+from trendora.research.reporting import (
+    ResearchReport,
+    ResearchReportService,
+    ResearchReportStatus,
+    build_research_report_service,
+    validate_research_report,
+)
 from trendora.research.service import ResearchCapabilityResolver
 from trendora.research.strategy import (
     AIStrategyProvider,
@@ -159,6 +166,9 @@ __all__ = [
     "ResearchAIProviderNotConfiguredError",
     "ResearchAIResponseError",
     "ResearchInterpretationError",
+    "ResearchReport",
+    "ResearchReportService",
+    "ResearchReportStatus",
     "StrategicContext",
     "StrategicResult",
     "SYSTEM_IDEATION_PROMPT",
@@ -171,6 +181,7 @@ __all__ = [
     "build_grounded_ideation_request",
     "build_grounded_request",
     "build_grounded_strategy_request",
+    "build_research_report_service",
     "evidence_pack_to_payload",
     "extract_evidence",
     "interpretation_analysis_basis",
@@ -178,6 +189,7 @@ __all__ = [
     "validate_citations",
     "validate_ideation_result",
     "validate_interpretations",
+    "validate_research_report",
     "validate_strategic_result",
     "CoverageCompleteness",
     "CoverageReason",
