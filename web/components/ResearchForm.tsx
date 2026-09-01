@@ -25,14 +25,15 @@ export interface ResearchFormValues {
 interface ResearchFormProps {
   onSubmit: (values: ResearchFormValues) => void;
   disabled: boolean;
+  initialValues?: Partial<ResearchFormValues>;
 }
 
-export function ResearchForm({ onSubmit, disabled }: ResearchFormProps) {
-  const [topic, setTopic] = useState("");
-  const [market, setMarket] = useState("SG");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [resultLimit, setResultLimit] = useState(20);
+export function ResearchForm({ onSubmit, disabled, initialValues }: ResearchFormProps) {
+  const [topic, setTopic] = useState(initialValues?.topic ?? "");
+  const [market, setMarket] = useState(initialValues?.market ?? "SG");
+  const [dateFrom, setDateFrom] = useState(initialValues?.date_from ?? "");
+  const [dateTo, setDateTo] = useState(initialValues?.date_to ?? "");
+  const [resultLimit, setResultLimit] = useState(initialValues?.result_limit ?? 20);
   const [localError, setLocalError] = useState<string | null>(null);
 
   function handleSubmit(event: React.FormEvent) {

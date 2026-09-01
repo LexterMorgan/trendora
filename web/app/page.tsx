@@ -1,49 +1,60 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { ResearchForm, type ResearchFormValues } from "@/components/ResearchForm";
-import { CoveragePanel } from "@/components/CoveragePanel";
-import { ReferenceList } from "@/components/ReferenceList";
-import { EmptyState } from "@/components/EmptyState";
-import { ErrorState } from "@/components/ErrorState";
-import { MarketCaveat } from "@/components/MarketCaveat";
-import {
-  submitResearch,
-  type ResearchResponse,
-  ResearchApiError,
-} from "@/lib/trendora-api";
-import { sourceLabel } from "@/lib/format";
-
-interface DisplayError {
-  code: string;
-  message: string;
-}
+import { TurnView, userMessage, type SessionTurn } from "@/components/TurnView";
+import { submitReport } from "@/lib/report-api";
+import { ResearchApiError } from "@/lib/trendora-api";
 
 export default function Home() {
-  const [result, setResult] = useState<ResearchResponse | null>(null);
-  const [error, setError] = useState<DisplayError | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [turns, setTurns] = useState<SessionTurn[]>([]);
+  const [composerKey, setComposerKey] = useState(0);
+  const [editValues, setEditValues] = useState<Partial<ResearchFormValues>>({});
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
 
   async function handleSubmit(values: ResearchFormValues) {
-    setLoading(true);
-    setError(null);
-    setResult(null);
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+
+    const id = Date.now();
+    const turn: SessionTurn = {
+      id,
+      request: values,
+      userMessage: userMessage(values),
+      state: "loading",
+      report: null,
+      error: null,
+    };
+    setTurns((current) => [...current, turn]);
+    setEditValues({});
+
     try {
-      const response = await submitResearch(values);
-      setResult(response);
+      const report = await submitReport(values);
+      setTurns((current) =>
+        current.map((item) => (item.id === id ? { ...item, state: "success", report } : item)),
+      );
     } catch (err) {
-      if (err instanceof ResearchApiError) {
-        setError({ code: err.code, message: err.message });
-      } else {
-        setError({ code: "internal_error", message: "An unexpected error occurred." });
-      }
+      const error =
+        err instanceof ResearchApiError
+          ? { code: err.code, message: err.message }
+          : { code: "internal_error", message: "An unexpected error occurred." };
+      setTurns((current) =>
+        current.map((item) => (item.id === id ? { ...item, state: "error", error } : item)),
+      );
     } finally {
-      setLoading(false);
+      busyRef.current = false;
+      setBusy(false);
     }
   }
 
-  const referenceCount = result?.references.length ?? 0;
+  function handleEdit(request: ResearchFormValues) {
+    setEditValues({ ...request });
+    setComposerKey((key) => key + 1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   return (
     <main className="workspace">
@@ -51,47 +62,32 @@ export default function Home() {
         <p className="brand">TRENDORA</p>
         <h1 className="tagline">Social Content Intelligence</h1>
         <p className="subtitle">
-          Research real content before deciding what to post.
+          Ask Trendora about real content. Every answer is grounded in the
+          supplied evidence.
         </p>
       </header>
 
-      <div className="research-layout">
+      <div className="chat-layout">
         <section className="panel form-panel" aria-label="Research request">
           <h2 className="section-title">Research</h2>
-          <ResearchForm onSubmit={handleSubmit} disabled={loading} />
+          <ResearchForm
+            key={composerKey}
+            onSubmit={handleSubmit}
+            disabled={busy}
+            initialValues={editValues}
+          />
         </section>
 
-        <section className="results" aria-live="polite">
-          {loading && (
-            <div className="loading-note" role="status">
-              Researching YouTube…
-            </div>
+        <section className="chat-session" aria-live="polite">
+          {turns.length === 0 && (
+            <p className="loading-note">
+              Submit a research request to start the session. Requests are
+              independent and stateless; refreshing the page clears history.
+            </p>
           )}
-
-          {error && <ErrorState code={error.code} message={error.message} />}
-
-          {result && !loading && (
-            <>
-              <div className="result-header">
-                <h2 className="section-title">Research complete</h2>
-                <p className="result-summary">
-                  {referenceCount}{" "}
-                  {referenceCount === 1 ? "reference" : "references"} · executed:{" "}
-                  {result.executed_sources.map(sourceLabel).join(", ") || "none"}
-                </p>
-              </div>
-              <MarketCaveat market={result.query.market} />
-              <CoveragePanel
-                coverage={result.coverage}
-                executedSources={result.executed_sources}
-              />
-              {referenceCount > 0 ? (
-                <ReferenceList references={result.references} />
-              ) : (
-                <EmptyState />
-              )}
-            </>
-          )}
+          {turns.map((turn) => (
+            <TurnView key={turn.id} turn={turn} onEdit={handleEdit} />
+          ))}
         </section>
       </div>
     </main>
