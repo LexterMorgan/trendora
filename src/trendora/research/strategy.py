@@ -229,11 +229,11 @@ def build_grounded_strategy_request(
 def _interpretation_json(interpretation: AIInterpretation) -> dict[str, Any]:
     return {
         "statement": interpretation.statement,
-        "citations": [_citation_json(citation) for citation in interpretation.citations],
+        "citations": [citation_to_json(citation) for citation in interpretation.citations],
     }
 
 
-def _citation_json(citation: Citation) -> dict[str, Any]:
+def citation_to_json(citation: Citation) -> dict[str, Any]:
     if isinstance(citation, FactCitation):
         return {
             "kind": "fact",
