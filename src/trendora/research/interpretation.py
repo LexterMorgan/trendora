@@ -163,24 +163,28 @@ class InterpretationResult:
     interpretations: tuple[AIInterpretation, ...]
 
 
+def validate_citations(pack: EvidencePack, citations: tuple[Citation, ...]) -> None:
+    """Resolve every citation against the pack; raise on any invalid citation."""
+    analysis_by_id = {analysis.reference: analysis for analysis in pack.analyses}
+    patterns_by_type = {pattern.observation_type: pattern for pattern in pack.patterns}
+    for citation in citations:
+        _resolve_citation(citation, analysis_by_id, patterns_by_type)
+
+
 def validate_interpretations(
     pack: EvidencePack,
     result: InterpretationResult,
 ) -> InterpretationResult:
-    """Structurally validate every citation against the pack.
+    """Structurally validate every interpretation's citations against the pack.
 
     Returns the result unchanged on success; raises
     ``ResearchInterpretationError`` on any unknown reference, unresolved
     fact/observation/pattern citation, or empty citation set.
     """
-    analysis_by_id = {analysis.reference: analysis for analysis in pack.analyses}
-    patterns_by_type = {pattern.observation_type: pattern for pattern in pack.patterns}
-
     for interpretation in result.interpretations:
         if interpretation.claim_type is not ClaimType.AI_INTERPRETATION:
             raise ResearchInterpretationError("interpretation claim_type must be AI_INTERPRETATION")
-        for citation in interpretation.citations:
-            _resolve_citation(citation, analysis_by_id, patterns_by_type)
+        validate_citations(pack, interpretation.citations)
     return result
 
 

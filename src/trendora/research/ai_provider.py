@@ -294,30 +294,39 @@ class OpenAICompatibleInterpretationProvider:
         )
 
     def _send(self, request: dict[str, Any]) -> dict[str, Any]:
-        try:
-            response = self._http.post(
-                self._config.endpoint_url,
-                headers={
-                    "Authorization": f"Bearer {self._config.api_key}",
-                    "content-type": "application/json",
-                },
-                json=request,
-            )
-        except httpx.HTTPError as exc:
-            raise ResearchAIProviderError(
-                f"AI provider request failed ({self._config.provider})"
-            ) from exc
-        if response.status_code < 200 or response.status_code >= 300:
-            raise ResearchAIProviderError(
-                f"AI provider returned HTTP {response.status_code} ({self._config.provider})"
-            )
-        try:
-            payload = response.json()
-        except ValueError as exc:
-            raise ResearchAIResponseError("AI provider returned non-JSON HTTP body") from exc
-        if not isinstance(payload, dict):
-            raise ResearchAIResponseError("AI provider returned non-object JSON")
-        return payload
+        return _post_chat_request(self._config, self._http, request)
+
+
+def _post_chat_request(
+    config: AIProviderConfig,
+    http: httpx.Client,
+    request: dict[str, Any],
+) -> dict[str, Any]:
+    """Shared OpenAI-compatible Chat Completions request execution (M20/M21)."""
+    try:
+        response = http.post(
+            config.endpoint_url,
+            headers={
+                "Authorization": f"Bearer {config.api_key}",
+                "content-type": "application/json",
+            },
+            json=request,
+        )
+    except httpx.HTTPError as exc:
+        raise ResearchAIProviderError(
+            f"AI provider request failed ({config.provider})"
+        ) from exc
+    if response.status_code < 200 or response.status_code >= 300:
+        raise ResearchAIProviderError(
+            f"AI provider returned HTTP {response.status_code} ({config.provider})"
+        )
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        raise ResearchAIResponseError("AI provider returned non-JSON HTTP body") from exc
+    if not isinstance(payload, dict):
+        raise ResearchAIResponseError("AI provider returned non-object JSON")
+    return payload
 
 
 def _parse_envelope_content(payload: dict[str, Any]) -> str:

@@ -29,15 +29,16 @@ _HTTP_URL_RE = re.compile(r"https?://", re.IGNORECASE)
 class ClaimType(StrEnum):
     """Claim categories.
 
-    M17 emits FACT (direct source value) and OBSERVATION (deterministic
-    derivation). M19 adds AI_INTERPRETATION (future model meaning grounded in
-    deterministic evidence). Recommendation/opportunity/gap/idea categories
-    are later milestones.
+    M17: FACT (direct source value), OBSERVATION (deterministic derivation).
+    M19: AI_INTERPRETATION (future model meaning grounded in evidence).
+    M21: RECOMMENDATION (strategic direction derived from grounded gaps).
+    Content-gap/opportunity/idea/brief remain domain types, not claim types.
     """
 
     FACT = "fact"
     OBSERVATION = "observation"
     AI_INTERPRETATION = "ai_interpretation"
+    RECOMMENDATION = "recommendation"
 
 
 class EvidenceField(StrEnum):
