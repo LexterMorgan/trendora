@@ -1,12 +1,13 @@
-"""Trendora research core (M13) and YouTube research retrieval (M14).
+"""Trendora research core (M13), retrieval (M14), and application service (M15).
 
 Deterministic, in-memory domain contracts for the evidence-backed research
-direction (docs/14, docs/15, docs/16): ``ResearchQuery``, platform capability
-declarations, coverage resolution, the ``ResearchRun`` lifecycle, and the
-YouTube-first retrieval that produces normalized in-memory research
-references. No persistence, no LLM.
+direction (docs/14, docs/15, docs/16, docs/17): ``ResearchQuery``, platform
+capability declarations, coverage resolution, the ``ResearchRun`` lifecycle,
+YouTube-first retrieval producing normalized in-memory references, and the
+synchronous application service the HTTP adapter calls. No persistence, no LLM.
 """
 
+from trendora.research.application import ResearchApplicationService
 from trendora.research.capabilities import (
     KNOWN_SOURCE_CODES,
     default_declarations,
@@ -14,6 +15,8 @@ from trendora.research.capabilities import (
 )
 from trendora.research.exceptions import (
     ResearchError,
+    ResearchNoCoverageError,
+    ResearchSourceNotConfiguredError,
     ResearchStateError,
     ResearchValidationError,
 )
@@ -55,12 +58,15 @@ __all__ = [
     "ResearchCoverage",
     "ResearchError",
     "ResearchMetrics",
+    "ResearchNoCoverageError",
     "ResearchQuery",
     "ResearchReference",
     "ResearchRun",
     "ResearchRunStatus",
+    "ResearchSourceNotConfiguredError",
     "ResearchStateError",
     "ResearchValidationError",
+    "ResearchApplicationService",
     "SourceCapabilities",
     "SourceCoverage",
     "YouTubeResearchRetriever",

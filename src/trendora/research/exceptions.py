@@ -14,3 +14,11 @@ class ResearchValidationError(ResearchError):
 
 class ResearchStateError(ResearchError):
     """Invalid ResearchRun state transition."""
+
+
+class ResearchNoCoverageError(ResearchError):
+    """No requested source can satisfy the required capability (run is blocked)."""
+
+
+class ResearchSourceNotConfiguredError(ResearchError):
+    """A source supports the capability but no runtime retriever is configured."""

@@ -326,7 +326,7 @@ class TestRunExecution:
     def test_execute_reads_references_and_completes(self) -> None:
         retriever = YouTubeResearchRetriever(_client(self._youtube_handler))
         run = self._ready_run()
-        run.execute(retriever)
+        run.execute("youtube", retriever)
         assert run.status is ResearchRunStatus.COMPLETED
         assert run.references is not None
         assert len(run.references) == 2
@@ -337,7 +337,7 @@ class TestRunExecution:
         run = self._ready_run()
         assert run.query.topic == "AI education"
         assert run.coverage is not None
-        run.execute(retriever)
+        run.execute("youtube", retriever)
         assert run.status is ResearchRunStatus.COMPLETED
         assert run.references is not None and len(run.references) == 2
 
@@ -348,7 +348,7 @@ class TestRunExecution:
         retriever = YouTubeResearchRetriever(_client(handler))
         run = self._ready_run()
         with pytest.raises(YouTubeApiError):
-            run.execute(retriever)
+            run.execute("youtube", retriever)
         assert run.status is ResearchRunStatus.FAILED
         assert run.references is None
 
@@ -358,7 +358,7 @@ class TestRunExecution:
         assert run.status is ResearchRunStatus.BLOCKED
         retriever = YouTubeResearchRetriever(_client(self._youtube_handler))
         with pytest.raises(ResearchStateError):
-            run.execute(retriever)
+            run.execute("youtube", retriever)
 
     def test_ready_is_not_completed_without_execution(self) -> None:
         run = self._ready_run()

@@ -289,7 +289,9 @@ class ResearchRun:
     M13: ``resolve_capabilities`` resolves source coverage into READY or
     BLOCKED. M14: ``execute`` runs real retrieval (collection + normalization)
     on a READY run, ending in COMPLETED with references, or FAILED. Execution
-    status and coverage completeness are separate concepts.
+    status, coverage completeness, and executed sources are separate concepts:
+    a run records exactly which source(s) it attempted regardless of what was
+    requested or what coverage declared.
     """
 
     def __init__(self, query: ResearchQuery) -> None:
@@ -297,6 +299,7 @@ class ResearchRun:
         self._status = ResearchRunStatus.REQUESTED
         self._coverage: ResearchCoverage | None = None
         self._references: tuple[ResearchReference, ...] | None = None
+        self._executed_sources: tuple[str, ...] = ()
 
     @property
     def query(self) -> ResearchQuery:
@@ -314,6 +317,16 @@ class ResearchRun:
     def references(self) -> tuple[ResearchReference, ...] | None:
         return self._references
 
+    @property
+    def executed_sources(self) -> tuple[str, ...]:
+        """Source codes Trendora actually attempted (empty before execution).
+
+        ``executed_sources`` is execution truth, distinct from requested
+        sources and from capability coverage. It stays populated even when a
+        successful search returns zero references.
+        """
+        return self._executed_sources
+
     def resolve_capabilities(self, resolver: ResearchCapabilityResolver) -> None:
         """Resolve source coverage, then move to the matching terminal state."""
         self._transition(ResearchRunStatus.RESOLVING_CAPABILITIES)
@@ -321,13 +334,15 @@ class ResearchRun:
         self._coverage = coverage
         self._transition(_terminal_status(coverage.completeness))
 
-    def execute(self, retriever: YouTubeResearchRetriever) -> None:
-        """Execute retrieval on a READY run (collection then normalization).
+    def execute(self, source_code: str, retriever: YouTubeResearchRetriever) -> None:
+        """Execute retrieval for one source on a READY run.
 
-        On failure the run is marked FAILED and the original error is
-        re-raised so callers can handle it.
+        Records ``source_code`` as attempted before collection, so execution
+        provenance is truthful even on failure. On failure the run is marked
+        FAILED and the original error is re-raised so callers can handle it.
         """
         self._transition(ResearchRunStatus.COLLECTING)
+        self._executed_sources = (source_code,)
         try:
             collected = retriever.collect(self._query)
             self._transition(ResearchRunStatus.NORMALIZING)
