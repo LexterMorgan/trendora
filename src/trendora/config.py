@@ -40,6 +40,10 @@ class Settings(BaseSettings):
         default_factory=list,
         alias="GITHUB_REPOSITORIES",
     )
+    ai_provider: str | None = Field(default=None, alias="TRENDORA_AI_PROVIDER")
+    ai_model: str | None = Field(default=None, alias="TRENDORA_AI_MODEL")
+    ai_endpoint_url: str | None = Field(default=None, alias="TRENDORA_AI_ENDPOINT_URL")
+    ai_api_key: str | None = Field(default=None, alias="TRENDORA_AI_API_KEY")
 
     @field_validator("database_url")
     @classmethod
@@ -56,7 +60,16 @@ class Settings(BaseSettings):
             )
         return url
 
-    @field_validator("youtube_api_key", "stackexchange_api_key", "github_token", mode="before")
+    @field_validator(
+        "youtube_api_key",
+        "stackexchange_api_key",
+        "github_token",
+        "ai_provider",
+        "ai_model",
+        "ai_endpoint_url",
+        "ai_api_key",
+        mode="before",
+    )
     @classmethod
     def blank_optional_key_to_none(cls, value: object) -> str | None:
         if value is None:

@@ -30,3 +30,15 @@ class ResearchAggregationError(ResearchError):
 
 class ResearchInterpretationError(ResearchError):
     """Invalid AI-interpretation input or ungrounded citations."""
+
+
+class ResearchAIProviderNotConfiguredError(ResearchError):
+    """Required AI provider runtime configuration is missing or incomplete."""
+
+
+class ResearchAIProviderError(ResearchError):
+    """Upstream provider failure (network, timeout, non-2xx HTTP)."""
+
+
+class ResearchAIResponseError(ResearchError):
+    """Malformed provider/model response or invalid model output."""

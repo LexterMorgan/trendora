@@ -7,6 +7,17 @@ YouTube-first retrieval producing normalized in-memory references, and the
 synchronous application service the HTTP adapter calls. No persistence, no LLM.
 """
 
+from trendora.research.ai_execution import GroundedInterpretationService
+from trendora.research.ai_provider import (
+    AIInterpretationProvider,
+    AIProviderConfig,
+    DEFAULT_TIMEOUT_SECONDS,
+    SYSTEM_PROMPT,
+    OpenAICompatibleInterpretationProvider,
+    build_ai_provider_config,
+    build_grounded_request,
+    evidence_pack_to_payload,
+)
 from trendora.research.application import ResearchApplicationService
 from trendora.research.capabilities import (
     KNOWN_SOURCE_CODES,
@@ -29,6 +40,9 @@ from trendora.research.evidence import (
 )
 from trendora.research.exceptions import (
     ResearchAggregationError,
+    ResearchAIProviderError,
+    ResearchAIProviderNotConfiguredError,
+    ResearchAIResponseError,
     ResearchError,
     ResearchInterpretationError,
     ResearchNoCoverageError,
@@ -77,16 +91,20 @@ from trendora.research.youtube import YouTubeResearchRetriever
 
 __all__ = [
     "AIInterpretation",
+    "AIInterpretationProvider",
+    "AIProviderConfig",
     "AnalysisBasis",
     "BOOLEAN_OBSERVATION_TYPES",
     "ClaimType",
     "ContentObservation",
     "DEFAULT_RESULT_LIMIT",
     "DEFAULT_SOURCE_CODES",
+    "DEFAULT_TIMEOUT_SECONDS",
     "EvidenceFact",
     "EvidenceField",
     "EvidencePack",
     "FactCitation",
+    "GroundedInterpretationService",
     "InterpretationResult",
     "KNOWN_SOURCE_CODES",
     "MAX_RESULT_LIMIT",
@@ -94,15 +112,23 @@ __all__ = [
     "ModelProvenance",
     "ObservationCitation",
     "ObservationType",
+    "OpenAICompatibleInterpretationProvider",
     "PatternAggregate",
     "PatternCitation",
     "ReferenceAnalysis",
     "ReferenceId",
     "ResearchAggregationError",
+    "ResearchAIProviderError",
+    "ResearchAIProviderNotConfiguredError",
+    "ResearchAIResponseError",
     "ResearchInterpretationError",
+    "SYSTEM_PROMPT",
     "aggregate_patterns",
     "analyze_reference",
     "analyze_references",
+    "build_ai_provider_config",
+    "build_grounded_request",
+    "evidence_pack_to_payload",
     "extract_evidence",
     "interpretation_analysis_basis",
     "reference_id",
