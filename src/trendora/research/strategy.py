@@ -30,6 +30,7 @@ from trendora.research.ai_provider import (
     _post_chat_request,
     _to_domain_citation,
     evidence_pack_to_payload,
+    request_controls,
 )
 from trendora.research.evidence import ClaimType
 from trendora.research.exceptions import (
@@ -223,6 +224,7 @@ def build_grounded_strategy_request(
             {"role": "system", "content": SYSTEM_STRATEGIC_PROMPT},
             {"role": "user", "content": user_content},
         ],
+        **request_controls(config.provider),
     }
 
 

@@ -12,11 +12,13 @@ from trendora.research.ai_provider import (
     AIInterpretationProvider,
     AIProviderConfig,
     DEFAULT_TIMEOUT_SECONDS,
+    MAX_TOKENS,
     SYSTEM_PROMPT,
     OpenAICompatibleInterpretationProvider,
     build_ai_provider_config,
     build_grounded_request,
     evidence_pack_to_payload,
+    request_controls,
 )
 from trendora.research.application import ResearchApplicationService
 from trendora.research.capabilities import (
@@ -149,6 +151,7 @@ __all__ = [
     "InterpretationResult",
     "KNOWN_SOURCE_CODES",
     "MAX_RESULT_LIMIT",
+    "MAX_TOKENS",
     "MARKET_CODES",
     "ModelProvenance",
     "ObservationCitation",
@@ -186,6 +189,7 @@ __all__ = [
     "extract_evidence",
     "interpretation_analysis_basis",
     "reference_id",
+    "request_controls",
     "validate_citations",
     "validate_ideation_result",
     "validate_interpretations",

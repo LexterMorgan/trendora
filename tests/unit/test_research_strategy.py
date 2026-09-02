@@ -368,8 +368,13 @@ class TestStrategyProvider:
         body = captured["body"]
         assert body["model"] == "test-model"
         assert [m["role"] for m in body["messages"]] == ["system", "user"]
+        assert body["max_tokens"] == 4096
+        assert body["response_format"] == {"type": "json_object"}
+        assert body["stream"] is False
+        assert "reasoning" not in body
         user_content = body["messages"][1]["content"]
-        assert "references" in user_content and "interpretations" in user_content
+        for marker in ("Evidence:", "Interpretations:"):
+            assert marker in user_content
         assert FAKE_KEY not in json.dumps(body)
         assert captured["authorization"] == f"Bearer {FAKE_KEY}"
 

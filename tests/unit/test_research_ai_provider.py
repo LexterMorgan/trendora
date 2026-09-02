@@ -556,11 +556,41 @@ class TestRequestBody:
         assert "patterns" in user_content
         assert "claim_type" not in user_content
         assert "recommendation" not in user_content
-        # No tools/functions/stream anywhere in the request body.
+        # Common request controls are always present.
+        assert body["max_tokens"] == 4096
+        assert body["response_format"] == {"type": "json_object"}
+        assert body["stream"] is False
+        # No tools/functions anywhere in the request body.
         raw = json.dumps(body)
         assert "tools" not in raw and "functions" not in raw
-        assert "stream" not in raw
         assert FAKE_KEY not in raw
+
+    def test_openrouter_reasoning_and_non_openrouter_omission(self) -> None:
+        captured = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["body"] = json.loads(request.content)
+            return httpx.Response(200, json=_envelope(_model_output([])))
+
+        for provider in ("OpenRouter", " openrouter "):
+            captured.clear()
+            _provider(handler, provider=provider).interpret(_pack())
+            assert captured["body"]["reasoning"] == {"effort": "low", "exclude": True}
+
+        captured.clear()
+        _provider(handler, provider="deepseek").interpret(_pack())
+        assert "reasoning" not in captured["body"]
+
+    def test_request_controls_unit(self) -> None:
+        from trendora.research.ai_provider import request_controls
+
+        common = request_controls("test")
+        assert common["max_tokens"] == 4096
+        assert common["response_format"] == {"type": "json_object"}
+        assert common["stream"] is False
+        assert "reasoning" not in common
+        assert request_controls("  OpenRouter  ")["reasoning"] == {"effort": "low", "exclude": True}
+        assert "reasoning" not in request_controls("openrouter-x")
 
 
 class TestGroundedExecution:

@@ -28,6 +28,7 @@ from trendora.research.ai_provider import (
     _post_chat_request,
     _to_domain_citation,
     evidence_pack_to_payload,
+    request_controls,
 )
 from trendora.research.evidence import ClaimType
 from trendora.research.exceptions import (
@@ -255,6 +256,7 @@ def build_grounded_ideation_request(
             {"role": "system", "content": SYSTEM_IDEATION_PROMPT},
             {"role": "user", "content": user_content},
         ],
+        **request_controls(config.provider),
     }
 
 

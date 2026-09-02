@@ -366,6 +366,10 @@ class TestProvider:
         body = captured["body"]
         assert body["model"] == "test-model"
         assert [m["role"] for m in body["messages"]] == ["system", "user"]
+        assert body["max_tokens"] == 4096
+        assert body["response_format"] == {"type": "json_object"}
+        assert body["stream"] is False
+        assert "reasoning" not in body
         user_content = body["messages"][1]["content"]
         for marker in ("Evidence:", "Interpretations:", "Gaps:", "Opportunities:"):
             assert marker in user_content

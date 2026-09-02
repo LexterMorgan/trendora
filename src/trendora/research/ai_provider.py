@@ -46,6 +46,29 @@ from trendora.research.interpretation import (
 from trendora.research.patterns import PatternAggregate
 
 DEFAULT_TIMEOUT_SECONDS = 30.0
+MAX_TOKENS = 4096
+
+OPENROUTER_PROVIDER = "openrouter"
+
+_COMMON_REQUEST_CONTROLS = {
+    "max_tokens": MAX_TOKENS,
+    "response_format": {"type": "json_object"},
+    "stream": False,
+}
+
+
+def request_controls(provider: str) -> dict[str, Any]:
+    """JSON controls attached to every AI Chat Completions request.
+
+    Common controls bound output size and force strict JSON. OpenRouter
+    additionally gets low/excluded reasoning (DeepSeek-v4-flash default high
+    reasoning caused the response hang). Provider match is trimmed and
+    case-insensitive; the field is never sent to other providers.
+    """
+    controls = dict(_COMMON_REQUEST_CONTROLS)
+    if provider.strip().lower() == OPENROUTER_PROVIDER:
+        controls["reasoning"] = {"effort": "low", "exclude": True}
+    return controls
 
 SYSTEM_PROMPT = """You are Trendora's grounded content-interpretation assistant.
 
@@ -203,6 +226,7 @@ def build_grounded_request(config: AIProviderConfig, pack: EvidencePack) -> dict
                 + payload,
             },
         ],
+        **request_controls(config.provider),
     }
 
 
