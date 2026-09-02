@@ -46,6 +46,7 @@ Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 
 - [docs/23_CONTENT_GAPS_OPPORTUNITIES.md](docs/23_CONTENT_GAPS_OPPORTUNITIES.md) — M21 content gaps & opportunities
 - [docs/24_CONTENT_IDEAS_BRIEFS.md](docs/24_CONTENT_IDEAS_BRIEFS.md) — M22 grounded content ideas & briefs
 - [docs/25_RESEARCH_REPORT_PIPELINE_API.md](docs/25_RESEARCH_REPORT_PIPELINE_API.md) — M23A research report pipeline + API
+- [docs/26_FACEBOOK_PUBLIC_PAGE_CLIENT.md](docs/26_FACEBOOK_PUBLIC_PAGE_CLIENT.md) — M25A Facebook public Page client (isolated, mocked-only)
 - [PROJECT_PREP.md](PROJECT_PREP.md) — environment, MCP, and setup notes
 - [docs/01_ARCHITECTURE.md](docs/01_ARCHITECTURE.md) — layer boundaries and V1 database decision
 - [docs/02_DATABASE_SCHEMA.md](docs/02_DATABASE_SCHEMA.md) — tables, constraints, migrations
@@ -59,7 +60,7 @@ Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 
 | Database | PostgreSQL via SQLAlchemy + Alembic | Installed |
 | V1 development DB | Existing Supabase PostgreSQL project | In use |
 | HTTP | httpx (YouTube Data API v3 client) | Installed |
-| Connectors | YouTube watchlist + mostPopular; Hacker News stories; Stack Exchange questions; GitHub repositories | M2A + M2B + M3A + M3B + M4 |
+| Connectors | YouTube watchlist + mostPopular; Hacker News stories; Stack Exchange questions; GitHub repositories; Facebook public Page posts (M25A, isolated) | M2A + M2B + M3A + M3B + M4 + M25A |
 | Analytics | Read-only observation/query layer over `metric_snapshots` | M5 |
 | Forecasting | In-memory naive / moving average / SES over M5 series; naive-vs-challenger MAE; series diagnostics; V1 GitHub forecast product | M6A + M6C + M7 + M10 |
 | API | FastAPI read model over the M10 GitHub forecast product; one endpoint | M11B |
@@ -256,7 +257,7 @@ src/trendora/          # application package
   db/                  # engine, session, declarative Base
   models/              # SQLAlchemy models
   reference.py         # deterministic V1 seed rows
-  connectors/          # YouTube (M2A/M2B), Hacker News (M3A), Stack Exchange (M3B), GitHub (M4)
+  connectors/          # YouTube (M2A/M2B), Hacker News (M3A), Stack Exchange (M3B), GitHub (M4), Facebook public Page client (M25A)
   analytics/           # M5 read-only observation queries
   forecasting/         # M6A baselines and M6C naive-vs-challenger comparison over M5 series
   diagnostics/         # M7 in-memory series diagnostics over M5 series
