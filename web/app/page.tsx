@@ -13,6 +13,7 @@ export default function Home() {
   const [editValues, setEditValues] = useState<Partial<ResearchFormValues>>({});
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
+  const emptySession = turns.length === 0;
 
   async function handleSubmit(values: ResearchFormValues) {
     if (busyRef.current) return;
@@ -57,42 +58,62 @@ export default function Home() {
   }
 
   return (
-    <main className="workspace">
-      <header className="masthead">
-        <p className="brand">TRENDORA</p>
-        <h1 className="tagline">Social Content Intelligence</h1>
-        <p className="subtitle">
-          Ask Trendora about real content. Every answer is grounded in the
-          supplied evidence.
-        </p>
-      </header>
-
-      <div className="chat-layout">
-        <section className="panel form-panel" aria-label="Research request">
-          <h2 className="section-title">Research</h2>
-          <ResearchForm
-            key={composerKey}
-            onSubmit={handleSubmit}
-            disabled={busy}
-            initialValues={editValues}
-          />
-        </section>
-
-        <section className="chat-session" aria-live="polite">
-          {turns.length === 0 && (
-            <div className="session-intro">
-              <p className="brand">New session</p>
-              <p>
-                Submit a research request to start the session. Requests are
-                independent and stateless; refreshing the page clears history.
+    <main className={emptySession ? "workspace canvas-mode" : "workspace"}>
+      {emptySession ? (
+        <div className="session-canvas">
+          <div className="canvas-content">
+            <header className="canvas-masthead">
+              <p className="brand">TRENDORA</p>
+              <h1 className="canvas-headline">
+                Turn social signals into content decisions.
+              </h1>
+              <p className="canvas-subtitle">
+                Every result traces back to real source evidence — references,
+                citations, and full provenance are surfaced with each answer.
               </p>
-            </div>
-          )}
-          {turns.map((turn) => (
-            <TurnView key={turn.id} turn={turn} onEdit={handleEdit} />
-          ))}
-        </section>
-      </div>
+            </header>
+
+            <section className="composer-panel" aria-label="Research request">
+              <ResearchForm
+                key={composerKey}
+                onSubmit={handleSubmit}
+                disabled={busy}
+                initialValues={editValues}
+                showExamples
+              />
+            </section>
+          </div>
+        </div>
+      ) : (
+        <>
+          <header className="masthead">
+            <p className="brand">TRENDORA</p>
+            <h1 className="tagline">Social Content Intelligence</h1>
+            <p className="subtitle">
+              Ask Trendora about real content. Every answer is grounded in the
+              supplied evidence.
+            </p>
+          </header>
+
+          <div className="chat-layout">
+            <section className="panel form-panel" aria-label="Research request">
+              <h2 className="section-title">Research</h2>
+              <ResearchForm
+                key={composerKey}
+                onSubmit={handleSubmit}
+                disabled={busy}
+                initialValues={editValues}
+              />
+            </section>
+
+            <section className="chat-session" aria-live="polite">
+              {turns.map((turn) => (
+                <TurnView key={turn.id} turn={turn} onEdit={handleEdit} />
+              ))}
+            </section>
+          </div>
+        </>
+      )}
     </main>
   );
 }
