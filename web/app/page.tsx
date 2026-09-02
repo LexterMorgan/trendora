@@ -80,10 +80,13 @@ export default function Home() {
 
         <section className="chat-session" aria-live="polite">
           {turns.length === 0 && (
-            <p className="loading-note">
-              Submit a research request to start the session. Requests are
-              independent and stateless; refreshing the page clears history.
-            </p>
+            <div className="session-intro">
+              <p className="brand">New session</p>
+              <p>
+                Submit a research request to start the session. Requests are
+                independent and stateless; refreshing the page clears history.
+              </p>
+            </div>
           )}
           {turns.map((turn) => (
             <TurnView key={turn.id} turn={turn} onEdit={handleEdit} />
