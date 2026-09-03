@@ -928,13 +928,15 @@ a {
   /* Mobile touch targets: every secondary action at least 42px tall. */
   .secondary-button,
   .citation-toggle,
-  .view-original {
+  .view-original,
+  .example-query {
     min-height: 42px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     padding-top: 0;
     padding-bottom: 0;
+    max-width: 100%;
   }
 
   .turn-user .secondary-button {
@@ -1034,13 +1036,8 @@ a {
   cursor: pointer;
 }
 
-.example-query:hover {
+.example-query:not(:disabled):hover {
   border-color: var(--accent);
-}
-
-.example-query:disabled {
-  opacity: 0.55;
-  cursor: default;
 }
 
 /* Source roadmap inside the form */
@@ -1114,4 +1111,84 @@ a {
   .composer-panel {
     padding: 20px 16px;
   }
+}
+
+/* --- M24.3 form polish --- */
+
+.topic-field label {
+  font-size: 13px;
+}
+
+.topic-field input {
+  min-height: 48px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.topic-field input::placeholder {
+  color: var(--ink-faint);
+  font-weight: 450;
+}
+
+.example-query {
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.example-query.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.example-query:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.date-fieldset {
+  margin: 0;
+  padding: 14px 16px 16px;
+  border: var(--rule);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.date-fieldset legend {
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+}
+
+.date-help {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.what-you-get {
+  border-top: var(--rule);
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.what-you-get p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.primary-button:not(:disabled):hover {
+  background: #1b4390;
+}
+
+.primary-button:not(:disabled):active {
+  background: #173877;
 }

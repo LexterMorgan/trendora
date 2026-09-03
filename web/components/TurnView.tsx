@@ -1,6 +1,6 @@
 "use client";
 
-import type { ResearchFormValues } from "@/components/ResearchForm";
+import { depthWording, type ResearchFormValues } from "@/components/ResearchForm";
 import type { ResearchReportResponse } from "@/lib/report-api";
 import { ErrorState } from "@/components/ErrorState";
 import { ReportView } from "@/components/ReportView";
@@ -25,7 +25,7 @@ export function userMessage(request: ResearchFormValues): string {
     request.topic,
     request.market,
     `${request.date_from} → ${request.date_to}`,
-    `${request.result_limit} results`,
+    depthWording(request.result_limit),
     request.sources.map(sourceLabel).join(", "),
   ]
     .filter(Boolean)
@@ -51,7 +51,7 @@ export function TurnView({ turn, onEdit }: TurnViewProps) {
         <span className="turn-label">Trendora</span>
         {turn.state === "loading" && (
           <p className="loading-note" role="status">
-            Researching and generating report…
+            Generating report…
           </p>
         )}
         {turn.state === "error" && turn.error && (

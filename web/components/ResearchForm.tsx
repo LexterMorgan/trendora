@@ -11,7 +11,17 @@ export const MARKETS: { code: string; label: string }[] = [
   { code: "PH", label: "Philippines" },
 ];
 
-export const RESULT_LIMITS = [10, 20, 50, 100];
+export const RESEARCH_DEPTHS = [
+  { value: 10, label: "Quick" },
+  { value: 20, label: "Standard" },
+  { value: 50, label: "Deep" },
+] as const;
+
+export function depthWording(resultLimit: number): string {
+  const depth = RESEARCH_DEPTHS.find((entry) => entry.value === resultLimit);
+  if (depth) return `${depth.label} — ${depth.value} references`;
+  return `${resultLimit} references`;
+}
 
 export const EXAMPLE_QUERIES = [
   "AI education tools for students",
@@ -98,10 +108,17 @@ interface ResearchFormProps {
   showExamples?: boolean;
 }
 
+function safeDepth(value: number | undefined): number {
+  if (value !== undefined && RESEARCH_DEPTHS.some((entry) => entry.value === value)) return value;
+  return 20;
+}
+
 export function ResearchForm({ onSubmit, disabled, initialValues, showExamples }: ResearchFormProps) {
   const [topic, setTopic] = useState(initialValues?.topic ?? "");
   const [market, setMarket] = useState(initialValues?.market ?? "SG");
-  const [resultLimit, setResultLimit] = useState(initialValues?.result_limit ?? 20);
+  const [resultLimit, setResultLimit] = useState<number>(() =>
+    safeDepth(initialValues?.result_limit),
+  );
   const [localError, setLocalError] = useState<string | null>(null);
 
   const [preset, setPreset] = useState<string>(() => {
@@ -165,28 +182,30 @@ export function ResearchForm({ onSubmit, disabled, initialValues, showExamples }
 
   return (
     <form className="research-form" onSubmit={handleSubmit}>
-      <div className="form-field">
+      <div className="form-field topic-field">
         <label htmlFor="topic">Topic</label>
         <input
           id="topic"
           type="text"
           value={topic}
           onChange={(event) => setTopic(event.target.value)}
-          placeholder="e.g. AI education"
+          placeholder="What content topic do you want to research?"
           required
           disabled={disabled}
         />
       </div>
 
       {showExamples && (
-        <div className="form-field" aria-label="Example queries">
-          <span className="form-label">Try:</span>
+        <div className="form-field" aria-label="Example topics">
+          <span className="form-label">Example topics</span>
           <div className="example-queries">
             {EXAMPLE_QUERIES.map((query) => (
               <button
                 key={query}
                 type="button"
-                className="example-query"
+                className={topic === query ? "example-query is-selected" : "example-query"}
+                aria-pressed={topic === query}
+                disabled={disabled}
                 onClick={() => setTopic(query)}
               >
                 {query}
@@ -213,66 +232,71 @@ export function ResearchForm({ onSubmit, disabled, initialValues, showExamples }
           </select>
         </div>
         <div className="form-field">
-          <label htmlFor="result-limit">Result limit</label>
+          <label htmlFor="research-depth">Research depth</label>
           <select
-            id="result-limit"
+            id="research-depth"
             value={resultLimit}
             onChange={(event) => setResultLimit(Number(event.target.value))}
             disabled={disabled}
           >
-            {RESULT_LIMITS.map((limit) => (
-              <option key={limit} value={limit}>
-                {limit}
+            {RESEARCH_DEPTHS.map((depth) => (
+              <option key={depth.value} value={depth.value}>
+                {depth.label} — {depth.value} references
               </option>
             ))}
           </select>
         </div>
       </div>
 
-      <div className="form-field">
-        <label htmlFor="date-preset">Date range</label>
-        <select
-          id="date-preset"
-          value={preset}
-          onChange={(event) => handlePresetChange(event.target.value)}
-          disabled={disabled}
-        >
-          {DATE_PRESETS.map((entry) => (
-            <option key={entry.value} value={entry.value}>
-              {entry.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="form-row">
+      <fieldset className="date-fieldset">
+        <legend>Date range</legend>
         <div className="form-field">
-          <label htmlFor="date-from">From</label>
-          <input
-            id="date-from"
-            type="date"
-            value={dateFrom}
-            max={maxDate}
-            onFocus={refreshMaxDate}
-            onChange={(event) => handleDateFromChange(event.target.value)}
-            required
+          <label htmlFor="date-preset">Preset</label>
+          <select
+            id="date-preset"
+            value={preset}
+            onChange={(event) => handlePresetChange(event.target.value)}
             disabled={disabled}
-          />
+          >
+            {DATE_PRESETS.map((entry) => (
+              <option key={entry.value} value={entry.value}>
+                {entry.label}
+              </option>
+            ))}
+          </select>
         </div>
-        <div className="form-field">
-          <label htmlFor="date-to">To</label>
-          <input
-            id="date-to"
-            type="date"
-            value={dateTo}
-            max={maxDate}
-            onFocus={refreshMaxDate}
-            onChange={(event) => handleDateToChange(event.target.value)}
-            required
-            disabled={disabled}
-          />
+        <p className="date-help">
+          Presets update both dates. Editing either date switches to Custom.
+        </p>
+        <div className="form-row">
+          <div className="form-field">
+            <label htmlFor="date-from">From</label>
+            <input
+              id="date-from"
+              type="date"
+              value={dateFrom}
+              max={maxDate}
+              onFocus={refreshMaxDate}
+              onChange={(event) => handleDateFromChange(event.target.value)}
+              required
+              disabled={disabled}
+            />
+          </div>
+          <div className="form-field">
+            <label htmlFor="date-to">To</label>
+            <input
+              id="date-to"
+              type="date"
+              value={dateTo}
+              max={maxDate}
+              onFocus={refreshMaxDate}
+              onChange={(event) => handleDateToChange(event.target.value)}
+              required
+              disabled={disabled}
+            />
+          </div>
         </div>
-      </div>
+      </fieldset>
 
       <div className="form-field">
         <span className="form-label" id="sources-label">
@@ -300,8 +324,13 @@ export function ResearchForm({ onSubmit, disabled, initialValues, showExamples }
         </p>
       )}
 
+      <div className="what-you-get">
+        <span className="form-label">What you’ll get</span>
+        <p>References · Patterns · Opportunities · Ideas · Content briefs</p>
+      </div>
+
       <button type="submit" className="primary-button" disabled={disabled}>
-        Research
+        {disabled ? "Generating report…" : "Generate research report"}
       </button>
     </form>
   );
