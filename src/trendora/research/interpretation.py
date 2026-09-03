@@ -35,6 +35,8 @@ _FACT_FIELD_TO_BASIS: dict[EvidenceField, AnalysisBasis] = {
     EvidenceField.VIEW_COUNT: AnalysisBasis.RAW_METRICS,
     EvidenceField.LIKE_COUNT: AnalysisBasis.RAW_METRICS,
     EvidenceField.COMMENT_COUNT: AnalysisBasis.RAW_METRICS,
+    EvidenceField.REACTION_COUNT: AnalysisBasis.RAW_METRICS,
+    EvidenceField.SHARE_COUNT: AnalysisBasis.RAW_METRICS,
     EvidenceField.URL: AnalysisBasis.SOURCE_METADATA,
     EvidenceField.COLLECTED_AT: AnalysisBasis.SOURCE_METADATA,
     EvidenceField.PUBLISHED_AT: AnalysisBasis.SOURCE_METADATA,

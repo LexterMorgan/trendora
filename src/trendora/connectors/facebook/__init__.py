@@ -12,9 +12,14 @@ from trendora.connectors.facebook.exceptions import (
     FacebookHttpError,
     FacebookResponseError,
 )
+from trendora.connectors.facebook.normalizer import (
+    FACEBOOK_SOURCE_CODE,
+    normalize_facebook_posts,
+)
 from trendora.connectors.facebook.schemas import FacebookPostResource
 
 __all__ = [
+    "FACEBOOK_SOURCE_CODE",
     "FacebookApiError",
     "FacebookConfigurationError",
     "FacebookConnectorError",
@@ -22,4 +27,5 @@ __all__ = [
     "FacebookPostResource",
     "FacebookPublicClient",
     "FacebookResponseError",
+    "normalize_facebook_posts",
 ]

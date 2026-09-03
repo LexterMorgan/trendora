@@ -188,17 +188,21 @@ class ResearchCoverage:
 
 @dataclass(frozen=True, slots=True)
 class ResearchMetrics:
-    """Immutable raw YouTube video statistics (M14).
+    """Immutable raw source statistics (M14 + M25B).
 
-    Exactly three official source facts: ``view_count``, ``like_count``,
-    ``comment_count``. A missing statistic is ``None`` (never zero; zero is
-    distinct from missing). No derived metrics and no generic metric bag:
-    the set of fields is fixed and cannot be mutated after construction.
+    Official source facts only: ``view_count``/``like_count`` are YouTube-only;
+    ``comment_count`` applies to both YouTube and Facebook; ``reaction_count``/
+    ``share_count`` are Facebook-only. A missing statistic is ``None`` (never
+    zero; zero is distinct from missing). Reactions are reactions, never likes.
+    No derived metrics and no generic metric bag: the set of fields is fixed
+    and cannot be mutated.
     """
 
     view_count: int | None = None
     like_count: int | None = None
     comment_count: int | None = None
+    reaction_count: int | None = None
+    share_count: int | None = None
 
 
 @dataclass(frozen=True, kw_only=True)

@@ -63,6 +63,8 @@ class EvidenceField(StrEnum):
     VIEW_COUNT = "view_count"
     LIKE_COUNT = "like_count"
     COMMENT_COUNT = "comment_count"
+    REACTION_COUNT = "reaction_count"
+    SHARE_COUNT = "share_count"
 
 
 class AnalysisBasis(StrEnum):
@@ -172,6 +174,8 @@ def extract_evidence(reference: ResearchReference) -> tuple[EvidenceFact, ...]:
         EvidenceFact(identity, EvidenceField.VIEW_COUNT, metrics.view_count),
         EvidenceFact(identity, EvidenceField.LIKE_COUNT, metrics.like_count),
         EvidenceFact(identity, EvidenceField.COMMENT_COUNT, metrics.comment_count),
+        EvidenceFact(identity, EvidenceField.REACTION_COUNT, metrics.reaction_count),
+        EvidenceFact(identity, EvidenceField.SHARE_COUNT, metrics.share_count),
     )
 
 

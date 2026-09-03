@@ -97,6 +97,8 @@ class TestRetriever:
                 "view_count",
                 "like_count",
                 "comment_count",
+                "reaction_count",
+                "share_count",
             }
             assert isinstance(reference.metrics, ResearchMetrics)
 
