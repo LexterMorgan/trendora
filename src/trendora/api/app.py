@@ -1,11 +1,11 @@
-"""FastAPI application exposing the M10 GitHub forecast product and M15 research.
+"""FastAPI application exposing the M10 GitHub forecast product and research.
 
 Forecast:
   HTTP → this route → M10 GitHubForecastProduct → M5 / M6A / M7 → response
 
 Research:
   HTTP → this route → research application service → ResearchQuery →
-  capability resolution → YouTube retriever → ResearchRun → response
+  capability resolution → configured source retriever → ResearchRun → response
 
 Thin adapters only: no forecasting/retrieval logic, no SQL, no connectors in
 the route layer, no persistence, no auth, no rate limiting.
@@ -14,6 +14,7 @@ the route layer, no persistence, no auth, no rate limiting.
 from __future__ import annotations
 
 from collections.abc import Generator
+from contextlib import ExitStack
 from uuid import UUID
 
 import httpx
@@ -21,6 +22,7 @@ from fastapi import Depends, FastAPI, Query
 
 from trendora.analytics.service import AnalyticsService
 from trendora.config import get_settings
+from trendora.connectors.facebook.client import FacebookPublicClient
 from trendora.connectors.youtube.client import YouTubeClient
 from trendora.db.session import get_session_factory
 from trendora.forecasting.exceptions import ForecastingValidationError
@@ -66,29 +68,43 @@ def get_github_forecast_product() -> Generator[GitHubForecastProduct, None, None
 def get_research_application_service() -> Generator[ResearchApplicationService, None, None]:
     """FastAPI dependency: synchronous research application service.
 
-    Builds a YouTube client only when ``YOUTUBE_API_KEY`` is configured. If the
-    key is missing, no runtime retriever is registered; an available YouTube
-    capability then surfaces as a ``research_source_not_configured`` error.
-    Tests override this dependency.
+    Builds a YouTube client only when ``YOUTUBE_API_KEY`` is configured, and a
+    Facebook client only when both ``META_ACCESS_TOKEN`` and
+    ``META_GRAPH_API_VERSION`` are configured. If a source's settings are
+    missing, no runtime retriever is registered; an available source then
+    surfaces as a ``research_source_not_configured`` error. Each owned client
+    closes exactly once. Tests override this dependency.
     """
 
-    api_key = get_settings().youtube_api_key
-    client = YouTubeClient(api_key) if api_key else None
-    service = build_research_application_service(youtube_client=client)
-    try:
+    settings = get_settings()
+    with ExitStack() as stack:
+        youtube_client = (
+            YouTubeClient(settings.youtube_api_key) if settings.youtube_api_key else None
+        )
+        if youtube_client is not None:
+            stack.callback(youtube_client.close)
+        facebook_client = (
+            FacebookPublicClient(
+                settings.meta_access_token, settings.meta_graph_api_version
+            )
+            if settings.meta_access_token and settings.meta_graph_api_version
+            else None
+        )
+        if facebook_client is not None:
+            stack.callback(facebook_client.close)
+        service = build_research_application_service(
+            youtube_client=youtube_client, facebook_client=facebook_client
+        )
         yield service
-    finally:
-        if client is not None:
-            client.close()
 
 
 def get_research_report_service() -> Generator[ResearchReportService, None, None]:
     """FastAPI dependency: report pipeline service.
 
     Fails fast when AI configuration is missing (missing provider config is
-    never ``no_evidence`` or empty AI output). Owns one YouTube client and one
-    shared HTTP client for the three AI adapters; both close exactly once.
-    Tests override this dependency.
+    never ``no_evidence`` or empty AI output). Owns one YouTube client, one
+    Facebook client, and one shared HTTP client for the three AI adapters;
+    each closes exactly once. Tests override this dependency.
     """
 
     settings = get_settings()
@@ -98,21 +114,30 @@ def get_research_report_service() -> Generator[ResearchReportService, None, None
         endpoint_url=settings.ai_endpoint_url,
         api_key=settings.ai_api_key,
     )
-    youtube_client = (
-        YouTubeClient(settings.youtube_api_key) if settings.youtube_api_key else None
-    )
-    http = httpx.Client(timeout=config.timeout_seconds)
-    service = build_research_report_service(
-        youtube_client=youtube_client,
-        http_client=http,
-        config=config,
-    )
-    try:
-        yield service
-    finally:
-        http.close()
+    with ExitStack() as stack:
+        youtube_client = (
+            YouTubeClient(settings.youtube_api_key) if settings.youtube_api_key else None
+        )
         if youtube_client is not None:
-            youtube_client.close()
+            stack.callback(youtube_client.close)
+        facebook_client = (
+            FacebookPublicClient(
+                settings.meta_access_token, settings.meta_graph_api_version
+            )
+            if settings.meta_access_token and settings.meta_graph_api_version
+            else None
+        )
+        if facebook_client is not None:
+            stack.callback(facebook_client.close)
+        http = httpx.Client(timeout=config.timeout_seconds)
+        stack.callback(http.close)
+        service = build_research_report_service(
+            youtube_client=youtube_client,
+            facebook_client=facebook_client,
+            http_client=http,
+            config=config,
+        )
+        yield service
 
 
 def create_app() -> FastAPI:
@@ -120,7 +145,7 @@ def create_app() -> FastAPI:
         title="Trendora API",
         description=(
             "Trendora read-model API. V1 exposes the GitHub forecast product "
-            "(M10) and the YouTube-first research workflow (M15): query + "
+            "(M10) and the source-routed research workflow (M15): query + "
             "capability coverage + normalized in-memory references."
         ),
     )
@@ -159,18 +184,19 @@ def create_app() -> FastAPI:
     @app.post(
         "/api/v1/research",
         response_model=ResearchResponse,
-        summary="Run YouTube-first research",
+        summary="Run source-routed research",
         description=(
             "Run one synchronous research request: topic + market + date "
-            "window → capability coverage → YouTube public discovery and "
-            "enrichment → normalized in-memory references. Returns the "
-            "ResearchRun state (query, coverage, execution status, "
-            "references). No persistence, no AI, no derived metrics."
+            "window → capability coverage → configured source retriever "
+            "(YouTube or single Facebook Page) → normalized in-memory "
+            "references. Returns the ResearchRun state (query, coverage, "
+            "execution status, references). No persistence, no AI, no derived "
+            "metrics."
         ),
         responses={
             422: {"description": "Invalid research request, or no requested source has usable coverage"},
             503: {"description": "Source is available but no runtime retriever is configured"},
-            502: {"description": "Upstream YouTube failure"},
+            502: {"description": "Upstream source failure"},
         },
     )
     def research(
@@ -184,6 +210,7 @@ def create_app() -> FastAPI:
             date_to=payload.date_to,
             sources=payload.sources,
             result_limit=payload.result_limit,
+            facebook_page_id=payload.facebook_page_id,
         )
         if run.status is ResearchRunStatus.BLOCKED:
             raise ResearchNoCoverageError(
@@ -219,6 +246,7 @@ def create_app() -> FastAPI:
             date_to=payload.date_to,
             sources=payload.sources,
             result_limit=payload.result_limit,
+            facebook_page_id=payload.facebook_page_id,
         )
         return to_report_response(report)
 

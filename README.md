@@ -2,7 +2,7 @@
 
 AI-powered Social Media Intelligence Platform for Southeast Asian education, AI, and technology markets.
 
-**Status:** Milestones 2A–4 ingest; M5 analytics; M6A in-memory forecast baselines; M6B evaluation docs; M6C naive-vs-challenger MAE comparison (in-memory); M7 series diagnostics (in-memory); M8 forecasting product contract & readiness gate ([docs/11](docs/11_FORECASTING_PRODUCT_SPEC.md)); M9 forecasting product requirements decided ([docs/12](docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md)); M10 V1 GitHub forecasting slice implemented ([src/trendora/product/](src/trendora/product/)) — naive level forecasts of GitHub repository `stargazer_count`/`fork_count`, 4 weekly points, on demand from M5, ≥4 observations, in-memory; M11A forecast API contract defined ([docs/13](docs/13_FORECASTING_API_CONTRACT.md)); M11B FastAPI adapter implemented ([src/trendora/api/](src/trendora/api/)) — one read endpoint, no auth/persistence. Streamlit, advanced ML, WebSub, and other source connectors are not implemented.
+**Status:** Milestones 2A–4 ingest; M5 analytics; M6A in-memory forecast baselines; M6B evaluation docs; M6C naive-vs-challenger MAE comparison (in-memory); M7 series diagnostics (in-memory); M8 forecasting product contract & readiness gate ([docs/11](docs/11_FORECASTING_PRODUCT_SPEC.md)); M9 forecasting product requirements decided ([docs/12](docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md)); M10 V1 GitHub forecasting slice implemented ([src/trendora/product/](src/trendora/product/)) — naive level forecasts of GitHub repository `stargazer_count`/`fork_count`, 4 weekly points, on demand from M5, ≥4 observations, in-memory; M11A forecast API contract defined ([docs/13](docs/13_FORECASTING_API_CONTRACT.md)); M11B FastAPI adapter implemented ([src/trendora/api/](src/trendora/api/)) — no auth/persistence; M15 research API; M23A research report pipeline + API; M25A–M25D Facebook public Page client → normalization → research execution → API wiring (mocked only, opt-in via `META_ACCESS_TOKEN` + `META_GRAPH_API_VERSION`). Streamlit, advanced ML, WebSub, and other source connectors are not implemented.
 
 ## Product direction (M12 re-baseline)
 
@@ -49,6 +49,7 @@ Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 
 - [docs/26_FACEBOOK_PUBLIC_PAGE_CLIENT.md](docs/26_FACEBOOK_PUBLIC_PAGE_CLIENT.md) — M25A Facebook public Page client (isolated, mocked-only)
 - [docs/27_FACEBOOK_POST_NORMALIZATION.md](docs/27_FACEBOOK_POST_NORMALIZATION.md) — M25B Facebook post normalization & grounded evidence (isolated)
 - [docs/28_FACEBOOK_RESEARCH_EXECUTION.md](docs/28_FACEBOOK_RESEARCH_EXECUTION.md) — M25C Facebook research execution seams (isolated, mocked)
+- [docs/29_FACEBOOK_API_WIRING.md](docs/29_FACEBOOK_API_WIRING.md) — M25D Facebook research API wiring (settings, lifecycle, error mapping)
 - [PROJECT_PREP.md](PROJECT_PREP.md) — environment, MCP, and setup notes
 - [docs/01_ARCHITECTURE.md](docs/01_ARCHITECTURE.md) — layer boundaries and V1 database decision
 - [docs/02_DATABASE_SCHEMA.md](docs/02_DATABASE_SCHEMA.md) — tables, constraints, migrations
@@ -62,7 +63,7 @@ Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 
 | Database | PostgreSQL via SQLAlchemy + Alembic | Installed |
 | V1 development DB | Existing Supabase PostgreSQL project | In use |
 | HTTP | httpx (YouTube Data API v3 client) | Installed |
-| Connectors | YouTube watchlist + mostPopular; Hacker News stories; Stack Exchange questions; GitHub repositories; Facebook public Page posts + normalization (M25A/M25B, isolated) | M2A + M2B + M3A + M3B + M4 + M25A + M25B |
+| Connectors | YouTube watchlist + mostPopular; Hacker News stories; Stack Exchange questions; GitHub repositories; Facebook public Page posts + normalization + research wiring (M25A–M25D, mocked, opt-in) | M2A + M2B + M3A + M3B + M4 + M25A + M25B + M25C + M25D |
 | Analytics | Read-only observation/query layer over `metric_snapshots` | M5 |
 | Forecasting | In-memory naive / moving average / SES over M5 series; naive-vs-challenger MAE; series diagnostics; V1 GitHub forecast product | M6A + M6C + M7 + M10 |
 | API | FastAPI read model over the M10 GitHub forecast product; one endpoint | M11B |
@@ -235,7 +236,7 @@ In-memory baselines over M5 `MetricSeries`: naive, moving average, and simple ex
 
 ### V1 forecast API (Milestones 11A / 11B)
 
-`create_app()` ([src/trendora/api/](src/trendora/api/)) builds a FastAPI app with one read endpoint: `GET /api/v1/forecasts/github/{content_item_id}?metric=stargazer_count|fork_count`. It is a pure adapter: it validates the metric, calls `GitHubForecastProduct`, and serializes the result (`origin=trendora_forecast`, 4 points, `interval_days=7`, history/freshness/cadence context). Errors use the `{"error": {"code", "message"}}` envelope (422 `invalid_metric` / `invalid_request` / `forecast_insufficient_history`; 500 `analytics_query_error` / `internal_error`). No auth, no rate limiting, no persistence, no other endpoints. FastAPI (`fastapi>=0.115,<1`) is the only new dependency; no ASGI server was added (tests use `TestClient`).
+`create_app()` ([src/trendora/api/](src/trendora/api/)) builds a FastAPI app with read endpoints: `GET /api/v1/forecasts/github/{content_item_id}?metric=stargazer_count|fork_count` plus the M15 research and M23A report endpoints. The forecast adapter is pure: it validates the metric, calls `GitHubForecastProduct`, and serializes the result (`origin=trendora_forecast`, 4 points, `interval_days=7`, history/freshness/cadence context). Errors use the `{"error": {"code", "message"}}` envelope (422 `invalid_metric` / `invalid_request` / `forecast_insufficient_history`; 500 `analytics_query_error` / `internal_error`). No auth, no rate limiting, no persistence. FastAPI (`fastapi>=0.115,<1`) is the only new dependency; no ASGI server was added (tests use `TestClient`).
 
 ### Tests
 
@@ -251,6 +252,8 @@ pytest tests/integration -v
 
 Do not point integration tests at a database you are not willing to read. Unit tests do not consume YouTube quota.
 
+Current backend unit suite: **851 passing** (845 + 6 M25D cleanup tests).
+
 ## Repository layout
 
 ```text
@@ -264,7 +267,7 @@ src/trendora/          # application package
   forecasting/         # M6A baselines and M6C naive-vs-challenger comparison over M5 series
   diagnostics/         # M7 in-memory series diagnostics over M5 series
   product/             # M10 V1 GitHub forecast product layer over M5/M6A/M7 (in-memory)
-  api/                 # M11B FastAPI adapter over the M10 product (one read endpoint)
+  api/                 # M11B FastAPI adapter over the M10 product (read endpoints)
   research/            # M13 core + M14 retrieval + M15 app + M17 evidence + M18 patterns + M19 interpretation + M20 AI provider + M21 strategy + M22 ideation + M23A reporting
 web/                   # M16 research workspace UI (Next.js App Router + TypeScript)
 alembic/               # Alembic env + versions

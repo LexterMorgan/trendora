@@ -29,12 +29,15 @@ class ResearchRequest(BaseModel):
     date_to: date
     sources: list[str] = ["youtube"]
     result_limit: int = 50
+    facebook_page_id: str | None = None
 
 
 class ResearchMetricsResponse(BaseModel):
     view_count: int | None
     like_count: int | None
     comment_count: int | None
+    reaction_count: int | None
+    share_count: int | None
 
 
 class ResearchReferenceResponse(BaseModel):
@@ -62,6 +65,7 @@ class ResearchQueryResponse(BaseModel):
     date_to: date
     sources: list[str]
     result_limit: int
+    facebook_page_id: str | None
 
 
 class SourceCoverageResponse(BaseModel):
@@ -105,6 +109,7 @@ def to_research_response(run: ResearchRun) -> ResearchResponse:
             date_to=run.query.date_to,
             sources=list(run.query.source_codes),
             result_limit=run.query.result_limit,
+            facebook_page_id=run.query.facebook_page_id,
         ),
         coverage=ResearchCoverageResponse(
             completeness=coverage.completeness.value,
@@ -141,6 +146,8 @@ def _to_reference_response(reference: ResearchReference) -> ResearchReferenceRes
             view_count=reference.metrics.view_count,
             like_count=reference.metrics.like_count,
             comment_count=reference.metrics.comment_count,
+            reaction_count=reference.metrics.reaction_count,
+            share_count=reference.metrics.share_count,
         ),
         collected_at=reference.collected_at,
     )

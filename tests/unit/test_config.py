@@ -109,3 +109,30 @@ def test_settings_blank_env_watchlist_is_empty_list(monkeypatch: pytest.MonkeyPa
     monkeypatch.setenv("YOUTUBE_CHANNEL_IDS", "  ,  ")
     settings = Settings(_env_file=None)
     assert settings.youtube_channel_ids == []
+
+
+def test_meta_settings_default_to_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    _database_env(monkeypatch)
+    monkeypatch.delenv("META_ACCESS_TOKEN", raising=False)
+    monkeypatch.delenv("META_GRAPH_API_VERSION", raising=False)
+    settings = Settings(_env_file=None)
+    assert settings.meta_access_token is None
+    assert settings.meta_graph_api_version is None
+
+
+def test_meta_settings_blank_to_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    _database_env(monkeypatch)
+    monkeypatch.setenv("META_ACCESS_TOKEN", "   ")
+    monkeypatch.setenv("META_GRAPH_API_VERSION", "  ")
+    settings = Settings(_env_file=None)
+    assert settings.meta_access_token is None
+    assert settings.meta_graph_api_version is None
+
+
+def test_meta_settings_preserve_values(monkeypatch: pytest.MonkeyPatch) -> None:
+    _database_env(monkeypatch)
+    monkeypatch.setenv("META_ACCESS_TOKEN", "test-token-not-real")
+    monkeypatch.setenv("META_GRAPH_API_VERSION", " v19.0 ")
+    settings = Settings(_env_file=None)
+    assert settings.meta_access_token == "test-token-not-real"
+    assert settings.meta_graph_api_version == "v19.0"

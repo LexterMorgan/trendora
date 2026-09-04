@@ -34,6 +34,8 @@ class Settings(BaseSettings):
         le=500,
         alias="YOUTUBE_MAX_VIDEOS_PER_CHANNEL",
     )
+    meta_access_token: str | None = Field(default=None, alias="META_ACCESS_TOKEN")
+    meta_graph_api_version: str | None = Field(default=None, alias="META_GRAPH_API_VERSION")
     stackexchange_api_key: str | None = Field(default=None, alias="STACKEXCHANGE_API_KEY")
     github_token: str | None = Field(default=None, alias="GITHUB_TOKEN")
     github_repositories: Annotated[list[str], NoDecode] = Field(
@@ -62,6 +64,8 @@ class Settings(BaseSettings):
 
     @field_validator(
         "youtube_api_key",
+        "meta_access_token",
+        "meta_graph_api_version",
         "stackexchange_api_key",
         "github_token",
         "ai_provider",

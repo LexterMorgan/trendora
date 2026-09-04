@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import httpx
+import pytest
 from fastapi.testclient import TestClient
 
 from trendora.api import create_app
@@ -133,6 +134,57 @@ class TestReportEndpoint:
         assert response.json()["error"]["code"] == "invalid_request"
 
 
+class TestFacebookReportEndpoint:
+    def _payload(self) -> dict:
+        return {
+            "topic": "AI education",
+            "market": "SG",
+            "date_from": "2026-08-01",
+            "date_to": "2026-08-31",
+            "sources": ["facebook"],
+            "result_limit": 10,
+            "facebook_page_id": "page1",
+        }
+
+    def test_facebook_page_id_forwarded_through_report_pipeline(self) -> None:
+        from tests.unit.test_research_facebookresearch import (
+            RecordingFacebookClient,
+            _fb_post,
+            _report_service as _facebook_report_service,
+        )
+
+        client = RecordingFacebookClient([_fb_post("p1"), _fb_post("p2")])
+        service = _facebook_report_service(client, [])
+        body = _app_with_report_service(service).post(PATH, json=self._payload())
+        assert body.status_code == 200
+        payload = body.json()
+        assert payload["status"] == "completed"
+        assert payload["research"]["executed_sources"] == ["facebook"]
+        assert payload["research"]["query"]["facebook_page_id"] == "page1"
+        assert [r["content_external_id"] for r in payload["research"]["references"]] == ["p1", "p2"]
+        assert client.calls[0]["page_id"] == "page1"
+
+    def test_facebook_zero_posts_report_no_evidence(self) -> None:
+        from tests.unit.test_research_facebookresearch import (
+            RecordingFacebookClient,
+            _report_service as _facebook_report_service,
+        )
+
+        service = _facebook_report_service(RecordingFacebookClient([]), [])
+        body = _app_with_report_service(service).post(PATH, json=self._payload())
+        assert body.status_code == 200
+        payload = body.json()
+        assert payload["status"] == "no_evidence"
+        assert payload["research"]["references"] == []
+
+    def test_facebook_missing_page_id_returns_422(self) -> None:
+        payload = self._payload()
+        del payload["facebook_page_id"]
+        response = _app_with_report_service(_report_service([])).post(PATH, json=payload)
+        assert response.status_code == 422
+        assert response.json()["error"]["code"] == "invalid_research_request"
+
+
 class TestReportErrors:
     def _post(self, service) -> dict:
         return _app_with_report_service(service).post(PATH, json=_payload())
@@ -231,6 +283,8 @@ class TestRuntimeClients:
             ai_endpoint_url = "https://provider.test/v1/chat/completions"
             ai_api_key = FAKE_KEY
             youtube_api_key = "yt-key"
+            meta_access_token = None
+            meta_graph_api_version = None
 
         monkeypatch.setattr(app_module, "get_settings", lambda: FakeSettings())
         monkeypatch.setattr(app_module, "YouTubeClient", lambda key: FakeYT())
@@ -241,3 +295,188 @@ class TestRuntimeClients:
         assert service is not None
         generator.close()
         assert closed == {"youtube": 1, "http": 1}
+
+    def test_later_client_construction_failure_closes_earlier_clients_once(
+        self, monkeypatch
+    ) -> None:
+        import trendora.api.app as app_module
+
+        closed = {"youtube": 0, "http": 0}
+
+        class FakeYT:
+            def close(self):
+                closed["youtube"] += 1
+
+        class FakeHTTP:
+            def __init__(self, timeout=None):
+                pass
+
+            def close(self):
+                closed["http"] += 1
+
+        class FailingFacebook:
+            def __init__(self, token, version):
+                raise RuntimeError("facebook construction failed")
+
+        class FakeSettings:
+            ai_provider = "p"
+            ai_model = "m"
+            ai_endpoint_url = "https://provider.test/v1/chat/completions"
+            ai_api_key = FAKE_KEY
+            youtube_api_key = "yt-key"
+            meta_access_token = "tok"
+            meta_graph_api_version = "v19.0"
+
+        monkeypatch.setattr(app_module, "get_settings", lambda: FakeSettings())
+        monkeypatch.setattr(app_module, "YouTubeClient", lambda key: FakeYT())
+        monkeypatch.setattr(app_module, "FacebookPublicClient", FailingFacebook)
+        monkeypatch.setattr(app_module.httpx, "Client", FakeHTTP)
+
+        generator = app_module.get_research_report_service()
+        with pytest.raises(RuntimeError, match="facebook construction failed"):
+            next(generator)
+        # http was never created; the already-created youtube client closed once.
+        assert closed == {"youtube": 1, "http": 0}
+
+    def test_service_build_failure_closes_all_created_clients_once(
+        self, monkeypatch
+    ) -> None:
+        import trendora.api.app as app_module
+
+        closed = {"youtube": 0, "http": 0}
+
+        class FakeYT:
+            def close(self):
+                closed["youtube"] += 1
+
+        class FakeHTTP:
+            def __init__(self, timeout=None):
+                pass
+
+            def close(self):
+                closed["http"] += 1
+
+        class FakeSettings:
+            ai_provider = "p"
+            ai_model = "m"
+            ai_endpoint_url = "https://provider.test/v1/chat/completions"
+            ai_api_key = FAKE_KEY
+            youtube_api_key = "yt-key"
+            meta_access_token = None
+            meta_graph_api_version = None
+
+        def fail_build(**kwargs):
+            raise RuntimeError("service build failed")
+
+        monkeypatch.setattr(app_module, "get_settings", lambda: FakeSettings())
+        monkeypatch.setattr(app_module, "YouTubeClient", lambda key: FakeYT())
+        monkeypatch.setattr(app_module.httpx, "Client", FakeHTTP)
+        monkeypatch.setattr(app_module, "build_research_report_service", fail_build)
+
+        generator = app_module.get_research_report_service()
+        with pytest.raises(RuntimeError, match="service build failed"):
+            next(generator)
+        assert closed == {"youtube": 1, "http": 1}
+
+    def test_report_dependency_teardown_closes_facebook_exactly_once(
+        self, monkeypatch
+    ) -> None:
+        import trendora.api.app as app_module
+
+        closed = {"facebook": 0}
+
+        class FakeFB:
+            def close(self):
+                closed["facebook"] += 1
+
+        class FakeSettings:
+            ai_provider = "p"
+            ai_model = "m"
+            ai_endpoint_url = "https://provider.test/v1/chat/completions"
+            ai_api_key = FAKE_KEY
+            youtube_api_key = None
+            meta_access_token = "tok"
+            meta_graph_api_version = "v19.0"
+
+        monkeypatch.setattr(app_module, "get_settings", lambda: FakeSettings())
+        monkeypatch.setattr(app_module, "FacebookPublicClient", lambda t, v: FakeFB())
+        monkeypatch.setattr(app_module.httpx, "Client", lambda **_: type("C", (), {"close": lambda self: None})())
+
+        generator = app_module.get_research_report_service()
+        assert next(generator) is not None
+        generator.close()
+        assert closed == {"facebook": 1}
+
+    def test_report_service_build_failure_closes_created_facebook_client(
+        self, monkeypatch
+    ) -> None:
+        import trendora.api.app as app_module
+
+        closed = {"youtube": 0, "facebook": 0, "http": 0}
+
+        class FakeYT:
+            def close(self):
+                closed["youtube"] += 1
+
+        class FakeFB:
+            def close(self):
+                closed["facebook"] += 1
+
+        class FakeHTTP:
+            def __init__(self, timeout=None):
+                pass
+
+            def close(self):
+                closed["http"] += 1
+
+        class FakeSettings:
+            ai_provider = "p"
+            ai_model = "m"
+            ai_endpoint_url = "https://provider.test/v1/chat/completions"
+            ai_api_key = FAKE_KEY
+            youtube_api_key = "yt-key"
+            meta_access_token = "tok"
+            meta_graph_api_version = "v19.0"
+
+        def fail_build(**kwargs):
+            raise RuntimeError("service build failed")
+
+        monkeypatch.setattr(app_module, "get_settings", lambda: FakeSettings())
+        monkeypatch.setattr(app_module, "YouTubeClient", lambda key: FakeYT())
+        monkeypatch.setattr(app_module, "FacebookPublicClient", lambda t, v: FakeFB())
+        monkeypatch.setattr(app_module.httpx, "Client", FakeHTTP)
+        monkeypatch.setattr(app_module, "build_research_report_service", fail_build)
+
+        generator = app_module.get_research_report_service()
+        with pytest.raises(RuntimeError, match="service build failed"):
+            next(generator)
+        assert closed == {"youtube": 1, "facebook": 1, "http": 1}
+
+    def test_application_dependency_teardown_closes_facebook_exactly_once(
+        self, monkeypatch
+    ) -> None:
+        import trendora.api.app as app_module
+
+        closed = {"youtube": 0, "facebook": 0}
+
+        class FakeYT:
+            def close(self):
+                closed["youtube"] += 1
+
+        class FakeFB:
+            def close(self):
+                closed["facebook"] += 1
+
+        class FakeSettings:
+            youtube_api_key = "yt-key"
+            meta_access_token = "tok"
+            meta_graph_api_version = "v19.0"
+
+        monkeypatch.setattr(app_module, "get_settings", lambda: FakeSettings())
+        monkeypatch.setattr(app_module, "YouTubeClient", lambda key: FakeYT())
+        monkeypatch.setattr(app_module, "FacebookPublicClient", lambda t, v: FakeFB())
+
+        generator = app_module.get_research_application_service()
+        assert next(generator) is not None
+        generator.close()
+        assert closed == {"youtube": 1, "facebook": 1}

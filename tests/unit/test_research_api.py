@@ -80,6 +80,61 @@ def _parse(dt_str: str) -> datetime:
     return datetime.fromisoformat(dt_str)
 
 
+def _fb_post(
+    post_id: str,
+    *,
+    message: str | None = "hello fb",
+    created: str = "2026-08-10T08:00:00+0000",
+    reactions: int | None = 12,
+    comments: int | None = 4,
+    shares: int | None = 3,
+) -> dict:
+    item: dict = {
+        "id": post_id,
+        "from": {"id": "page1", "name": "Example Page"},
+        "created_time": created,
+        "permalink_url": f"https://www.facebook.com/p/p{post_id}",
+    }
+    if message is not None:
+        item["message"] = message
+    if reactions is not None:
+        item["reactions"] = {"summary": {"total_count": reactions}}
+    if comments is not None:
+        item["comments"] = {"summary": {"total_count": comments}}
+    if shares is not None:
+        item["shares"] = {"count": shares}
+    return item
+
+
+def _facebook_payload(**overrides) -> dict:
+    payload = _valid_payload(
+        sources=["facebook"], facebook_page_id="page1", result_limit=10
+    )
+    payload.update(overrides)
+    return payload
+
+
+def _make_facebook_app(handler) -> tuple[TestClient, ResearchApplicationService]:
+    from trendora.connectors.facebook.client import FacebookPublicClient
+    from trendora.research import FacebookResearchRetriever
+
+    client = FacebookPublicClient(
+        "test-facebook-token-not-real",
+        "v19.0",
+        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+    retriever = FacebookResearchRetriever(client)
+    service = ResearchApplicationService(ResearchCapabilityResolver(), {"facebook": retriever})
+    return _app_with_service(service), service
+
+
+def _facebook_handler(posts: list[dict]):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"data": posts})
+
+    return handler
+
+
 class TestRequest:
     def test_valid_request_returns_200(self) -> None:
         client, _ = _make_app(_youtube_handler)
@@ -171,6 +226,8 @@ class TestSuccess:
             "view_count": 5,
             "like_count": None,
             "comment_count": None,
+            "reaction_count": None,
+            "share_count": None,
         }
 
     def test_zero_metric_remains_zero(self) -> None:
@@ -237,7 +294,13 @@ class TestSuccess:
         client, _ = _make_app(_youtube_handler)
         body = client.post(PATH, json=_valid_payload()).json()
         for reference in body["references"]:
-            assert set(reference["metrics"]) == {"view_count", "like_count", "comment_count"}
+            assert set(reference["metrics"]) == {
+                "view_count",
+                "like_count",
+                "comment_count",
+                "reaction_count",
+                "share_count",
+            }
 
 
 class TestExecutionTruth:
@@ -357,6 +420,148 @@ class TestUpstream:
         assert "at 0x" not in raw
 
 
+class TestFacebook:
+    def test_facebook_success_serializes_metrics(self) -> None:
+        client, _ = _make_facebook_app(
+            _facebook_handler([_fb_post("p1", reactions=12, comments=4, shares=3)])
+        )
+        body = client.post(PATH, json=_facebook_payload()).json()
+        assert body["status"] == "completed"
+        assert body["executed_sources"] == ["facebook"]
+        assert body["query"]["facebook_page_id"] == "page1"
+        reference = body["references"][0]
+        assert reference["source_code"] == "facebook"
+        assert reference["content_external_id"] == "p1"
+        assert reference["url"] == "https://www.facebook.com/p/pp1"
+        assert reference["description"] == "hello fb"
+        assert reference["title"] is None
+        assert reference["metrics"] == {
+            "view_count": None,
+            "like_count": None,
+            "comment_count": 4,
+            "reaction_count": 12,
+            "share_count": 3,
+        }
+
+    def test_facebook_nullable_metrics_serialize_as_null(self) -> None:
+        client, _ = _make_facebook_app(
+            _facebook_handler([_fb_post("p1", reactions=None, comments=None, shares=None)])
+        )
+        body = client.post(PATH, json=_facebook_payload()).json()
+        assert body["references"][0]["metrics"] == {
+            "view_count": None,
+            "like_count": None,
+            "comment_count": None,
+            "reaction_count": None,
+            "share_count": None,
+        }
+
+    def test_facebook_zero_posts_completes_empty(self) -> None:
+        client, _ = _make_facebook_app(_facebook_handler([]))
+        response = client.post(PATH, json=_facebook_payload())
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == "completed"
+        assert body["references"] == []
+        assert body["executed_sources"] == ["facebook"]
+
+    def test_facebook_missing_page_id_returns_422(self) -> None:
+        client, _ = _make_facebook_app(_facebook_handler([]))
+        response = client.post(
+            PATH, json=_valid_payload(sources=["facebook"], result_limit=10)
+        )
+        assert response.status_code == 422
+        assert response.json()["error"]["code"] == "invalid_research_request"
+
+    def test_facebook_unsafe_page_id_returns_422(self) -> None:
+        client, _ = _make_facebook_app(_facebook_handler([]))
+        for bad in ("a/b", "a b", "..", "."):
+            response = client.post(
+                PATH, json=_facebook_payload(facebook_page_id=bad)
+            )
+            assert response.status_code == 422
+            assert response.json()["error"]["code"] == "invalid_research_request"
+
+    def test_page_id_with_youtube_only_returns_422(self) -> None:
+        client, _ = _make_facebook_app(_facebook_handler([]))
+        response = client.post(
+            PATH, json=_valid_payload(facebook_page_id="page1")
+        )
+        assert response.status_code == 422
+        assert response.json()["error"]["code"] == "invalid_research_request"
+
+    def test_mixed_facebook_and_youtube_sources_returns_422(self) -> None:
+        client, _ = _make_facebook_app(_facebook_handler([]))
+        response = client.post(
+            PATH, json=_facebook_payload(sources=["facebook", "youtube"])
+        )
+        assert response.status_code == 422
+        assert response.json()["error"]["code"] == "invalid_research_request"
+
+    def test_facebook_without_retriever_returns_503(self) -> None:
+        client, _ = _make_app(_youtube_handler)  # only youtube configured
+        response = client.post(PATH, json=_facebook_payload())
+        assert response.status_code == 503
+        assert response.json()["error"]["code"] == "research_source_not_configured"
+
+    def test_facebook_configuration_error_maps_to_sanitized_503(self) -> None:
+        from trendora.connectors.facebook.exceptions import FacebookConfigurationError
+        from trendora.research import FacebookResearchRetriever
+
+        class FailingClient:
+            def list_page_posts(self, page_id, *, date_from, date_to, limit):
+                raise FacebookConfigurationError(
+                    f"bad page id {page_id} and secret test-facebook-token-not-real"
+                )
+
+        service = ResearchApplicationService(
+            ResearchCapabilityResolver(),
+            {"facebook": FacebookResearchRetriever(FailingClient())},
+        )
+        response = _app_with_service(service).post(PATH, json=_facebook_payload())
+        assert response.status_code == 503
+        body = response.json()
+        assert body["error"]["code"] == "research_source_not_configured"
+        assert body["error"]["message"] == "The requested source is not configured."
+        raw = str(body)
+        assert "test-facebook-token-not-real" not in raw
+        assert "Traceback" not in raw
+
+    def test_facebook_upstream_failure_returns_502(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                503, json={"error": {"message": "upstream", "code": 2}}
+            )
+
+        client, _ = _make_facebook_app(handler)
+        response = client.post(PATH, json=_facebook_payload())
+        assert response.status_code == 502
+        assert response.json()["error"]["code"] == "research_upstream_error"
+
+    def test_facebook_upstream_transport_failure_returns_502(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError("connection refused")
+
+        client, _ = _make_facebook_app(handler)
+        response = client.post(PATH, json=_facebook_payload())
+        assert response.status_code == 502
+        assert response.json()["error"]["code"] == "research_upstream_error"
+
+    def test_facebook_errors_do_not_leak_token_or_tracebacks(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                500, json={"error": {"message": "bad token test-facebook-token-not-real"}}
+            )
+
+        client, _ = _make_facebook_app(handler)
+        body = client.post(PATH, json=_facebook_payload()).json()
+        raw = str(body)
+        assert "test-facebook-token-not-real" not in raw
+        assert "Traceback" not in raw
+        assert "at 0x" not in raw
+        assert body["error"]["message"] == "The upstream source failed."
+
+
 class TestForecastBoundary:
     def _stub_forecast_result(self) -> GitHubForecastResult:
         t0 = datetime(2026, 9, 1, 9, 0, tzinfo=UTC)
@@ -410,3 +615,7 @@ class TestOpenAPI:
         assert "ResearchResponse" in schemas
         assert "ResearchReferenceResponse" in schemas
         assert "ResearchMetricsResponse" in schemas
+        assert "facebook_page_id" in schemas["ResearchRequest"]["properties"]
+        metric_props = schemas["ResearchMetricsResponse"]["properties"]
+        for field in ("view_count", "like_count", "comment_count", "reaction_count", "share_count"):
+            assert field in metric_props
