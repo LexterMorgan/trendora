@@ -224,7 +224,11 @@ def build_grounded_strategy_request(
             {"role": "system", "content": SYSTEM_STRATEGIC_PROMPT},
             {"role": "user", "content": user_content},
         ],
-        **request_controls(config.provider),
+        **request_controls(
+            config.provider,
+            schema_name="trendora_strategy_v1",
+            schema_model=StrategyResponse,
+        ),
     }
 
 

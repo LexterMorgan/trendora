@@ -57,17 +57,38 @@ _COMMON_REQUEST_CONTROLS = {
 }
 
 
-def request_controls(provider: str) -> dict[str, Any]:
+def request_controls(
+    provider: str,
+    *,
+    schema_name: str | None = None,
+    schema_model: type[BaseModel] | None = None,
+) -> dict[str, Any]:
     """JSON controls attached to every AI Chat Completions request.
 
     Common controls bound output size and force strict JSON. OpenRouter
     additionally gets low/excluded reasoning (DeepSeek-v4-flash default high
-    reasoning caused the response hang). Provider match is trimmed and
-    case-insensitive; the field is never sent to other providers.
+    reasoning caused the response hang) and, when a stage DTO is supplied,
+    strict structured outputs: the exact Pydantic schema is sent as a
+    ``json_schema`` response_format plus ``provider.require_parameters`` so a
+    provider that cannot honor the controls fails instead of silently
+    degrading to syntax-only JSON. Non-OpenRouter providers keep
+    ``json_object`` mode and never receive OpenRouter provider routing.
+    Provider match is trimmed and case-insensitive; OpenRouter-only fields are
+    never sent to other providers.
     """
     controls = dict(_COMMON_REQUEST_CONTROLS)
     if provider.strip().lower() == OPENROUTER_PROVIDER:
         controls["reasoning"] = {"effort": "low", "exclude": True}
+        if schema_name is not None and schema_model is not None:
+            controls["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": schema_name,
+                    "strict": True,
+                    "schema": schema_model.model_json_schema(),
+                },
+            }
+            controls["provider"] = {"require_parameters": True}
     return controls
 
 SYSTEM_PROMPT = """You are Trendora's grounded content-interpretation assistant.
@@ -226,7 +247,11 @@ def build_grounded_request(config: AIProviderConfig, pack: EvidencePack) -> dict
                 + payload,
             },
         ],
-        **request_controls(config.provider),
+        **request_controls(
+            config.provider,
+            schema_name="trendora_interpretation_v1",
+            schema_model=ProviderInterpretationResponse,
+        ),
     }
 
 

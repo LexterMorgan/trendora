@@ -378,6 +378,33 @@ class TestStrategyProvider:
         assert FAKE_KEY not in json.dumps(body)
         assert captured["authorization"] == f"Bearer {FAKE_KEY}"
 
+    def test_openrouter_strict_stage_schema(self) -> None:
+        from trendora.research.strategy import StrategyResponse
+
+        captured = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["body"] = json.loads(request.content)
+            return httpx.Response(200, json=_envelope(_model_output([], [])))
+
+        client = httpx.Client(transport=httpx.MockTransport(handler))
+        OpenAICompatibleStrategyProvider(
+            _config(provider="openrouter"), http_client=client
+        ).generate(_context())
+        body = captured["body"]
+        schema_block = body["response_format"]
+        assert schema_block["type"] == "json_schema"
+        assert schema_block["json_schema"]["name"] == "trendora_strategy_v1"
+        assert schema_block["json_schema"]["strict"] is True
+        schema = schema_block["json_schema"]["schema"]
+        assert schema == StrategyResponse.model_json_schema()
+        assert set(schema["required"]) == {"content_gaps", "opportunities"}
+        assert schema["additionalProperties"] is False
+        assert body["provider"] == {"require_parameters": True}
+        assert body["max_tokens"] == 4096
+        assert body["stream"] is False
+        assert body["reasoning"] == {"effort": "low", "exclude": True}
+
 
 class TestStrategyStrictParsing:
     def test_parse_strategy_output_valid(self) -> None:

@@ -593,6 +593,68 @@ class TestRequestBody:
         assert "reasoning" not in request_controls("openrouter-x")
 
 
+class TestOpenRouterStructuredOutputs:
+    def _capture_body(self, provider_name: str) -> dict:
+        captured = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["body"] = json.loads(request.content)
+            return httpx.Response(200, json=_envelope(_model_output([])))
+
+        client = httpx.Client(transport=httpx.MockTransport(handler))
+        OpenAICompatibleInterpretationProvider(
+            _config(provider=provider_name), http_client=client
+        ).interpret(_pack())
+        return captured["body"]
+
+    def test_openrouter_request_carries_strict_stage_schema(self) -> None:
+        from trendora.research.ai_provider import ProviderInterpretationResponse
+
+        body = self._capture_body("openrouter")
+        response_format = body["response_format"]
+        assert response_format["type"] == "json_schema"
+        schema_block = response_format["json_schema"]
+        assert schema_block["name"] == "trendora_interpretation_v1"
+        assert schema_block["strict"] is True
+        schema = schema_block["schema"]
+        assert schema == ProviderInterpretationResponse.model_json_schema()
+        # Top-level: required fields present, additional properties forbidden.
+        assert set(schema["required"]) == {"interpretations"}
+        assert schema["additionalProperties"] is False
+        # Nested interpretation items also require their fields and forbid extras.
+        item_schema = schema["$defs"]["ProviderInterpretationItem"]
+        assert set(item_schema["required"]) == {"statement", "citations"}
+        assert item_schema["additionalProperties"] is False
+
+    def test_openrouter_routing_and_existing_controls_remain(self) -> None:
+        body = self._capture_body("OpenRouter")
+        assert body["provider"] == {"require_parameters": True}
+        assert body["max_tokens"] == 4096
+        assert body["stream"] is False
+        assert body["reasoning"] == {"effort": "low", "exclude": True}
+        assert body["model"] == "test-model"
+
+    def test_non_openrouter_stays_json_object_without_provider_routing(self) -> None:
+        body = self._capture_body("deepseek")
+        assert body["response_format"] == {"type": "json_object"}
+        assert "provider" not in body
+        assert "json_schema" not in json.dumps(body)
+        assert "reasoning" not in body
+        assert body["max_tokens"] == 4096
+        assert body["stream"] is False
+
+    def test_openrouter_without_stage_schema_keeps_json_object(self) -> None:
+        from trendora.research.ai_provider import request_controls
+
+        controls = request_controls("openrouter")
+        assert controls["response_format"] == {"type": "json_object"}
+        assert "provider" not in controls
+
+    def test_no_secrets_in_openrouter_request_snapshot(self) -> None:
+        raw = json.dumps(self._capture_body("openrouter"))
+        assert FAKE_KEY not in raw
+
+
 class TestGroundedExecution:
     def _service(self, handler) -> GroundedInterpretationService:
         return GroundedInterpretationService(_provider(handler))

@@ -256,7 +256,11 @@ def build_grounded_ideation_request(
             {"role": "system", "content": SYSTEM_IDEATION_PROMPT},
             {"role": "user", "content": user_content},
         ],
-        **request_controls(config.provider),
+        **request_controls(
+            config.provider,
+            schema_name="trendora_ideation_v1",
+            schema_model=IdeationResponse,
+        ),
     }
 
 
