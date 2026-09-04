@@ -21,12 +21,18 @@ interface TurnViewProps {
 }
 
 export function userMessage(request: ResearchFormValues): string {
+  const isFacebook = request.sources[0] === "facebook";
+  const sourceSummary = isFacebook
+    ? request.facebook_page_id
+      ? `Facebook · Page ${request.facebook_page_id}`
+      : "Facebook"
+    : request.sources.map(sourceLabel).join(", ");
   return [
     request.topic,
     request.market,
     `${request.date_from} → ${request.date_to}`,
     depthWording(request.result_limit),
-    request.sources.map(sourceLabel).join(", "),
+    sourceSummary,
   ]
     .filter(Boolean)
     .join(" · ");

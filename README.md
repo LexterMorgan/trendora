@@ -2,7 +2,7 @@
 
 AI-powered Social Media Intelligence Platform for Southeast Asian education, AI, and technology markets.
 
-**Status:** Milestones 2A–4 ingest; M5 analytics; M6A in-memory forecast baselines; M6B evaluation docs; M6C naive-vs-challenger MAE comparison (in-memory); M7 series diagnostics (in-memory); M8 forecasting product contract & readiness gate ([docs/11](docs/11_FORECASTING_PRODUCT_SPEC.md)); M9 forecasting product requirements decided ([docs/12](docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md)); M10 V1 GitHub forecasting slice implemented ([src/trendora/product/](src/trendora/product/)) — naive level forecasts of GitHub repository `stargazer_count`/`fork_count`, 4 weekly points, on demand from M5, ≥4 observations, in-memory; M11A forecast API contract defined ([docs/13](docs/13_FORECASTING_API_CONTRACT.md)); M11B FastAPI adapter implemented ([src/trendora/api/](src/trendora/api/)) — no auth/persistence; M15 research API; M23A research report pipeline + API; M25A–M25D Facebook public Page client → normalization → research execution → API wiring (mocked only, opt-in via `META_ACCESS_TOKEN` + `META_GRAPH_API_VERSION`). Streamlit, advanced ML, WebSub, and other source connectors are not implemented.
+**Status:** Milestones 2A–4 ingest; M5 analytics; M6A in-memory forecast baselines; M6B evaluation docs; M6C naive-vs-challenger MAE comparison (in-memory); M7 series diagnostics (in-memory); M8 forecasting product contract & readiness gate ([docs/11](docs/11_FORECASTING_PRODUCT_SPEC.md)); M9 forecasting product requirements decided ([docs/12](docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md)); M10 V1 GitHub forecasting slice implemented ([src/trendora/product/](src/trendora/product/)) — naive level forecasts of GitHub repository `stargazer_count`/`fork_count`, 4 weekly points, on demand from M5, ≥4 observations, in-memory; M11A forecast API contract defined ([docs/13](docs/13_FORECASTING_API_CONTRACT.md)); M11B FastAPI adapter implemented ([src/trendora/api/](src/trendora/api/)) — no auth/persistence; M15 research API; M23A research report pipeline + API; M25A–M25D Facebook public Page client → normalization → research execution → API wiring (mocked only, opt-in via `META_ACCESS_TOKEN` + `META_GRAPH_API_VERSION`); M25E frontend Facebook Page research mode. Streamlit, advanced ML, WebSub, and other source connectors are not implemented.
 
 ## Product direction (M12 re-baseline)
 
@@ -50,6 +50,7 @@ Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 
 - [docs/27_FACEBOOK_POST_NORMALIZATION.md](docs/27_FACEBOOK_POST_NORMALIZATION.md) — M25B Facebook post normalization & grounded evidence (isolated)
 - [docs/28_FACEBOOK_RESEARCH_EXECUTION.md](docs/28_FACEBOOK_RESEARCH_EXECUTION.md) — M25C Facebook research execution seams (isolated, mocked)
 - [docs/29_FACEBOOK_API_WIRING.md](docs/29_FACEBOOK_API_WIRING.md) — M25D Facebook research API wiring (settings, lifecycle, error mapping)
+- [docs/30_FACEBOOK_FRONTEND.md](docs/30_FACEBOOK_FRONTEND.md) — M25E Facebook Page research frontend mode (single-source selector, mocked)
 - [PROJECT_PREP.md](PROJECT_PREP.md) — environment, MCP, and setup notes
 - [docs/01_ARCHITECTURE.md](docs/01_ARCHITECTURE.md) — layer boundaries and V1 database decision
 - [docs/02_DATABASE_SCHEMA.md](docs/02_DATABASE_SCHEMA.md) — tables, constraints, migrations
@@ -64,9 +65,10 @@ Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 
 | V1 development DB | Existing Supabase PostgreSQL project | In use |
 | HTTP | httpx (YouTube Data API v3 client) | Installed |
 | Connectors | YouTube watchlist + mostPopular; Hacker News stories; Stack Exchange questions; GitHub repositories; Facebook public Page posts + normalization + research wiring (M25A–M25D, mocked, opt-in) | M2A + M2B + M3A + M3B + M4 + M25A + M25B + M25C + M25D |
+| Research UI | Next.js research workspace; single-source selector incl. Facebook Page mode (M25E, mocked) | M16 + M24 + M25E |
 | Analytics | Read-only observation/query layer over `metric_snapshots` | M5 |
 | Forecasting | In-memory naive / moving average / SES over M5 series; naive-vs-challenger MAE; series diagnostics; V1 GitHub forecast product | M6A + M6C + M7 + M10 |
-| API | FastAPI read model over the M10 GitHub forecast product; one endpoint | M11B |
+| API | FastAPI read model: GitHub forecast product + research/report endpoints | M11B + M15 + M23A |
 | Dashboard | Streamlit + Plotly | Not installed |
 | Data / ML | Pandas, NumPy, scikit-learn, statsmodels | Not installed |
 | AI | Provider-agnostic, optional, $0-safe | Not installed |

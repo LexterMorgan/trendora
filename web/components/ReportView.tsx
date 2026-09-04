@@ -10,6 +10,7 @@ import {
   resolveUpstreamChain,
 } from "@/lib/report-provenance";
 import { briefMarkdown, copyToClipboard, downloadReportJson, ideaMarkdown } from "@/lib/report-actions";
+import { sourceLabel } from "@/lib/format";
 import { CitationDrawer } from "./CitationDrawer";
 import { CoveragePanel } from "./CoveragePanel";
 import { MarketCaveat } from "./MarketCaveat";
@@ -75,8 +76,8 @@ export function ReportView({ report }: ReportViewProps) {
 
   const provenance = [
     `Report status: ${report.status}`,
-    `Executed sources: ${report.research.executed_sources.join(", ") || "none"}`,
-    `Requested sources: ${report.research.query.sources.join(", ") || "none"}`,
+    `Executed sources: ${report.research.executed_sources.map(sourceLabel).join(", ") || "none"}`,
+    `Requested sources: ${report.research.query.sources.map(sourceLabel).join(", ") || "none"}`,
     `References: ${report.research.references.length}`,
   ];
 

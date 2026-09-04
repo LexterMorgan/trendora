@@ -6,7 +6,8 @@ interface ReferenceCardProps {
 }
 
 export function ReferenceCard({ reference }: ReferenceCardProps) {
-  const title = reference.title || "Untitled video";
+  const isFacebook = reference.source_code === "facebook";
+  const title = reference.title || (isFacebook ? "Facebook post" : "Untitled video");
   const url = reference.url ?? "#";
 
   return (
@@ -25,18 +26,37 @@ export function ReferenceCard({ reference }: ReferenceCardProps) {
       )}
 
       <dl className="reference-metrics">
-        <div className="metric">
-          <dt>Views</dt>
-          <dd>{formatMetric(reference.metrics.view_count)}</dd>
-        </div>
-        <div className="metric">
-          <dt>Likes</dt>
-          <dd>{formatMetric(reference.metrics.like_count)}</dd>
-        </div>
-        <div className="metric">
-          <dt>Comments</dt>
-          <dd>{formatMetric(reference.metrics.comment_count)}</dd>
-        </div>
+        {isFacebook ? (
+          <>
+            <div className="metric">
+              <dt>Reactions</dt>
+              <dd>{formatMetric(reference.metrics.reaction_count)}</dd>
+            </div>
+            <div className="metric">
+              <dt>Comments</dt>
+              <dd>{formatMetric(reference.metrics.comment_count)}</dd>
+            </div>
+            <div className="metric">
+              <dt>Shares</dt>
+              <dd>{formatMetric(reference.metrics.share_count)}</dd>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="metric">
+              <dt>Views</dt>
+              <dd>{formatMetric(reference.metrics.view_count)}</dd>
+            </div>
+            <div className="metric">
+              <dt>Likes</dt>
+              <dd>{formatMetric(reference.metrics.like_count)}</dd>
+            </div>
+            <div className="metric">
+              <dt>Comments</dt>
+              <dd>{formatMetric(reference.metrics.comment_count)}</dd>
+            </div>
+          </>
+        )}
       </dl>
 
       <div className="reference-meta">

@@ -14,6 +14,7 @@ export interface ResearchRequest {
   date_to: string;
   sources: string[];
   result_limit: number;
+  facebook_page_id?: string;
 }
 
 export interface ResearchQueryResponse {
@@ -23,6 +24,7 @@ export interface ResearchQueryResponse {
   date_to: string;
   sources: string[];
   result_limit: number;
+  facebook_page_id: string | null;
 }
 
 export interface SourceCoverageResponse {
@@ -41,6 +43,8 @@ export interface ResearchMetricsResponse {
   view_count: number | null;
   like_count: number | null;
   comment_count: number | null;
+  reaction_count: number | null;
+  share_count: number | null;
 }
 
 export interface ResearchReferenceResponse {

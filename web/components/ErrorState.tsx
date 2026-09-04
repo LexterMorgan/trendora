@@ -6,9 +6,9 @@ const CODE_MESSAGES: Record<string, string> = {
   research_no_coverage:
     "No requested source can satisfy this research capability.",
   research_source_not_configured:
-    "The research source is not configured on the server. The backend may need a YouTube API key.",
+    "The selected research source is not configured on Trendora's server.",
   research_upstream_error:
-    "YouTube research is temporarily unavailable. Please try again later.",
+    "The selected research source is temporarily unavailable. Please try again later.",
   backend_unreachable:
     "The Trendora backend could not be reached. Make sure the backend is running.",
   backend_not_configured:

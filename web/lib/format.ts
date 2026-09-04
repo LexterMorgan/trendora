@@ -33,5 +33,6 @@ export function formatDate(value: string | null): string {
 
 export function sourceLabel(sourceCode: string): string {
   if (sourceCode === "youtube") return "YouTube";
+  if (sourceCode === "facebook") return "Facebook";
   return sourceCode;
 }

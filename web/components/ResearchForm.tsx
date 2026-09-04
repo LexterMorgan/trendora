@@ -37,11 +37,11 @@ export const DATE_PRESETS = [
   { value: "custom", label: "Custom" },
 ];
 
-export const SOURCE_ROADMAP = [
-  { code: "youtube", name: "YouTube", status: "Available", note: null, disabled: false },
-  { code: "facebook", name: "Facebook", status: "Priority next", note: "connection required", disabled: true },
-  { code: "instagram", name: "Instagram", status: "Planned", note: "connection required", disabled: true },
-  { code: "tiktok", name: "TikTok", status: "Planned", note: "access-dependent", disabled: true },
+export const SOURCE_OPTIONS = [
+  { code: "youtube", name: "YouTube", note: null, disabled: false },
+  { code: "facebook", name: "Facebook", note: "Requires Trendora server configuration", disabled: false },
+  { code: "instagram", name: "Instagram", note: "Planned", disabled: true },
+  { code: "tiktok", name: "TikTok", note: "Planned", disabled: true },
 ];
 
 export interface ResearchFormValues {
@@ -51,6 +51,7 @@ export interface ResearchFormValues {
   date_to: string;
   sources: string[];
   result_limit: number;
+  facebook_page_id?: string;
 }
 
 /* Local-calendar date helpers. Never UTC, never hardcoded years. */
@@ -119,6 +120,12 @@ export function ResearchForm({ onSubmit, disabled, initialValues, showExamples }
   const [resultLimit, setResultLimit] = useState<number>(() =>
     safeDepth(initialValues?.result_limit),
   );
+  const [source, setSource] = useState<string>(() =>
+    initialValues?.sources?.[0] === "facebook" ? "facebook" : "youtube",
+  );
+  const [facebookPageId, setFacebookPageId] = useState(
+    initialValues?.facebook_page_id ?? "",
+  );
   const [localError, setLocalError] = useState<string | null>(null);
 
   const [preset, setPreset] = useState<string>(() => {
@@ -169,7 +176,23 @@ export function ResearchForm({ onSubmit, disabled, initialValues, showExamples }
       setLocalError("Dates must not be in the future.");
       return;
     }
+    if (source === "facebook" && !facebookPageId.trim()) {
+      setLocalError("Enter the Facebook Page ID to research.");
+      return;
+    }
     setLocalError(null);
+    if (source === "facebook") {
+      onSubmit({
+        topic: topic.trim(),
+        market,
+        date_from: dateFrom,
+        date_to: dateTo,
+        sources: ["facebook"],
+        result_limit: resultLimit,
+        facebook_page_id: facebookPageId.trim(),
+      });
+      return;
+    }
     onSubmit({
       topic: topic.trim(),
       market,
@@ -298,25 +321,57 @@ export function ResearchForm({ onSubmit, disabled, initialValues, showExamples }
         </div>
       </fieldset>
 
-      <div className="form-field">
-        <span className="form-label" id="sources-label">
-          Sources
-        </span>
-        <ul className="source-roadmap" aria-labelledby="sources-label">
-          {SOURCE_ROADMAP.map((source) => (
-            <li
-              key={source.code}
-              className={
-                source.disabled ? "source-roadmap-item is-disabled" : "source-roadmap-item"
-              }
+      <fieldset className="source-fieldset">
+        <legend>Source</legend>
+        <div className="source-options">
+          {SOURCE_OPTIONS.map((option) => (
+            <label
+              key={option.code}
+              className={[
+                "source-option",
+                source === option.code ? "is-selected" : "",
+                option.disabled ? "is-disabled" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
             >
-              <span className="roadmap-name">{source.name}</span>
-              <span className="roadmap-status">{source.status}</span>
-              {source.note && <span className="roadmap-note">· {source.note}</span>}
-            </li>
+              <input
+                type="radio"
+                name="source"
+                value={option.code}
+                checked={source === option.code}
+                onChange={(event) => setSource(event.target.value)}
+                disabled={option.disabled || disabled}
+              />
+              <span className="source-name">{option.name}</span>
+              {option.note && <span className="source-note">{option.note}</span>}
+            </label>
           ))}
-        </ul>
-      </div>
+        </div>
+      </fieldset>
+
+      {source === "facebook" && (
+        <div className="form-field page-id-field">
+          <label htmlFor="facebook-page-id">Facebook Page ID</label>
+          <input
+            id="facebook-page-id"
+            type="text"
+            value={facebookPageId}
+            onChange={(event) => setFacebookPageId(event.target.value)}
+            placeholder="123456789"
+            required
+            disabled={disabled}
+          />
+          <p className="date-help">
+            Enter a public Facebook Page ID. You do not log into Facebook;
+            Trendora’s server must have approved Meta access configured.
+          </p>
+          <p className="date-help">
+            For Facebook, the topic and market organize the report but do not
+            filter which Page posts are collected.
+          </p>
+        </div>
+      )}
 
       {localError && (
         <p className="form-error" role="alert">
