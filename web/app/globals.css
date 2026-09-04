@@ -511,6 +511,136 @@ a {
   padding-top: 0;
 }
 
+/* M26A — report information architecture */
+
+.report-glance {
+  border: var(--rule);
+  border-top: 3px solid var(--ink);
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.glance-grid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px 18px;
+  width: 100%;
+}
+
+.glance-item {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.glance-item dt {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+
+.glance-item dd {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.section-note {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+
+.claim-kind {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--ink-soft);
+  background: var(--surface-alt);
+}
+
+.claim-kind-deterministic {
+  color: var(--ok, #1d6f42);
+  border-color: currentColor;
+}
+
+.claim-kind-ai {
+  color: var(--accent);
+  border-color: currentColor;
+}
+
+.claim-kind-recommendation {
+  color: var(--ink-soft);
+}
+
+.report-item-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pattern-counts {
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--ink-soft);
+}
+
+/* Idea/brief grouping */
+
+.idea-group {
+  border-left: 3px solid var(--border);
+  padding-left: 14px;
+}
+
+.brief-group {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.brief-group .drawer-subheading,
+.brief-fallback .drawer-subheading {
+  border-top: none;
+  margin-top: 4px;
+  padding-top: 0;
+}
+
+.brief-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  background: var(--surface-alt, var(--surface));
+}
+
+.brief-fallback {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: var(--rule);
+}
+
 /* Actions */
 
 .secondary-button,
