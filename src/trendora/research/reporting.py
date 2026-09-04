@@ -8,16 +8,23 @@ Composes existing M15–M22 seams into one truthful structured report:
     StrategicResult → IdeationContext → GroundedIdeationService →
     IdeationResult → ResearchReport
 
-No new intelligence, no fourth AI call, no workflow engine. Each deterministic
-and AI stage runs at most once; provider/grounding failures propagate and are
-never converted to empty output.
+No new intelligence, no fourth AI call, no workflow engine. Retrieval, evidence
+construction, and every AI stage normally run exactly once. The one exception:
+an AI stage that fails with ``ResearchAIResponseError`` (malformed/unvalidatable
+model output) is retried at most once — maximum two attempts for that stage —
+without rerunning retrieval, evidence construction, or any other AI stage. Any
+other failure (provider errors, timeouts, configuration, grounding/domain
+errors) propagates and is never converted to empty output.
 """
 
 from __future__ import annotations
 
+import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
+from typing import TypeVar
 
 from trendora.connectors.facebook.client import FacebookPublicClient
 from trendora.connectors.youtube.client import YouTubeClient
@@ -32,6 +39,7 @@ from trendora.research.application import (
 )
 from trendora.research.evidence import EvidenceField, analyze_references, reference_id
 from trendora.research.exceptions import (
+    ResearchAIResponseError,
     ResearchInterpretationError,
     ResearchNoCoverageError,
 )
@@ -56,6 +64,10 @@ from trendora.research.strategy import (
     StrategicResult,
     validate_strategic_result,
 )
+
+logger = logging.getLogger("trendora.research.reporting")
+
+_T = TypeVar("_T")
 
 
 class ResearchReportStatus(StrEnum):
@@ -191,6 +203,22 @@ class ResearchReportService:
         self._strategy = strategy
         self._ideation = ideation
 
+    def _run_ai_stage(self, stage: str, call: Callable[[], _T]) -> _T:
+        """Run one AI stage; retry at most once on malformed provider output.
+
+        Only ``ResearchAIResponseError`` (strict parse/validation failure of
+        the model response) is retried, for a maximum of two attempts. All
+        other errors propagate unchanged. Logs carry only the stage name and
+        exception class — never response bodies, evidence, or credentials.
+        """
+        try:
+            return call()
+        except ResearchAIResponseError as exc:
+            logger.warning(
+                "research.report.ai_retry stage=%s error=%s", stage, type(exc).__name__
+            )
+            return call()
+
     def build_report(
         self,
         *,
@@ -234,17 +262,23 @@ class ResearchReportService:
         patterns = aggregate_patterns(analyses)
         pack = EvidencePack(analyses=analyses, patterns=patterns)
 
-        interpretation_result = self._interpretation.interpret(pack)
+        interpretation_result = self._run_ai_stage(
+            "interpretation", lambda: self._interpretation.interpret(pack)
+        )
         strategic_context = StrategicContext(
             evidence_pack=pack,
             interpretation_result=interpretation_result,
         )
-        strategic_result = self._strategy.generate(strategic_context)
+        strategic_result = self._run_ai_stage(
+            "strategy", lambda: self._strategy.generate(strategic_context)
+        )
         ideation_context = IdeationContext(
             strategic_context=strategic_context,
             strategic_result=strategic_result,
         )
-        ideation_result = self._ideation.generate(ideation_context)
+        ideation_result = self._run_ai_stage(
+            "ideation", lambda: self._ideation.generate(ideation_context)
+        )
 
         report = ResearchReport(
             status=ResearchReportStatus.COMPLETED,

@@ -113,6 +113,30 @@ a {
   }
 }
 
+/* Sidebar (post-submit) form: stack rows so selects and dates fit the
+   320px rail. The wider empty-session composer keeps two columns. */
+
+.form-panel .form-row {
+  grid-template-columns: 1fr;
+}
+
+.form-panel .form-row > *,
+.form-panel .form-field,
+.form-panel .research-form > * {
+  min-width: 0;
+}
+
+.form-panel .source-option {
+  flex-wrap: wrap;
+}
+
+.form-panel .source-note {
+  margin-left: 26px;
+  width: 100%;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
 .panel {
   background: var(--surface);
   border: var(--rule);

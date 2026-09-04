@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date, datetime, timezone
 
 import httpx
@@ -120,9 +121,11 @@ def _grounded_ideation(context) -> IdeationResult:
 class RecordingInterpretationProvider:
     def __init__(self, events: list[str]) -> None:
         self.events = events
+        self.calls = 0
         self.last_pack = None
 
     def interpret(self, pack: EvidencePack) -> InterpretationResult:
+        self.calls += 1
         self.events.append("interpretation")
         self.last_pack = pack
         return _grounded_interpretation(pack)
@@ -131,9 +134,11 @@ class RecordingInterpretationProvider:
 class RecordingStrategyProvider:
     def __init__(self, events: list[str]) -> None:
         self.events = events
+        self.calls = 0
         self.last_context = None
 
     def generate(self, context: StrategicContext) -> StrategicResult:
+        self.calls += 1
         self.events.append("strategy")
         self.last_context = context
         return _grounded_strategy(context)
@@ -142,9 +147,11 @@ class RecordingStrategyProvider:
 class RecordingIdeationProvider:
     def __init__(self, events: list[str]) -> None:
         self.events = events
+        self.calls = 0
         self.last_context = None
 
     def generate(self, context) -> IdeationResult:
+        self.calls += 1
         self.events.append("ideation")
         self.last_context = context
         return _grounded_ideation(context)
@@ -274,6 +281,210 @@ class TestOrchestration:
         )
         with pytest.raises(type(error)):
             service.build_report(**_query())
+
+
+class TestMalformedResponseRetry:
+    """One targeted retry of only the AI stage that raised ResearchAIResponseError."""
+
+    def _service_with_counts(self, interp, strategy, ideation):
+        handler_calls = {"http": 0}
+
+        def counting_handler(request: httpx.Request) -> httpx.Response:
+            handler_calls["http"] += 1
+            return _youtube_handler(request)
+
+        service = ResearchReportService(
+            _research(counting_handler),
+            GroundedInterpretationService(interp),
+            GroundedStrategyService(strategy),
+            GroundedIdeationService(ideation),
+        )
+        return service, handler_calls
+
+    def test_interpretation_retry_succeeds_without_rerunning_other_stages(self) -> None:
+        class FlakyInterp:
+            def __init__(self):
+                self.calls = 0
+
+            def interpret(self, pack):
+                self.calls += 1
+                if self.calls == 1:
+                    raise ResearchAIResponseError("malformed interpretation")
+                return _grounded_interpretation(pack)
+
+        interp = FlakyInterp()
+        events: list[str] = []
+        strategy = RecordingStrategyProvider(events)
+        ideation = RecordingIdeationProvider(events)
+        service, http = self._service_with_counts(interp, strategy, ideation)
+
+        report = service.build_report(**_query())
+
+        assert report.status is ResearchReportStatus.COMPLETED
+        assert interp.calls == 2
+        assert strategy.calls == 1
+        assert ideation.calls == 1
+        # Retrieval (search + enrichment) ran exactly once despite the retry.
+        assert events == ["strategy", "ideation"]
+
+    def test_strategy_retry_does_not_rerun_interpretation(self) -> None:
+        class FlakyStrategy:
+            def __init__(self):
+                self.calls = 0
+
+            def generate(self, context):
+                self.calls += 1
+                if self.calls == 1:
+                    raise ResearchAIResponseError("malformed strategy")
+                return _grounded_strategy(context)
+
+        events: list[str] = []
+        interp = RecordingInterpretationProvider(events)
+        strategy = FlakyStrategy()
+        ideation = RecordingIdeationProvider(events)
+        service, http = self._service_with_counts(interp, strategy, ideation)
+
+        report = service.build_report(**_query())
+
+        assert report.status is ResearchReportStatus.COMPLETED
+        assert interp.calls == 1
+        assert strategy.calls == 2
+        assert ideation.calls == 1
+        assert events == ["interpretation", "ideation"]
+
+    def test_ideation_retry_does_not_rerun_prior_stages(self) -> None:
+        class FlakyIdeation:
+            def __init__(self):
+                self.calls = 0
+
+            def generate(self, context):
+                self.calls += 1
+                if self.calls == 1:
+                    raise ResearchAIResponseError("malformed ideation")
+                return _grounded_ideation(context)
+
+        events: list[str] = []
+        interp = RecordingInterpretationProvider(events)
+        strategy = RecordingStrategyProvider(events)
+        ideation = FlakyIdeation()
+        service, http = self._service_with_counts(interp, strategy, ideation)
+
+        report = service.build_report(**_query())
+
+        assert report.status is ResearchReportStatus.COMPLETED
+        assert interp.calls == 1
+        assert strategy.calls == 1
+        assert ideation.calls == 2
+
+    def test_second_malformed_response_propagates_after_exactly_two_attempts(self) -> None:
+        class AlwaysMalformed:
+            def __init__(self):
+                self.calls = 0
+
+            def interpret(self, pack):
+                self.calls += 1
+                raise ResearchAIResponseError("still malformed")
+
+        events: list[str] = []
+        interp = AlwaysMalformed()
+        strategy = RecordingStrategyProvider(events)
+        ideation = RecordingIdeationProvider(events)
+        service, http = self._service_with_counts(interp, strategy, ideation)
+
+        with pytest.raises(ResearchAIResponseError, match="still malformed"):
+            service.build_report(**_query())
+        assert interp.calls == 2
+        assert events == []  # no downstream stage ever ran
+
+    def test_provider_error_is_never_retried(self) -> None:
+        class ProviderFailure:
+            def __init__(self):
+                self.calls = 0
+
+            def interpret(self, pack):
+                self.calls += 1
+                raise ResearchAIProviderError("upstream down")
+
+        events: list[str] = []
+        interp = ProviderFailure()
+        strategy = RecordingStrategyProvider(events)
+        ideation = RecordingIdeationProvider(events)
+        service, http = self._service_with_counts(interp, strategy, ideation)
+
+        with pytest.raises(ResearchAIProviderError, match="upstream down"):
+            service.build_report(**_query())
+        assert interp.calls == 1  # exactly one attempt, no retry
+        assert events == []
+
+    def test_retrieval_executes_once_across_ai_retry(self) -> None:
+        class FlakyInterp:
+            def __init__(self):
+                self.calls = 0
+
+            def interpret(self, pack):
+                self.calls += 1
+                if self.calls == 1:
+                    raise ResearchAIResponseError("malformed interpretation")
+                return _grounded_interpretation(pack)
+
+        # Same pipeline without any retry, as the HTTP-traffic baseline.
+        baseline_service, baseline_http = self._service_with_counts(
+            RecordingInterpretationProvider([]),
+            RecordingStrategyProvider([]),
+            RecordingIdeationProvider([]),
+        )
+        baseline_service.build_report(**_query())
+
+        interp = FlakyInterp()
+        retry_service, retry_http = self._service_with_counts(
+            interp,
+            RecordingStrategyProvider([]),
+            RecordingIdeationProvider([]),
+        )
+        retry_service.build_report(**_query())
+
+        assert interp.calls == 2
+        # Identical upstream traffic: the retry did not rerun retrieval.
+        assert retry_http["http"] == baseline_http["http"]
+
+    def test_existing_success_remains_one_call_per_stage(self) -> None:
+        events: list[str] = []
+        interp = RecordingInterpretationProvider(events)
+        strategy = RecordingStrategyProvider(events)
+        ideation = RecordingIdeationProvider(events)
+        service, http = self._service_with_counts(interp, strategy, ideation)
+
+        report = service.build_report(**_query())
+
+        assert report.status is ResearchReportStatus.COMPLETED
+        assert interp.calls == 1
+        assert strategy.calls == 1
+        assert ideation.calls == 1
+        assert events == ["interpretation", "strategy", "ideation"]
+
+    def test_retry_log_contains_only_stage_and_exception_class(self, caplog) -> None:
+        class FlakyInterp:
+            def interpret(self, pack):
+                raise ResearchAIResponseError(
+                    "malformed output secret-token-abc123 <raw body>"
+                )
+
+        service, http = self._service_with_counts(
+            FlakyInterp(),
+            RecordingStrategyProvider([]),
+            RecordingIdeationProvider([]),
+        )
+        with caplog.at_level(logging.WARNING, logger="trendora.research.reporting"):
+            with pytest.raises(ResearchAIResponseError):
+                service.build_report(**_query())
+
+        assert "research.report.ai_retry" in caplog.text
+        assert "interpretation" in caplog.text
+        assert "ResearchAIResponseError" in caplog.text
+        # No exception text, raw bodies, or secret-looking values in logs.
+        assert "secret-token-abc123" not in caplog.text
+        assert "raw body" not in caplog.text
+        assert "malformed output" not in caplog.text
 
 
 class TestValidation:
