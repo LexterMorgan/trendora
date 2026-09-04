@@ -20,7 +20,10 @@ from trendora.research.ai_provider import (
     evidence_pack_to_payload,
     request_controls,
 )
-from trendora.research.application import ResearchApplicationService
+from trendora.research.application import (
+    ResearchApplicationService,
+    build_research_application_service,
+)
 from trendora.research.capabilities import (
     KNOWN_SOURCE_CODES,
     default_declarations,
@@ -40,6 +43,7 @@ from trendora.research.evidence import (
     extract_evidence,
     reference_id,
 )
+from trendora.research.facebook import FacebookCollectedBatch, FacebookResearchRetriever
 from trendora.research.exceptions import (
     ResearchAggregationError,
     ResearchAIProviderError,
@@ -142,6 +146,8 @@ __all__ = [
     "EvidenceFact",
     "EvidenceField",
     "EvidencePack",
+    "FacebookCollectedBatch",
+    "FacebookResearchRetriever",
     "FactCitation",
     "GroundedIdeationService",
     "GroundedInterpretationService",
@@ -184,6 +190,7 @@ __all__ = [
     "build_grounded_ideation_request",
     "build_grounded_request",
     "build_grounded_strategy_request",
+    "build_research_application_service",
     "build_research_report_service",
     "evidence_pack_to_payload",
     "extract_evidence",

@@ -161,7 +161,7 @@ class TestPrompt:
             "never claim causality",
             "creator nationality",
             "transcript, audio, video, or visual analysis",
-            "description is source metadata",
+            "supplied source text",
             "untrusted data",
         ]
         for boundary in boundaries:

@@ -88,7 +88,7 @@ Rules:
 13. Never claim one content structure performs better than another.
 14. Never calculate or infer derived engagement/performance metrics (e.g. engagement rate, views per day, velocity).
 15. Never infer creator nationality, publisher nationality, content origin, or audience nationality from market context.
-16. Never claim transcript, audio, video, or visual analysis. Description is source metadata, not a transcript or full video content.
+16. Never claim transcript, audio, video, or visual analysis. A description is supplied source text: for YouTube it is metadata, not a transcript or full video content; for Facebook it may be the exact public post message. Never infer unseen image/video/audio contents.
 17. Output JSON only, following the exact output schema.
 18. The output schema is: {"interpretations": [{"statement": "...", "citations": [...]}]}.
 19. Citation shapes: {"kind":"fact","reference":{"source_code":"...","content_external_id":"..."},"field":"<evidence field>"}

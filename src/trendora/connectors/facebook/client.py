@@ -17,6 +17,7 @@ from typing import Any
 import httpx
 from pydantic import ValidationError
 
+from trendora.connectors.facebook.identity import normalize_page_id
 from trendora.connectors.facebook.exceptions import (
     FacebookApiError,
     FacebookConfigurationError,
@@ -29,7 +30,6 @@ logger = logging.getLogger("trendora.connectors.facebook.client")
 
 GRAPH_API_BASE = "https://graph.facebook.com"
 GRAPH_VERSION_RE = re.compile(r"^v\d+\.\d+$")
-PAGE_ID_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 MAX_PAGE_SIZE = 100
 MIN_PAGE_SIZE = 1
 
@@ -89,13 +89,13 @@ class FacebookPublicClient:
         ``date_from``/``date_to`` are inclusive calendar days; the exclusive
         boundary passed to Graph is midnight UTC of the day after ``date_to``.
         """
-        page = page_id.strip()
-        if (
-            not PAGE_ID_RE.match(page)
-            or ".." in page
-            or page.startswith(".")
-            or page.endswith(".")
-        ):
+        try:
+            page = normalize_page_id(page_id)
+        except ValueError:
+            raise FacebookConfigurationError(
+                "page_id must be a safe identifier (ASCII letters, digits, _, ., -)"
+            ) from None
+        if page is None:
             raise FacebookConfigurationError(
                 "page_id must be a safe identifier (ASCII letters, digits, _, ., -)"
             )

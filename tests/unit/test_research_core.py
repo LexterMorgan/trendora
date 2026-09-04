@@ -6,6 +6,7 @@ from datetime import date
 
 import pytest
 
+from trendora.reference import SOURCE_IDS
 from trendora.research import (
     KNOWN_SOURCE_CODES,
     MAX_RESULT_LIMIT,
@@ -259,11 +260,19 @@ class TestResearchRun:
 class TestInvariants:
     """Negative guarantees the M13 core must hold."""
 
+    def test_facebook_known_but_not_persisted(self) -> None:
+        assert "facebook" in KNOWN_SOURCE_CODES
+        assert "facebook" not in SOURCE_IDS
+
     def test_source_cannot_claim_capability_absent_from_declaration(self) -> None:
         resolver = ResearchCapabilityResolver()
         declarations = resolver.declarations
         for source_code in KNOWN_SOURCE_CODES:
-            result = resolver.resolve(_query(source_codes=(source_code,)))
+            query = _query(
+                source_codes=(source_code,),
+                facebook_page_id="page1" if source_code == "facebook" else None,
+            )
+            result = resolver.resolve(query)
             for item in result.sources:
                 declaration = declarations.get(source_code)
                 if item.status is CoverageStatus.AVAILABLE:
@@ -279,7 +288,7 @@ class TestInvariants:
 
     def test_unknown_source_cannot_become_available(self) -> None:
         resolver = ResearchCapabilityResolver()
-        for source_code in ("instagram", "tiktok", "facebook", "nonexistent"):
+        for source_code in ("instagram", "tiktok", "nonexistent"):
             result = resolver.resolve(_query(source_codes=(source_code,)))
             item = result.sources[0]
             assert item.status is CoverageStatus.UNAVAILABLE

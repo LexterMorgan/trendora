@@ -48,6 +48,7 @@ Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 
 - [docs/25_RESEARCH_REPORT_PIPELINE_API.md](docs/25_RESEARCH_REPORT_PIPELINE_API.md) — M23A research report pipeline + API
 - [docs/26_FACEBOOK_PUBLIC_PAGE_CLIENT.md](docs/26_FACEBOOK_PUBLIC_PAGE_CLIENT.md) — M25A Facebook public Page client (isolated, mocked-only)
 - [docs/27_FACEBOOK_POST_NORMALIZATION.md](docs/27_FACEBOOK_POST_NORMALIZATION.md) — M25B Facebook post normalization & grounded evidence (isolated)
+- [docs/28_FACEBOOK_RESEARCH_EXECUTION.md](docs/28_FACEBOOK_RESEARCH_EXECUTION.md) — M25C Facebook research execution seams (isolated, mocked)
 - [PROJECT_PREP.md](PROJECT_PREP.md) — environment, MCP, and setup notes
 - [docs/01_ARCHITECTURE.md](docs/01_ARCHITECTURE.md) — layer boundaries and V1 database decision
 - [docs/02_DATABASE_SCHEMA.md](docs/02_DATABASE_SCHEMA.md) — tables, constraints, migrations

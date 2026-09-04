@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
 
+from trendora.connectors.facebook.client import FacebookPublicClient
 from trendora.connectors.youtube.client import YouTubeClient
 from trendora.research.ai_execution import GroundedInterpretationService
 from trendora.research.ai_provider import (
@@ -199,6 +200,7 @@ class ResearchReportService:
         date_to: date,
         sources,
         result_limit: int,
+        facebook_page_id: str | None = None,
     ) -> ResearchReport:
         run = self._research.execute(
             topic=topic,
@@ -207,6 +209,7 @@ class ResearchReportService:
             date_to=date_to,
             sources=sources,
             result_limit=result_limit,
+            facebook_page_id=facebook_page_id,
         )
         if run.status is ResearchRunStatus.BLOCKED:
             raise ResearchNoCoverageError(
@@ -257,11 +260,15 @@ class ResearchReportService:
 def build_research_report_service(
     *,
     youtube_client: YouTubeClient | None,
+    facebook_client: FacebookPublicClient | None = None,
     http_client,
     config: AIProviderConfig,
 ) -> ResearchReportService:
-    """Wire the report service from one YouTube client + one shared HTTP client."""
-    research = build_research_application_service(youtube_client=youtube_client)
+    """Wire the report service from our clients + one shared HTTP client."""
+    research = build_research_application_service(
+        youtube_client=youtube_client,
+        facebook_client=facebook_client,
+    )
     interpretation = GroundedInterpretationService(
         OpenAICompatibleInterpretationProvider(config, http_client=http_client)
     )

@@ -18,9 +18,10 @@ from trendora.research.models import (
     SourceCapabilities,
 )
 
-# Canonical source codes from the existing source registry (reference.py).
-# Capabilities belong to these canonical sources; no pseudo-sources are created.
-KNOWN_SOURCE_CODES: Final[frozenset[str]] = frozenset(SOURCE_IDS)
+# Canonical source codes for research resolution: persisted SOURCE_IDS plus
+# the in-memory-only "facebook" source. Facebook persistence remains deferred
+# (no SOURCE_IDS / seed / migration changes; Meta approval/access still owed).
+KNOWN_SOURCE_CODES: Final[frozenset[str]] = frozenset({*SOURCE_IDS, "facebook"})
 
 
 def default_declarations() -> dict[str, SourceCapabilities]:
@@ -82,13 +83,30 @@ def default_declarations() -> dict[str, SourceCapabilities]:
                 }
             ),
         ),
+        "facebook": SourceCapabilities(
+            source_code="facebook",
+            supported=frozenset(
+                {
+                    PlatformCapability.CREATOR_WATCHLIST,
+                    PlatformCapability.PUBLIC_METRICS,
+                    PlatformCapability.CONTENT_TEXT_AVAILABLE,
+                }
+            ),
+            retention_note=(
+                "Facebook public Page posts only; no keyword search or "
+                "regional discovery; Meta approval/access still required."
+            ),
+        ),
     }
 
 
 def required_capabilities(query: ResearchQuery) -> tuple[PlatformCapability, ...]:
     """Capabilities required to execute a ResearchQuery.
 
-    V1 (M13): topic-based public content discovery requires ``public_search``.
-    Future query shapes (watchlist, owned-account) add their own mappings here.
+    Topic-based public content discovery (YouTube/HN/SE/GitHub) requires
+    ``public_search``; explicit single-Facebook-Page mode requires
+    ``creator_watchlist``. One capability per requested source.
     """
+    if query.source_codes == ("facebook",):
+        return (PlatformCapability.CREATOR_WATCHLIST,)
     return (PlatformCapability.PUBLIC_SEARCH,)

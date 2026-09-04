@@ -64,7 +64,7 @@ Rules:
 9. Do NOT claim market-wide absence.
 10. Do NOT claim platform-wide absence.
 11. Do NOT infer creator nationality, publisher nationality, content origin, or audience nationality from market context.
-12. Do NOT claim transcript, audio, video, or visual analysis. Description is source metadata.
+12. Never claim transcript, audio, video, or visual analysis. A description is supplied source text: for YouTube it is metadata, not a transcript or full video content; for Facebook it may be the exact public post message. Never infer unseen image/video/audio contents.
 13. Do NOT claim causal or performance advantage.
 14. Do NOT calculate engagement, velocity, scores, or any derived metric.
 15. Do NOT create content ideas (no titles, hooks, scripts, captions, CTAs, formats, schedules, briefs, deliverables).

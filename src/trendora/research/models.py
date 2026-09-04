@@ -22,8 +22,8 @@ from trendora.reference import MARKET_IDS
 from trendora.research.exceptions import ResearchValidationError
 
 if TYPE_CHECKING:
+    from trendora.research.retrieval import ResearchRetriever
     from trendora.research.service import ResearchCapabilityResolver
-    from trendora.research.youtube import YouTubeResearchRetriever
 
 MAX_RESULT_LIMIT: Final[int] = 100
 DEFAULT_SOURCE_CODES: Final[tuple[str, ...]] = ("youtube",)
@@ -93,9 +93,11 @@ class ResearchQuery:
     """A validated, structured research request (docs/14 section 7).
 
     V1 is intentionally narrow: topic + market + date window + requested
-    sources + result limit. Values are normalized at construction (topic is
-    trimmed, market uppercased, source codes lowercased/deduplicated) and
-    validated, so an invalid query cannot be constructed.
+    sources + result limit. ``facebook_page_id`` is the explicit single
+    Facebook Page target (M25C); ``topic`` and ``market`` remain part of the
+    shared contract but do not filter or alter Facebook collection. Values are
+    normalized at construction and validated so an invalid query cannot be
+    constructed.
     """
 
     topic: str
@@ -104,12 +106,27 @@ class ResearchQuery:
     date_to: date
     source_codes: tuple[str, ...] = DEFAULT_SOURCE_CODES
     result_limit: int = DEFAULT_RESULT_LIMIT
+    facebook_page_id: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "topic", self.topic.strip())
         object.__setattr__(self, "market", self.market.strip().upper())
         object.__setattr__(self, "source_codes", _normalize_source_codes(self.source_codes))
+        object.__setattr__(self, "facebook_page_id", _normalize_facebook_page_id(self.facebook_page_id))
         validate_research_query(self)
+
+
+def _normalize_facebook_page_id(value: str | None) -> str | None:
+    if value is None:
+        return None
+    from trendora.connectors.facebook.identity import normalize_page_id
+
+    try:
+        return normalize_page_id(value)
+    except ValueError:
+        raise ResearchValidationError(
+            "facebook_page_id must be a safe identifier"
+        ) from None
 
 
 def validate_research_query(query: ResearchQuery) -> None:
@@ -127,6 +144,20 @@ def validate_research_query(query: ResearchQuery) -> None:
     if not 1 <= query.result_limit <= MAX_RESULT_LIMIT:
         raise ResearchValidationError(
             f"result_limit must be between 1 and {MAX_RESULT_LIMIT}"
+        )
+    page_id = query.facebook_page_id
+    if page_id is not None and query.source_codes != ("facebook",):
+        raise ResearchValidationError(
+            "facebook_page_id requires exactly sources=['facebook']"
+        )
+    if query.source_codes == ("facebook",):
+        if not page_id:
+            raise ResearchValidationError(
+                "facebook research requires a nonblank facebook_page_id"
+            )
+    elif "facebook" in query.source_codes:
+        raise ResearchValidationError(
+            "facebook cannot be combined with other sources in V1"
         )
 
 
@@ -338,7 +369,7 @@ class ResearchRun:
         self._coverage = coverage
         self._transition(_terminal_status(coverage.completeness))
 
-    def execute(self, source_code: str, retriever: YouTubeResearchRetriever) -> None:
+    def execute(self, source_code: str, retriever: ResearchRetriever) -> None:
         """Execute retrieval for one source on a READY run.
 
         Records ``source_code`` as attempted before collection, so execution

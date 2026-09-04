@@ -23,6 +23,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from datetime import date
 
+from trendora.connectors.facebook.client import FacebookPublicClient
 from trendora.connectors.youtube.client import YouTubeClient
 from trendora.research.exceptions import ResearchSourceNotConfiguredError
 from trendora.research.models import (
@@ -33,6 +34,8 @@ from trendora.research.models import (
     ResearchRunStatus,
     SourceCoverage,
 )
+from trendora.research.facebook import FacebookResearchRetriever
+from trendora.research.retrieval import ResearchRetriever
 from trendora.research.service import ResearchCapabilityResolver
 from trendora.research.youtube import YouTubeResearchRetriever
 
@@ -40,18 +43,21 @@ from trendora.research.youtube import YouTubeResearchRetriever
 def build_research_application_service(
     *,
     youtube_client: YouTubeClient | None,
+    facebook_client: FacebookPublicClient | None = None,
     resolver: ResearchCapabilityResolver | None = None,
 ) -> ResearchApplicationService:
     """Build the application service with the runtime retrievers that exist.
 
-    ``youtube_client`` is the already-configured YouTube client (or ``None``
-    when no API key is available). Static capability truth is unchanged by
-    runtime configuration: with no client, YouTube stays ``available`` but a
-    request that needs it raises ``ResearchSourceNotConfiguredError``.
+    ``youtube_client`` / ``facebook_client`` are already-configured clients (or
+    ``None`` when unavailable). Static capability truth is unchanged by runtime
+    configuration: a statically-available source without a registered retriever
+    raises ``ResearchSourceNotConfiguredError`` when requested.
     """
-    retrievers: dict[str, YouTubeResearchRetriever] = {}
+    retrievers: dict[str, ResearchRetriever] = {}
     if youtube_client is not None:
         retrievers["youtube"] = YouTubeResearchRetriever(youtube_client)
+    if facebook_client is not None:
+        retrievers["facebook"] = FacebookResearchRetriever(facebook_client)
     return ResearchApplicationService(
         resolver=resolver or ResearchCapabilityResolver(),
         retrievers=retrievers,
@@ -64,7 +70,7 @@ class ResearchApplicationService:
     def __init__(
         self,
         resolver: ResearchCapabilityResolver,
-        retrievers: Mapping[str, YouTubeResearchRetriever],
+        retrievers: Mapping[str, ResearchRetriever],
     ) -> None:
         self._resolver = resolver
         self._retrievers = dict(retrievers)
@@ -78,6 +84,7 @@ class ResearchApplicationService:
         date_to: date,
         sources: Sequence[str],
         result_limit: int,
+        facebook_page_id: str | None = None,
     ) -> ResearchRun:
         """Run research for a request and return the completed/blocked run.
 
@@ -91,6 +98,7 @@ class ResearchApplicationService:
             date_to=date_to,
             source_codes=tuple(sources),
             result_limit=result_limit,
+            facebook_page_id=facebook_page_id,
         )
         run = ResearchRun(query)
         run.resolve_capabilities(self._resolver)

@@ -59,7 +59,7 @@ Rules:
 7. Do NOT claim causality or performance advantage.
 8. Do NOT provide expected views, engagement, uplift, ranking, or confidence.
 9. Do NOT infer creator, publisher, audience, or content nationality from market context.
-10. Do NOT claim transcript, audio, video, image, or visual analysis. Description is source metadata.
+10. Never claim transcript, audio, video, or visual analysis. A description is supplied source text: for YouTube it is metadata, not a transcript or full video content; for Facebook it may be the exact public post message. Never infer unseen image/video/audio contents.
 11. Do NOT calculate derived metrics not present in the deterministic evidence.
 12. Output strict JSON only.
 13. Output schema: {"content_ideas":[{"title":"...","angle":"...","opportunity_indexes":[0],"citations":[...]}],"content_briefs":[{"idea_index":0,"objective":"...","format":"...","hook":"...","outline":["..."],"citations":[...]}]}.
