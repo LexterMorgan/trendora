@@ -15,7 +15,7 @@ from collections.abc import Mapping
 from trendora.research.capabilities import (
     KNOWN_SOURCE_CODES,
     default_declarations,
-    required_capabilities,
+    required_capability_for_source,
 )
 from trendora.research.models import (
     CoverageCompleteness,
@@ -44,10 +44,21 @@ class ResearchCapabilityResolver:
         return dict(self._declarations)
 
     def resolve(self, query: ResearchQuery) -> ResearchCoverage:
+        """Resolve coverage independently per requested source.
+
+        Each source is matched against exactly its own required capability
+        (``public_search`` for topic-search sources, ``creator_watchlist``
+        for Facebook) — never a cross-product of capabilities and sources.
+        Coverage contains one truthful entry per requested source, in
+        normalized request order.
+        """
         coverages: list[SourceCoverage] = []
-        for capability in required_capabilities(query):
-            for source_code in query.source_codes:
-                coverages.append(self._resolve_source(source_code, capability))
+        for source_code in query.source_codes:
+            coverages.append(
+                self._resolve_source(
+                    source_code, required_capability_for_source(source_code)
+                )
+            )
         return ResearchCoverage(
             sources=tuple(coverages),
             completeness=_completeness(coverages),

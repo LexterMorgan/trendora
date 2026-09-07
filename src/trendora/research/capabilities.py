@@ -100,13 +100,28 @@ def default_declarations() -> dict[str, SourceCapabilities]:
     }
 
 
-def required_capabilities(query: ResearchQuery) -> tuple[PlatformCapability, ...]:
-    """Capabilities required to execute a ResearchQuery.
+def required_capability_for_source(source_code: str) -> PlatformCapability:
+    """The one capability required to execute one requested source.
 
     Topic-based public content discovery (YouTube/HN/SE/GitHub) requires
-    ``public_search``; explicit single-Facebook-Page mode requires
-    ``creator_watchlist``. One capability per requested source.
+    ``public_search``; Facebook's explicit single-Page mode requires
+    ``creator_watchlist``. Resolution is per source — never a cross-product
+    of every capability against every source.
     """
-    if query.source_codes == ("facebook",):
-        return (PlatformCapability.CREATOR_WATCHLIST,)
-    return (PlatformCapability.PUBLIC_SEARCH,)
+    if source_code == "facebook":
+        return PlatformCapability.CREATOR_WATCHLIST
+    return PlatformCapability.PUBLIC_SEARCH
+
+
+def required_capabilities(query: ResearchQuery) -> tuple[PlatformCapability, ...]:
+    """Distinct capabilities required by a ResearchQuery, in request order.
+
+    Derived from ``required_capability_for_source`` so single- and
+    combined-source queries share one rule set.
+    """
+    capabilities: list[PlatformCapability] = []
+    for source_code in query.source_codes:
+        capability = required_capability_for_source(source_code)
+        if capability not in capabilities:
+            capabilities.append(capability)
+    return tuple(capabilities)

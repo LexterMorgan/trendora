@@ -2,7 +2,7 @@
 
 AI-powered Social Media Intelligence Platform for Southeast Asian education, AI, and technology markets.
 
-**Status:** Milestones 2A–4 ingest; M5 analytics; M6A in-memory forecast baselines; M6B evaluation docs; M6C naive-vs-challenger MAE comparison (in-memory); M7 series diagnostics (in-memory); M8 forecasting product contract & readiness gate ([docs/11](docs/11_FORECASTING_PRODUCT_SPEC.md)); M9 forecasting product requirements decided ([docs/12](docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md)); M10 V1 GitHub forecasting slice implemented ([src/trendora/product/](src/trendora/product/)) — naive level forecasts of GitHub repository `stargazer_count`/`fork_count`, 4 weekly points, on demand from M5, ≥4 observations, in-memory; M11A forecast API contract defined ([docs/13](docs/13_FORECASTING_API_CONTRACT.md)); M11B FastAPI adapter implemented ([src/trendora/api/](src/trendora/api/)) — no auth/persistence; M15 research API; M23A research report pipeline + API; M25A–M25D Facebook public Page client → normalization → research execution → API wiring (mocked only, opt-in via `META_ACCESS_TOKEN` + `META_GRAPH_API_VERSION`); M25E frontend Facebook Page research mode. Streamlit, advanced ML, WebSub, and other source connectors are not implemented.
+**Status:** Milestones 2A–4 ingest; M5 analytics; M6A in-memory forecast baselines; M6B evaluation docs; M6C naive-vs-challenger MAE comparison (in-memory); M7 series diagnostics (in-memory); M8 forecasting product contract & readiness gate ([docs/11](docs/11_FORECASTING_PRODUCT_SPEC.md)); M9 forecasting product requirements decided ([docs/12](docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md)); M10 V1 GitHub forecasting slice implemented ([src/trendora/product/](src/trendora/product/)) — naive level forecasts of GitHub repository `stargazer_count`/`fork_count`, 4 weekly points, on demand from M5, ≥4 observations, in-memory; M11A forecast API contract defined ([docs/13](docs/13_FORECASTING_API_CONTRACT.md)); M11B FastAPI adapter implemented ([src/trendora/api/](src/trendora/api/)) — no auth/persistence; M15 research API; M23A research report pipeline + API; M25A–M25D Facebook public Page client → normalization → research execution → API wiring (mocked only, opt-in via `META_ACCESS_TOKEN` + `META_GRAPH_API_VERSION`); M25E frontend Facebook Page research mode; M26B combined YouTube + Facebook backend execution (deterministic limit split, fail-closed unconfigured sources). Streamlit, advanced ML, WebSub, and other source connectors are not implemented.
 
 ## Product direction (M12 re-baseline)
 
@@ -51,6 +51,7 @@ Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 
 - [docs/28_FACEBOOK_RESEARCH_EXECUTION.md](docs/28_FACEBOOK_RESEARCH_EXECUTION.md) — M25C Facebook research execution seams (isolated, mocked)
 - [docs/29_FACEBOOK_API_WIRING.md](docs/29_FACEBOOK_API_WIRING.md) — M25D Facebook research API wiring (settings, lifecycle, error mapping)
 - [docs/30_FACEBOOK_FRONTEND.md](docs/30_FACEBOOK_FRONTEND.md) — M25E Facebook Page research frontend mode (single-source selector, mocked)
+- [docs/31_COMBINED_MULTI_SOURCE_EXECUTION.md](docs/31_COMBINED_MULTI_SOURCE_EXECUTION.md) — M26B combined YouTube + Facebook execution (backend, mocked)
 - [PROJECT_PREP.md](PROJECT_PREP.md) — environment, MCP, and setup notes
 - [docs/01_ARCHITECTURE.md](docs/01_ARCHITECTURE.md) — layer boundaries and V1 database decision
 - [docs/02_DATABASE_SCHEMA.md](docs/02_DATABASE_SCHEMA.md) — tables, constraints, migrations
@@ -254,7 +255,7 @@ pytest tests/integration -v
 
 Do not point integration tests at a database you are not willing to read. Unit tests do not consume YouTube quota.
 
-Current backend unit suite: **851 passing** (845 + 6 M25D cleanup tests).
+Current backend unit suite: **893 passing** (851 pre-M26B baseline + 42 M25E.1–M26B tests).
 
 ## Repository layout
 

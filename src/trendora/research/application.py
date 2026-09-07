@@ -8,8 +8,9 @@ Flow:
       → construct/validate ResearchQuery
       → resolve capability coverage
       → create ResearchRun (READY | BLOCKED)
-      → execute the registered runtime retriever for the first available
-        requested source
+      → execute every available requested source in normalized request order
+        (each with its own source-specific query and allocated limit; M26B
+        combined YouTube + Facebook execution)
       → return the ResearchRun
 
 Explicit and small: no command bus, workflow engine, event bus, plugin
@@ -33,6 +34,7 @@ from trendora.research.models import (
     ResearchRun,
     ResearchRunStatus,
     SourceCoverage,
+    allocate_result_limits,
 )
 from trendora.research.facebook import FacebookResearchRetriever
 from trendora.research.retrieval import ResearchRetriever
@@ -108,22 +110,45 @@ class ResearchApplicationService:
         return run
 
     def _execute_available(self, run: ResearchRun) -> None:
+        """Build and execute the multi-source plan for a READY run.
+
+        The plan contains every requested source whose capability resolved
+        AVAILABLE, in normalized request order. Before any network call, every
+        planned source must have a configured retriever — one missing
+        retriever fails the whole request with the sanitized
+        ``ResearchSourceNotConfiguredError`` and zero retrieval calls. The
+        global ``result_limit`` is split deterministically across the plan
+        (``divmod``; earlier requested sources take any remainder), and each
+        retriever receives its own source-specific validated query.
+        """
         coverage = run.coverage
         assert coverage is not None
-        for source_code in run.query.source_codes:
+        query = run.query
+        plan: list[tuple[str, ResearchRetriever]] = []
+        for source_code in query.source_codes:
             item = _source_coverage(coverage, source_code)
             if item is None or item.status is not CoverageStatus.AVAILABLE:
                 continue
             retriever = self._retrievers.get(source_code)
             if retriever is None:
-                # Statically available but no runtime retriever: not executable.
-                # Keep scanning so a later genuinely executable source wins.
-                continue
-            run.execute(source_code, retriever)
-            return
-        raise ResearchSourceNotConfiguredError(
-            "no requested available source has a configured runtime retriever"
+                # Available but unconfigured: fail closed before any call
+                # instead of silently returning a partial combined result.
+                raise ResearchSourceNotConfiguredError(
+                    "no requested available source has a configured runtime retriever"
+                )
+            plan.append((source_code, retriever))
+        if not plan:
+            raise ResearchSourceNotConfiguredError(
+                "no requested available source has a configured runtime retriever"
+            )
+        allocations = allocate_result_limits(
+            query.result_limit, tuple(code for code, _ in plan)
         )
+        entries = tuple(
+            (source_code, _source_query(query, source_code, limit), retriever)
+            for (source_code, retriever), (_, limit) in zip(plan, allocations, strict=True)
+        )
+        run.execute_sources(entries)
 
 
 def _source_coverage(coverage: ResearchCoverage, source_code: str) -> SourceCoverage | None:
@@ -131,3 +156,21 @@ def _source_coverage(coverage: ResearchCoverage, source_code: str) -> SourceCove
         if item.source_code == source_code:
             return item
     return None
+
+
+def _source_query(query: ResearchQuery, source_code: str, limit: int) -> ResearchQuery:
+    """A validated per-source query: own source code and allocated limit only.
+
+    Facebook keeps ``facebook_page_id``; non-Facebook queries never carry one.
+    Topic and market remain part of the shared contract. For Facebook they do
+    not filter which Page posts are collected (documented limitation).
+    """
+    return ResearchQuery(
+        topic=query.topic,
+        market=query.market,
+        date_from=query.date_from,
+        date_to=query.date_to,
+        source_codes=(source_code,),
+        result_limit=limit,
+        facebook_page_id=query.facebook_page_id if source_code == "facebook" else None,
+    )

@@ -187,11 +187,11 @@ def create_app() -> FastAPI:
         summary="Run source-routed research",
         description=(
             "Run one synchronous research request: topic + market + date "
-            "window → capability coverage → configured source retriever "
-            "(YouTube or single Facebook Page) → normalized in-memory "
-            "references. Returns the ResearchRun state (query, coverage, "
-            "execution status, references). No persistence, no AI, no derived "
-            "metrics."
+            "window → capability coverage → configured source retrievers "
+            "(YouTube, a single Facebook Page, or both combined) → "
+            "normalized in-memory references. Returns the ResearchRun state "
+            "(query, coverage, execution status, references). No persistence, "
+            "no AI, no derived metrics."
         ),
         responses={
             422: {"description": "Invalid research request, or no requested source has usable coverage"},

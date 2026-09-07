@@ -116,14 +116,21 @@ class TestQueryValidation:
                                source_codes=["youtube"], result_limit=10, facebook_page_id=bad)
 
     def test_valid_page_id_with_youtube_rejected(self) -> None:
-        with pytest.raises(ResearchValidationError, match="requires exactly sources"):
+        with pytest.raises(ResearchValidationError, match="requires the facebook source"):
             ResearchQuery(topic="t", market="SG", date_from=date(2026, 8, 1), date_to=date(2026, 8, 31),
                            source_codes=["youtube"], result_limit=10, facebook_page_id="page1")
 
-    def test_mixed_fb_with_other_source_rejected(self) -> None:
-        with pytest.raises(ResearchValidationError):
-            ResearchQuery(topic="t", market="SG", date_from=date(2026, 8, 1), date_to=date(2026, 8, 31),
-                           source_codes=["facebook", "youtube"], result_limit=10, facebook_page_id="page1")
+    def test_mixed_youtube_and_facebook_is_valid_with_page_id(self) -> None:
+        q = ResearchQuery(topic="t", market="SG", date_from=date(2026, 8, 1), date_to=date(2026, 8, 31),
+                          source_codes=["youtube", "facebook"], result_limit=10, facebook_page_id="page1")
+        assert q.source_codes == ("youtube", "facebook")
+        assert q.facebook_page_id == "page1"
+
+    def test_mixed_order_normalized_and_deduplicated(self) -> None:
+        q = ResearchQuery(topic="t", market="SG", date_from=date(2026, 8, 1), date_to=date(2026, 8, 31),
+                          source_codes=["facebook", "YouTube", "facebook"], result_limit=10,
+                          facebook_page_id="page1")
+        assert q.source_codes == ("facebook", "youtube")
 
     def test_default_youtube_query_unchanged(self) -> None:
         q = ResearchQuery(topic="t", market="SG", date_from=date(2026, 8, 1), date_to=date(2026, 8, 31))

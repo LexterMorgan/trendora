@@ -135,6 +135,150 @@ def _facebook_handler(posts: list[dict]):
     return handler
 
 
+def _make_combined_app(youtube_handler, fb_posts) -> tuple[TestClient, ResearchApplicationService]:
+    from trendora.connectors.facebook.client import FacebookPublicClient
+    from trendora.research import FacebookResearchRetriever
+
+    yt_client = YouTubeClient(
+        TEST_KEY, http_client=httpx.Client(transport=httpx.MockTransport(youtube_handler))
+    )
+    fb_client = FacebookPublicClient(
+        "test-facebook-token-not-real",
+        "v19.0",
+        http_client=httpx.Client(transport=httpx.MockTransport(_facebook_handler(fb_posts))),
+    )
+    service = ResearchApplicationService(
+        ResearchCapabilityResolver(),
+        {
+            "youtube": YouTubeResearchRetriever(yt_client),
+            "facebook": FacebookResearchRetriever(fb_client),
+        },
+    )
+    return _app_with_service(service), service
+
+
+def _combined_payload(**overrides) -> dict:
+    payload = _valid_payload(
+        sources=["youtube", "facebook"], facebook_page_id="page1", result_limit=4
+    )
+    payload.update(overrides)
+    return payload
+
+
+class TestCombinedSources:
+    def test_mixed_research_serializes_merged_sources(self) -> None:
+        client, _ = _make_combined_app(
+            _youtube_handler,
+            [_fb_post("p1", reactions=12, comments=4, shares=3)],
+        )
+        response = client.post(PATH, json=_combined_payload())
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == "completed"
+        assert body["executed_sources"] == ["youtube", "facebook"]
+        assert body["query"]["sources"] == ["youtube", "facebook"]
+        assert body["query"]["facebook_page_id"] == "page1"
+        codes = [ref["source_code"] for ref in body["references"]]
+        assert codes == ["youtube", "youtube", "facebook"]
+        youtube_ref = body["references"][0]
+        assert youtube_ref["metrics"]["view_count"] == 100
+        assert youtube_ref["metrics"]["reaction_count"] is None
+        facebook_ref = body["references"][2]
+        assert facebook_ref["metrics"]["reaction_count"] == 12
+        assert facebook_ref["metrics"]["share_count"] == 3
+        assert facebook_ref["metrics"]["view_count"] is None
+        # Source ranks stay source-local.
+        assert [ref["source_rank"] for ref in body["references"]] == [1, 2, 1]
+        # Coverage carries each requested source's own capability.
+        by_source = {item["source_code"]: item for item in body["coverage"]["sources"]}
+        assert by_source["youtube"]["capability"] == "public_search"
+        assert by_source["facebook"]["capability"] == "creator_watchlist"
+
+    def test_mixed_report_runs_retrieval_once_and_ai_once(self) -> None:
+        from trendora.research import (
+            GroundedIdeationService,
+            GroundedInterpretationService,
+            GroundedStrategyService,
+            ResearchReportService,
+        )
+        from trendora.api.app import get_research_report_service
+        from tests.unit.test_research_reporting import (
+            RecordingIdeationProvider,
+            RecordingInterpretationProvider,
+            RecordingStrategyProvider,
+        )
+
+        calls = {"youtube": 0, "facebook": 0}
+
+        def counting_youtube_handler(request: httpx.Request) -> httpx.Response:
+            calls["youtube"] += 1
+            return _youtube_handler(request)
+
+        def counting_facebook_handler(posts):
+            def handler(request: httpx.Request) -> httpx.Response:
+                calls["facebook"] += 1
+                return httpx.Response(200, json={"data": posts})
+
+            return handler
+
+        app = create_app()
+        yt_client = YouTubeClient(
+            TEST_KEY,
+            http_client=httpx.Client(transport=httpx.MockTransport(counting_youtube_handler)),
+        )
+        from trendora.connectors.facebook.client import FacebookPublicClient
+        from trendora.research import FacebookResearchRetriever
+
+        fb_client = FacebookPublicClient(
+            "test-facebook-token-not-real",
+            "v19.0",
+            http_client=httpx.Client(
+                transport=httpx.MockTransport(counting_facebook_handler([_fb_post("p1")]))
+            ),
+        )
+        research = ResearchApplicationService(
+            ResearchCapabilityResolver(),
+            {
+                "youtube": YouTubeResearchRetriever(yt_client),
+                "facebook": FacebookResearchRetriever(fb_client),
+            },
+        )
+        events: list[str] = []
+        report_service = ResearchReportService(
+            research,
+            GroundedInterpretationService(RecordingInterpretationProvider(events)),
+            GroundedStrategyService(RecordingStrategyProvider(events)),
+            GroundedIdeationService(RecordingIdeationProvider(events)),
+        )
+        app.dependency_overrides[get_research_report_service] = lambda: report_service
+        client = TestClient(app)
+
+        response = client.post(
+            "/api/v1/research/report",
+            json={
+                "topic": "AI education",
+                "market": "SG",
+                "date_from": "2026-08-01",
+                "date_to": "2026-08-31",
+                "sources": ["youtube", "facebook"],
+                "result_limit": 4,
+                "facebook_page_id": "page1",
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == "completed"
+        assert body["research"]["executed_sources"] == ["youtube", "facebook"]
+        # Retrieval exactly once per source; each AI stage exactly once.
+        assert calls == {"youtube": 2, "facebook": 1}
+        assert events == ["interpretation", "strategy", "ideation"]
+        analyzed_sources = {
+            analysis["reference_id"]["source_code"]
+            for analysis in body["evidence"]["analyses"]
+        }
+        assert analyzed_sources == {"youtube", "facebook"}
+
+
 class TestRequest:
     def test_valid_request_returns_200(self) -> None:
         client, _ = _make_app(_youtube_handler)
@@ -304,28 +448,25 @@ class TestSuccess:
 
 
 class TestExecutionTruth:
-    def test_static_availability_alone_does_not_mean_execution(self) -> None:
-        # stack_exchange statically supports public_search but has no retriever.
+    def test_available_but_unconfigured_source_fails_closed(self) -> None:
+        # stack_exchange statically supports public_search but has no
+        # retriever. M26B execution truth: an available source without a
+        # configured retriever fails the request before any network call —
+        # never a silent partial success.
         client, _ = _make_app(_youtube_handler)
-        body = client.post(
+        response = client.post(
             PATH, json=_valid_payload(sources=["stack_exchange", "youtube"])
-        ).json()
-        by_source = {item["source_code"]: item for item in body["coverage"]["sources"]}
-        assert by_source["stack_exchange"]["status"] == "available"
-        assert by_source["youtube"]["status"] == "available"
-        # Only youtube was actually executed.
-        assert body["executed_sources"] == ["youtube"]
-        assert body["status"] == "completed"
+        )
+        assert response.status_code == 503
+        assert response.json()["error"]["code"] == "research_source_not_configured"
 
-    def test_executable_source_wins_over_earlier_statically_available_source(self) -> None:
-        # stack_exchange appears first and is statically available but not
-        # executable; youtube appears later and is genuinely executable.
+    def test_available_but_unconfigured_source_in_any_position_fails_closed(self) -> None:
         client, _ = _make_app(_youtube_handler)
-        body = client.post(
-            PATH, json=_valid_payload(sources=["stack_exchange", "youtube"])
-        ).json()
-        assert body["executed_sources"] == ["youtube"]
-        assert all(ref["source_code"] == "youtube" for ref in body["references"])
+        response = client.post(
+            PATH, json=_valid_payload(sources=["youtube", "stack_exchange"])
+        )
+        assert response.status_code == 503
+        assert response.json()["error"]["code"] == "research_source_not_configured"
 
     def test_unavailable_source_is_never_executed(self) -> None:
         client, _ = _make_app(_youtube_handler)
@@ -335,15 +476,18 @@ class TestExecutionTruth:
         assert body["executed_sources"] == ["youtube"]
         assert all(ref["source_code"] == "youtube" for ref in body["references"])
 
-    def test_coverage_unchanged_by_runtime_executor_availability(self) -> None:
-        # Runtime executor absence does not falsify static capability truth.
+    def test_unavailable_source_does_not_block_available_execution(self) -> None:
+        # Unknown sources stay unavailable; only genuinely available and
+        # configured sources form the execution plan.
         client, _ = _make_app(_youtube_handler)
         body = client.post(
-            PATH, json=_valid_payload(sources=["stack_exchange", "youtube"])
+            PATH, json=_valid_payload(sources=["tiktok", "instagram", "youtube"])
         ).json()
-        assert body["coverage"]["completeness"] == "complete"
+        assert body["status"] == "completed"
+        assert body["executed_sources"] == ["youtube"]
         by_source = {item["source_code"]: item for item in body["coverage"]["sources"]}
-        assert by_source["stack_exchange"]["status"] == "available"
+        assert by_source["tiktok"]["status"] == "unavailable"
+        assert by_source["youtube"]["status"] == "available"
 
     def test_no_runtime_retriever_for_only_available_source_is_not_completed(self) -> None:
         # stack_exchange is the only requested source, statically available,
@@ -490,13 +634,16 @@ class TestFacebook:
         assert response.status_code == 422
         assert response.json()["error"]["code"] == "invalid_research_request"
 
-    def test_mixed_facebook_and_youtube_sources_returns_422(self) -> None:
+    def test_mixed_sources_without_youtube_retriever_fails_closed(self) -> None:
+        # Mixed youtube+facebook is now a valid query; but with only the
+        # facebook retriever configured, the available-but-unconfigured
+        # youtube source fails the request closed before any call.
         client, _ = _make_facebook_app(_facebook_handler([]))
         response = client.post(
             PATH, json=_facebook_payload(sources=["facebook", "youtube"])
         )
-        assert response.status_code == 422
-        assert response.json()["error"]["code"] == "invalid_research_request"
+        assert response.status_code == 503
+        assert response.json()["error"]["code"] == "research_source_not_configured"
 
     def test_facebook_without_retriever_returns_503(self) -> None:
         client, _ = _make_app(_youtube_handler)  # only youtube configured

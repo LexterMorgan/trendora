@@ -146,19 +146,39 @@ def validate_research_query(query: ResearchQuery) -> None:
             f"result_limit must be between 1 and {MAX_RESULT_LIMIT}"
         )
     page_id = query.facebook_page_id
-    if page_id is not None and query.source_codes != ("facebook",):
+    if "facebook" in query.source_codes and not page_id:
         raise ResearchValidationError(
-            "facebook_page_id requires exactly sources=['facebook']"
+            "facebook research requires a nonblank facebook_page_id"
         )
-    if query.source_codes == ("facebook",):
-        if not page_id:
-            raise ResearchValidationError(
-                "facebook research requires a nonblank facebook_page_id"
-            )
-    elif "facebook" in query.source_codes:
+    if page_id is not None and "facebook" not in query.source_codes:
         raise ResearchValidationError(
-            "facebook cannot be combined with other sources in V1"
+            "facebook_page_id requires the facebook source to be requested"
         )
+
+
+def allocate_result_limits(
+    result_limit: int, source_codes: tuple[str, ...]
+) -> tuple[tuple[str, int], ...]:
+    """Deterministically split a global ``result_limit`` across sources.
+
+    Uses ``divmod``: every executable source receives an even base share, and
+    earlier requested sources receive any remainder first. A single-source
+    request receives the full limit. The shares always sum to exactly
+    ``result_limit``. Raises ``ResearchValidationError`` when the limit is
+    below the executable source count (a source cannot receive zero).
+    """
+    count = len(source_codes)
+    if count == 0:
+        return ()
+    base, remainder = divmod(result_limit, count)
+    if base == 0:
+        raise ResearchValidationError(
+            f"result_limit must be at least the number of executable sources ({count})"
+        )
+    return tuple(
+        (source_code, base + 1 if index < remainder else base)
+        for index, source_code in enumerate(source_codes)
+    )
 
 
 class CoverageStatus(StrEnum):
@@ -376,12 +396,52 @@ class ResearchRun:
         provenance is truthful even on failure. On failure the run is marked
         FAILED and the original error is re-raised so callers can handle it.
         """
+        self.execute_sources(((source_code, self._query, retriever),))
+
+    def execute_sources(
+        self,
+        entries: "tuple[tuple[str, ResearchQuery, ResearchRetriever], ...]",
+    ) -> None:
+        """Execute a multi-source retrieval plan on a READY run.
+
+        Each entry carries its own source-specific validated query (its own
+        source code, allocated limit, and ``facebook_page_id`` only for
+        Facebook). Every planned retriever is called exactly once, in the
+        given order: all ``collect`` calls run while the run is COLLECTING,
+        then the run transitions to NORMALIZING before the first ``normalize``
+        call. Each source's normalized references are capped at that source
+        query's allocated ``result_limit`` before merging, so the merged total
+        respects the global ``result_limit`` while later sources always
+        contribute their allocated results.
+
+        ``executed_sources`` records sources actually attempted, in attempt
+        order, including the failing source. An empty plan is rejected before
+        any state change. On any collection or normalization failure the run
+        is marked FAILED and the original error is re-raised — never a silent
+        partial success.
+        """
+        if not entries:
+            from trendora.research.exceptions import ResearchStateError
+
+            raise ResearchStateError("execution plan must contain at least one source")
         self._transition(ResearchRunStatus.COLLECTING)
-        self._executed_sources = (source_code,)
+        executed: list[str] = []
+        collected_batches: list[tuple[ResearchRetriever, ResearchQuery, object]] = []
         try:
-            collected = retriever.collect(self._query)
+            # Collection phase: every retriever's collect runs while COLLECTING.
+            for source_code, source_query, retriever in entries:
+                executed.append(source_code)
+                self._executed_sources = tuple(executed)
+                collected_batches.append(
+                    (retriever, source_query, retriever.collect(source_query))
+                )
             self._transition(ResearchRunStatus.NORMALIZING)
-            references = retriever.normalize(collected)
+            # Normalization phase: cap per source at its allocated limit.
+            references: list[ResearchReference] = []
+            for retriever, source_query, collected in collected_batches:
+                references.extend(
+                    retriever.normalize(collected)[: source_query.result_limit]
+                )
             self._references = tuple(references)
             self._transition(ResearchRunStatus.COMPLETED)
         except Exception:
