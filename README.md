@@ -256,6 +256,14 @@ pytest tests/integration -v
 
 Do not point integration tests at a database you are not willing to read. Unit tests do not consume YouTube quota.
 
+### Live YouTube smoke test (opt-in)
+
+An opt-in live smoke test (`tests/integration/test_research_youtube_live.py`) exercises the real YouTube Data API end-to-end through the research endpoint. It is gated behind `TRENDORA_LIVE_SMOKE=1` plus a configured `YOUTUBE_API_KEY` (loaded from `.env`), so a normal `pytest tests/integration` run skips it and spends no quota. Each of its two requests costs roughly ~102 quota units (~204 per run): one `search.list` (100 units) + one `videos.list` (1 unit), `result_limit` capped at 6, no retries, no report/AI calls.
+
+```bash
+TRENDORA_LIVE_SMOKE=1 pytest tests/integration/test_research_youtube_live.py -v
+```
+
 Current backend unit suite: **925 passing** (893 pre-M26C baseline + 32 M26C multi-market tests).
 
 ## Repository layout
