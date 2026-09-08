@@ -61,6 +61,11 @@ export function ReferenceCard({ reference }: ReferenceCardProps) {
 
       <div className="reference-meta">
         <span>Published {formatDate(reference.published_at)}</span>
+        {reference.market_contexts.length > 0 && (
+          <span title="Regional YouTube availability/viewability — not creator nationality, content origin, or language">
+            Available in {reference.market_contexts.join(" · ")}
+          </span>
+        )}
         <span>Source position #{reference.source_rank ?? "—"}</span>
       </div>
 
