@@ -133,7 +133,7 @@ export function ReportView({ report }: ReportViewProps) {
           </div>
           <div className="glance-item">
             <dt>Market</dt>
-            <dd>{research.query.market}</dd>
+            <dd>{research.query.markets.join(", ")}</dd>
           </div>
           <div className="glance-item">
             <dt>Date range</dt>
@@ -174,7 +174,7 @@ export function ReportView({ report }: ReportViewProps) {
           </div>
         </dl>
         <MarketCaveat
-          market={research.query.market}
+          markets={research.query.markets}
           executedSources={research.executed_sources}
         />
         <button
@@ -479,7 +479,7 @@ function NoEvidenceView({ report }: { report: ResearchReportResponse }) {
           </p>
         )}
         <MarketCaveat
-          market={research.query.market}
+          markets={research.query.markets}
           executedSources={research.executed_sources}
         />
         <button type="button" className="secondary-button" onClick={() => downloadReportJson(report)}>

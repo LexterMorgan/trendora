@@ -1,5 +1,5 @@
 interface MarketCaveatProps {
-  market: string;
+  markets: string[];
   executedSources: string[];
 }
 
@@ -9,14 +9,15 @@ interface MarketCaveatProps {
  * origin. Facebook collection is one explicit Page + date range; topic and
  * market do not filter collected posts. No recognized source → no caveat.
  */
-export function MarketCaveat({ market, executedSources }: MarketCaveatProps) {
+export function MarketCaveat({ markets, executedSources }: MarketCaveatProps) {
+  const marketLabel = markets.join(", ");
   if (executedSources.includes("youtube")) {
     return (
       <aside className="market-caveat">
         <p>
-          <strong>YouTube market context: {market}</strong> — reflects regional
-          availability/viewability and does not establish creator nationality or
-          content origin.
+          <strong>YouTube market context: {marketLabel}</strong> — reflects
+          regional availability/viewability and does not establish creator
+          nationality or content origin.
         </p>
       </aside>
     );
@@ -25,10 +26,10 @@ export function MarketCaveat({ market, executedSources }: MarketCaveatProps) {
     return (
       <aside className="market-caveat">
         <p>
-          <strong>Facebook market context: {market}</strong> — collection used
-          the explicit Facebook Page and date range; topic and market did not
-          filter the collected Page posts. The selected market is report
-          context and does not prove audience, publisher, or content location.
+          <strong>Facebook market context: {marketLabel}</strong> — collection
+          used the explicit Facebook Page and date range; topic and market did
+          not filter the collected Page posts. The selected markets are report
+          context and do not prove audience, publisher, or content location.
         </p>
       </aside>
     );

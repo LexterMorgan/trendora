@@ -29,7 +29,7 @@ export function userMessage(request: ResearchFormValues): string {
     : request.sources.map(sourceLabel).join(", ");
   return [
     request.topic,
-    request.market,
+    request.markets.join(", "),
     `${request.date_from} → ${request.date_to}`,
     depthWording(request.result_limit),
     sourceSummary,

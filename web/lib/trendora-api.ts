@@ -9,7 +9,8 @@
 
 export interface ResearchRequest {
   topic: string;
-  market: string;
+  market?: string;
+  markets: string[];
   date_from: string;
   date_to: string;
   sources: string[];
@@ -19,7 +20,8 @@ export interface ResearchRequest {
 
 export interface ResearchQueryResponse {
   topic: string;
-  market: string;
+  markets: string[];
+  market: string | null;
   date_from: string;
   date_to: string;
   sources: string[];
@@ -56,6 +58,7 @@ export interface ResearchReferenceResponse {
   published_at: string | null;
   channel_external_id: string | null;
   channel_title: string | null;
+  market_contexts: string[];
   market_context: string | null;
   market_basis: string | null;
   source_rank: number | null;

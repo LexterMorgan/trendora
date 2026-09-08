@@ -46,7 +46,7 @@ export const SOURCE_OPTIONS = [
 
 export interface ResearchFormValues {
   topic: string;
-  market: string;
+  markets: string[];
   date_from: string;
   date_to: string;
   sources: string[];
@@ -116,7 +116,9 @@ function safeDepth(value: number | undefined): number {
 
 export function ResearchForm({ onSubmit, disabled, initialValues, showExamples }: ResearchFormProps) {
   const [topic, setTopic] = useState(initialValues?.topic ?? "");
-  const [market, setMarket] = useState(initialValues?.market ?? "SG");
+  const [markets, setMarkets] = useState<string[]>(() =>
+    initialValues?.markets?.length ? [...initialValues.markets] : ["SG"],
+  );
   const [resultLimit, setResultLimit] = useState<number>(() =>
     safeDepth(initialValues?.result_limit),
   );
@@ -165,6 +167,16 @@ export function ResearchForm({ onSubmit, disabled, initialValues, showExamples }
     }
   }
 
+  function toggleMarket(code: string) {
+    setMarkets((current) =>
+      current.includes(code) ? current.filter((m) => m !== code) : [...current, code],
+    );
+  }
+
+  function orderedMarkets(): string[] {
+    return MARKETS.map((entry) => entry.code).filter((code) => markets.includes(code));
+  }
+
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (dateFrom && dateTo && dateFrom > dateTo) {
@@ -176,15 +188,20 @@ export function ResearchForm({ onSubmit, disabled, initialValues, showExamples }
       setLocalError("Dates must not be in the future.");
       return;
     }
+    if (markets.length === 0) {
+      setLocalError("Select at least one market.");
+      return;
+    }
     if (source === "facebook" && !facebookPageId.trim()) {
       setLocalError("Enter the Facebook Page ID to research.");
       return;
     }
     setLocalError(null);
+    const selectedMarkets = orderedMarkets();
     if (source === "facebook") {
       onSubmit({
         topic: topic.trim(),
-        market,
+        markets: selectedMarkets,
         date_from: dateFrom,
         date_to: dateTo,
         sources: ["facebook"],
@@ -195,7 +212,7 @@ export function ResearchForm({ onSubmit, disabled, initialValues, showExamples }
     }
     onSubmit({
       topic: topic.trim(),
-      market,
+      markets: selectedMarkets,
       date_from: dateFrom,
       date_to: dateTo,
       sources: ["youtube"],
@@ -239,21 +256,32 @@ export function ResearchForm({ onSubmit, disabled, initialValues, showExamples }
       )}
 
       <div className="form-row">
-        <div className="form-field">
-          <label htmlFor="market">Market</label>
-          <select
-            id="market"
-            value={market}
-            onChange={(event) => setMarket(event.target.value)}
-            disabled={disabled}
-          >
+        <fieldset className="form-field source-fieldset market-fieldset">
+          <legend>Markets</legend>
+          <div className="source-options market-options">
             {MARKETS.map((entry) => (
-              <option key={entry.code} value={entry.code}>
-                {entry.label}
-              </option>
+              <label
+                key={entry.code}
+                className={[
+                  "source-option",
+                  markets.includes(entry.code) ? "is-selected" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
+                <input
+                  type="checkbox"
+                  name="markets"
+                  value={entry.code}
+                  checked={markets.includes(entry.code)}
+                  onChange={() => toggleMarket(entry.code)}
+                  disabled={disabled}
+                />
+                <span className="source-name">{entry.label}</span>
+              </label>
             ))}
-          </select>
-        </div>
+          </div>
+        </fieldset>
         <div className="form-field">
           <label htmlFor="research-depth">Research depth</label>
           <select
@@ -367,7 +395,7 @@ export function ResearchForm({ onSubmit, disabled, initialValues, showExamples }
             Trendora’s server must have approved Meta access configured.
           </p>
           <p className="date-help">
-            For Facebook, the topic and market organize the report but do not
+            For Facebook, the topic and markets organize the report but do not
             filter which Page posts are collected.
           </p>
         </div>
