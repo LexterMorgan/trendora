@@ -270,6 +270,12 @@ A report-pipeline live smoke (`tests/integration/test_research_youtube_report_li
 TRENDORA_LIVE_SMOKE=1 pytest tests/integration/test_research_youtube_report_live.py -v
 ```
 
+A merge-verification live smoke (`tests/integration/test_research_youtube_merge_live.py`) uses the same gate and runs one two-market request (`markets: ["SG","ID"]`, `result_limit: 10`, ~204 quota units) to verify the M26C merge invariants on real data: dedupe identity uniqueness, per-source `source_rank` integrity, market-truthfulness of `market_contexts`/`market_context`, and the global limit. Cross-market overlap (a video returned for both markets, with its `market_contexts` union) is asserted only when it actually occurs:
+
+```bash
+TRENDORA_LIVE_SMOKE=1 pytest tests/integration/test_research_youtube_merge_live.py -v
+```
+
 Current backend unit suite: **925 passing** (893 pre-M26C baseline + 32 M26C multi-market tests).
 
 ## Repository layout
