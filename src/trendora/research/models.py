@@ -88,29 +88,50 @@ def _normalize_source_codes(codes: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(normalized)
 
 
+def _normalize_markets(markets: tuple[str, ...]) -> tuple[str, ...]:
+    normalized: list[str] = []
+    for market in markets:
+        text = market.strip().upper()
+        if not text:
+            raise ResearchValidationError("markets must not contain blank entries")
+        if text not in MARKET_CODES:
+            raise ResearchValidationError(
+                f"unsupported market {text!r}; supported: {sorted(MARKET_CODES)}"
+            )
+        if text not in normalized:
+            normalized.append(text)
+    return tuple(normalized)
+
+
 @dataclass(frozen=True, kw_only=True)
 class ResearchQuery:
     """A validated, structured research request (docs/14 section 7).
 
-    V1 is intentionally narrow: topic + market + date window + requested
-    sources + result limit. ``facebook_page_id`` is the explicit single
-    Facebook Page target (M25C); ``topic`` and ``market`` remain part of the
-    shared contract but do not filter or alter Facebook collection. Values are
-    normalized at construction and validated so an invalid query cannot be
-    constructed.
+    ``markets`` is the canonical ordered, normalized, deduplicated market list
+    (M26C). ``market`` is the legacy singular field: the sole market for
+    single-market requests, ``None`` otherwise. ``facebook_page_id`` is the
+    explicit single Facebook Page target (M25C); ``topic`` and ``markets``
+    remain part of the shared contract but do not filter or alter Facebook
+    collection. Values are normalized at construction and validated so an
+    invalid query cannot be constructed.
     """
 
     topic: str
-    market: str
     date_from: date
     date_to: date
+    markets: tuple[str, ...] = ()
     source_codes: tuple[str, ...] = DEFAULT_SOURCE_CODES
     result_limit: int = DEFAULT_RESULT_LIMIT
     facebook_page_id: str | None = None
+    market: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "topic", self.topic.strip())
-        object.__setattr__(self, "market", self.market.strip().upper())
+        object.__setattr__(self, "market", self.market.strip().upper() if self.market is not None else None)
+        resolved = self.markets
+        if not resolved and self.market is not None:
+            resolved = (self.market,)
+        object.__setattr__(self, "markets", _normalize_markets(resolved))
         object.__setattr__(self, "source_codes", _normalize_source_codes(self.source_codes))
         object.__setattr__(self, "facebook_page_id", _normalize_facebook_page_id(self.facebook_page_id))
         validate_research_query(self)
@@ -133,10 +154,13 @@ def validate_research_query(query: ResearchQuery) -> None:
     """Deterministic ResearchQuery validation. Raises ResearchValidationError."""
     if not query.topic:
         raise ResearchValidationError("topic must not be blank")
-    if query.market not in MARKET_CODES:
-        raise ResearchValidationError(
-            f"unsupported market {query.market!r}; supported: {sorted(MARKET_CODES)}"
-        )
+    if not query.markets:
+        raise ResearchValidationError("at least one market is required")
+    for market in query.markets:
+        if market not in MARKET_CODES:
+            raise ResearchValidationError(
+                f"unsupported market {market!r}; supported: {sorted(MARKET_CODES)}"
+            )
     if query.date_from > query.date_to:
         raise ResearchValidationError("date_from must not be after date_to")
     if not query.source_codes:
@@ -179,6 +203,60 @@ def allocate_result_limits(
         (source_code, base + 1 if index < remainder else base)
         for index, source_code in enumerate(source_codes)
     )
+
+
+def _merge_targets(
+    collected_batches: "tuple[tuple[ResearchRetriever, ResearchQuery, object], ...]",
+) -> list["ResearchReference"]:
+    """Cap, merge, dedupe, and re-rank normalized references across targets.
+
+    Deterministic target order. Each target is capped at its allocated
+    ``result_limit``. Deduplication is by ``(source_code,
+    content_external_id)`` with the first occurrence owning all source facts;
+    duplicate YouTube videos union ``market_contexts`` in selected-market
+    order. ``source_rank`` is reassigned per source after deduplication using
+    first-seen merged order. Metrics are never combined.
+    """
+    merged: list[ResearchReference] = []
+    seen: dict[tuple[str, str], ResearchReference] = {}
+    for retriever, source_query, collected in collected_batches:
+        for reference in retriever.normalize(collected)[: source_query.result_limit]:
+            key = (reference.source_code, reference.content_external_id)
+            existing = seen.get(key)
+            if existing is None:
+                seen[key] = reference
+                merged.append(reference)
+            elif existing.market_contexts and reference.market_contexts:
+                # Union market contexts in selected-market order, keeping the
+                # first occurrence's other source facts untouched.
+                union: list[str] = list(existing.market_contexts)
+                for market in reference.market_contexts:
+                    if market not in union:
+                        union.append(market)
+                object.__setattr__(existing, "market_contexts", tuple(union))
+    _reassign_source_ranks(merged)
+    _sync_legacy_market_context(merged)
+    return merged
+
+
+def _sync_legacy_market_context(references: list["ResearchReference"]) -> None:
+    """Keep ``market_context`` truthful: sole context, or ``None`` otherwise."""
+    for reference in references:
+        contexts = reference.market_contexts
+        object.__setattr__(
+            reference,
+            "market_context",
+            contexts[0] if len(contexts) == 1 else None,
+        )
+
+
+def _reassign_source_ranks(references: list["ResearchReference"]) -> None:
+    """Reassign 1-based source-local ranks by first-seen merged order."""
+    counts: dict[str, int] = {}
+    for reference in references:
+        rank = counts.get(reference.source_code, 0) + 1
+        counts[reference.source_code] = rank
+        object.__setattr__(reference, "source_rank", rank)
 
 
 class CoverageStatus(StrEnum):
@@ -269,11 +347,15 @@ class ResearchReference:
     NOT a transcript, caption, or analysis of the video content, and it must
     never be presented as such.
 
-    ``market_context`` is the requested market code (e.g. ``"SG"``);
-    ``market_basis`` states exactly what that market means for this source.
-    For YouTube it is ``youtube_region_availability``: regionCode reflects
-    regional availability/viewability, NOT creator/publisher/content origin
-    country and NOT language. No country-of-origin field is ever inferred.
+    ``market_contexts`` is the canonical ordered list of selected markets in
+    which this reference was returned (M26C); ``market_context`` is the legacy
+    singular field — the sole context when exactly one exists, ``None``
+    otherwise. ``market_basis`` states exactly what these markets mean for this
+    source. For YouTube it is ``youtube_region_availability``: regionCode
+    reflects regional availability/viewability, NOT creator/publisher/content
+    origin country and NOT language. Facebook keeps empty ``market_contexts``
+    because topic/market do not filter Page-post collection. No
+    country-of-origin field is ever inferred.
 
     ``source_rank`` is the 1-based position of the video in the deduplicated
     source search order. It is source order only, not a relevance,
@@ -289,6 +371,7 @@ class ResearchReference:
     published_at: datetime | None = None
     channel_external_id: str | None = None
     channel_title: str | None = None
+    market_contexts: tuple[str, ...] = ()
     market_context: str | None = None
     market_basis: MarketBasis | None = None
     source_rank: int | None = None
@@ -402,23 +485,29 @@ class ResearchRun:
         self,
         entries: "tuple[tuple[str, ResearchQuery, ResearchRetriever], ...]",
     ) -> None:
-        """Execute a multi-source retrieval plan on a READY run.
+        """Execute a multi-target retrieval plan on a READY run.
 
-        Each entry carries its own source-specific validated query (its own
-        source code, allocated limit, and ``facebook_page_id`` only for
-        Facebook). Every planned retriever is called exactly once, in the
+        Each entry is one retrieval target: YouTube produces one target per
+        selected market; Facebook produces exactly one target regardless of
+        market count. Every planned retriever is called exactly once, in the
         given order: all ``collect`` calls run while the run is COLLECTING,
         then the run transitions to NORMALIZING before the first ``normalize``
-        call. Each source's normalized references are capped at that source
-        query's allocated ``result_limit`` before merging, so the merged total
-        respects the global ``result_limit`` while later sources always
-        contribute their allocated results.
+        call.
 
-        ``executed_sources`` records sources actually attempted, in attempt
-        order, including the failing source. An empty plan is rejected before
-        any state change. On any collection or normalization failure the run
-        is marked FAILED and the original error is re-raised — never a silent
-        partial success.
+        Merge is deterministic: each target's normalized references are capped
+        at its allocated ``result_limit``, merged in target order, then
+        deduplicated by ``(source_code, content_external_id)``. The first
+        occurrence owns all source facts; for duplicate YouTube videos the
+        ``market_contexts`` are unioned in selected-market order. Metrics are
+        never summed or combined. ``source_rank`` is reassigned per source
+        after deduplication using first-seen merged order (source order only,
+        not a relevance/performance ranking).
+
+        ``executed_sources`` records unique source codes actually attempted, in
+        first-attempt order, including a failing source. An empty plan is
+        rejected before any state change. On any collection or normalization
+        failure the run is marked FAILED and the original error is re-raised —
+        never a silent partial success.
         """
         if not entries:
             from trendora.research.exceptions import ResearchStateError
@@ -428,20 +517,16 @@ class ResearchRun:
         executed: list[str] = []
         collected_batches: list[tuple[ResearchRetriever, ResearchQuery, object]] = []
         try:
-            # Collection phase: every retriever's collect runs while COLLECTING.
+            # Collection phase: every target's collect runs while COLLECTING.
             for source_code, source_query, retriever in entries:
-                executed.append(source_code)
+                if source_code not in executed:
+                    executed.append(source_code)
                 self._executed_sources = tuple(executed)
                 collected_batches.append(
                     (retriever, source_query, retriever.collect(source_query))
                 )
             self._transition(ResearchRunStatus.NORMALIZING)
-            # Normalization phase: cap per source at its allocated limit.
-            references: list[ResearchReference] = []
-            for retriever, source_query, collected in collected_batches:
-                references.extend(
-                    retriever.normalize(collected)[: source_query.result_limit]
-                )
+            references: list[ResearchReference] = _merge_targets(collected_batches)
             self._references = tuple(references)
             self._transition(ResearchRunStatus.COMPLETED)
         except Exception:

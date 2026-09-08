@@ -206,6 +206,7 @@ def create_app() -> FastAPI:
         run = service.execute(
             topic=payload.topic,
             market=payload.market,
+            markets=payload.markets,
             date_from=payload.date_from,
             date_to=payload.date_to,
             sources=payload.sources,
@@ -242,6 +243,7 @@ def create_app() -> FastAPI:
         report = service.build_report(
             topic=payload.topic,
             market=payload.market,
+            markets=payload.markets,
             date_from=payload.date_from,
             date_to=payload.date_to,
             sources=payload.sources,

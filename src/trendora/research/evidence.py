@@ -57,7 +57,7 @@ class EvidenceField(StrEnum):
     DESCRIPTION = "description"
     PUBLISHED_AT = "published_at"
     CHANNEL_TITLE = "channel_title"
-    MARKET_CONTEXT = "market_context"
+    MARKET_CONTEXTS = "market_contexts"
     MARKET_BASIS = "market_basis"
     SOURCE_RANK = "source_rank"
     VIEW_COUNT = "view_count"
@@ -90,7 +90,7 @@ class ObservationType(StrEnum):
     DESCRIPTION_HAS_URL = "description_has_url"
 
 
-FactValue = str | int | datetime | None
+FactValue = str | int | datetime | list[str] | None
 ObservationValue = bool | int
 
 
@@ -164,7 +164,7 @@ def extract_evidence(reference: ResearchReference) -> tuple[EvidenceFact, ...]:
         EvidenceFact(identity, EvidenceField.DESCRIPTION, reference.description),
         EvidenceFact(identity, EvidenceField.PUBLISHED_AT, reference.published_at),
         EvidenceFact(identity, EvidenceField.CHANNEL_TITLE, reference.channel_title),
-        EvidenceFact(identity, EvidenceField.MARKET_CONTEXT, reference.market_context),
+        EvidenceFact(identity, EvidenceField.MARKET_CONTEXTS, list(reference.market_contexts)),
         EvidenceFact(
             identity,
             EvidenceField.MARKET_BASIS,

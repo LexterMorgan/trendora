@@ -59,10 +59,11 @@ Synchronous. No research history, GET-by-id, DELETE, PATCH, PUT, saved research,
 | Field | Type | Notes |
 | --- | --- | --- |
 | `topic` | string | required; blank rejected by `ResearchQuery` |
-| `market` | string | required; canonical SEA market (ID/TH/MY/SG/VN/PH) |
+| `market` | string | legacy singular; SEA market (ID/TH/MY/SG/VN/PH). Exactly one of `market` / `markets` |
+| `markets` | list[str] | plural; normalized, deduplicated, order-preserving. Exactly one of `market` / `markets` |
 | `date_from` / `date_to` | date | required; `date_from <= date_to` |
 | `sources` | list[str] | defaults `["youtube"]`; maps to `ResearchQuery.source_codes`; lowercased/deduplicated |
-| `result_limit` | int | defaults 50; `1..100` |
+| `result_limit` | int | defaults 50; `1..100`; must be `>=` retrieval target count |
 
 **Validation ownership:** the HTTP request model only types the structure. Semantic validation (blank topic, market validity, date range, source normalization, result_limit bounds) lives exclusively in `ResearchQuery` and is not duplicated in Pydantic. Structural malformation (missing field, bad type) is `invalid_request`; semantic rejection is `invalid_research_request`.
 
@@ -139,7 +140,7 @@ Coverage is capability truth — it does **not** mean a source was actually sear
 
 ## 9. Market semantics
 
-`market_context` = requested market; `market_basis` = `youtube_region_availability`. YouTube `regionCode` is regional availability/viewability, **not** creator/publisher/content origin country and not language. No `creator_country`, `publisher_country`, `origin_country`, or `language` field is exposed.
+`markets` is the canonical ordered market list; `market` is the legacy singular field (the sole market for single-market runs, `null` otherwise). Per reference, `market_contexts` lists every selected market in which that video was returned (YouTube); `market_context` is the sole context when exactly one exists, otherwise `null`. Facebook references keep empty `market_contexts` because topic/market do not filter Page-post collection. `market_basis` = `youtube_region_availability`: YouTube `regionCode` is regional availability/viewability, **not** creator/publisher/content origin country, not language, not audience location. No `creator_country`, `publisher_country`, `origin_country`, or `language` field is exposed.
 
 ---
 

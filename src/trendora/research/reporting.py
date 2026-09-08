@@ -223,7 +223,8 @@ class ResearchReportService:
         self,
         *,
         topic: str,
-        market: str,
+        market: str | None = None,
+        markets=None,
         date_from: date,
         date_to: date,
         sources,
@@ -233,6 +234,7 @@ class ResearchReportService:
         run = self._research.execute(
             topic=topic,
             market=market,
+            markets=markets,
             date_from=date_from,
             date_to=date_to,
             sources=sources,

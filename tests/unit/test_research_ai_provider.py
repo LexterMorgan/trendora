@@ -783,5 +783,5 @@ class TestAnalysisBasisThroughProvider:
             pack, FactCitation(reference=pack.analyses[0].reference, field=EvidenceField.VIEW_COUNT)
         ) is AnalysisBasis.RAW_METRICS
         assert interpretation_analysis_basis(
-            pack, FactCitation(reference=pack.analyses[0].reference, field=EvidenceField.MARKET_CONTEXT)
+            pack, FactCitation(reference=pack.analyses[0].reference, field=EvidenceField.MARKET_CONTEXTS)
         ) is AnalysisBasis.SOURCE_METADATA

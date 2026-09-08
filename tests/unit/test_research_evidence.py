@@ -40,6 +40,7 @@ def _reference(**overrides) -> ResearchReference:
         published_at=PUBLISHED_AT,
         channel_external_id="UCx",
         channel_title="Example Channel",
+        market_contexts=("SG",),
         market_context="SG",
         market_basis=MarketBasis.YOUTUBE_REGION_AVAILABILITY,
         source_rank=3,
@@ -66,7 +67,7 @@ class TestEvidenceFacts:
         assert facts[EvidenceField.CHANNEL_TITLE].value == "Example Channel"
         assert facts[EvidenceField.PUBLISHED_AT].value == PUBLISHED_AT
         assert facts[EvidenceField.SOURCE_RANK].value == 3
-        assert facts[EvidenceField.MARKET_CONTEXT].value == "SG"
+        assert facts[EvidenceField.MARKET_CONTEXTS].value == ["SG"]
         assert facts[EvidenceField.MARKET_BASIS].value == "youtube_region_availability"
 
     def test_raw_metrics_preserved(self) -> None:
@@ -294,7 +295,7 @@ class TestNegativeGuarantees:
         }
         assert not ({field.value for field in EvidenceField} & forbidden)
         facts = _facts(_reference())
-        assert facts[EvidenceField.MARKET_CONTEXT].value == "SG"
+        assert facts[EvidenceField.MARKET_CONTEXTS].value == ["SG"]
         assert facts[EvidenceField.MARKET_BASIS].value == "youtube_region_availability"
 
     def test_no_transcript_or_media_fields(self) -> None:

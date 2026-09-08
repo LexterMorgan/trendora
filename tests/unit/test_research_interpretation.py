@@ -314,7 +314,7 @@ class TestAnalysisBasis:
         )
         assert (
             interpretation_analysis_basis(
-                pack, FactCitation(reference=_rid("a"), field=EvidenceField.MARKET_CONTEXT)
+                pack, FactCitation(reference=_rid("a"), field=EvidenceField.MARKET_CONTEXTS)
             )
             is AnalysisBasis.SOURCE_METADATA
         )

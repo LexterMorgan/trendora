@@ -41,7 +41,7 @@ _FACT_FIELD_TO_BASIS: dict[EvidenceField, AnalysisBasis] = {
     EvidenceField.COLLECTED_AT: AnalysisBasis.SOURCE_METADATA,
     EvidenceField.PUBLISHED_AT: AnalysisBasis.SOURCE_METADATA,
     EvidenceField.CHANNEL_TITLE: AnalysisBasis.SOURCE_METADATA,
-    EvidenceField.MARKET_CONTEXT: AnalysisBasis.SOURCE_METADATA,
+    EvidenceField.MARKET_CONTEXTS: AnalysisBasis.SOURCE_METADATA,
     EvidenceField.MARKET_BASIS: AnalysisBasis.SOURCE_METADATA,
     EvidenceField.SOURCE_RANK: AnalysisBasis.SOURCE_METADATA,
 }

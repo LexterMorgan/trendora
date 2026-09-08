@@ -232,7 +232,7 @@ class TestCombinedExecution:
 
     def test_second_source_failure_marks_failed_and_records_attempts(self) -> None:
         from trendora.research import ResearchQuery
-        from trendora.research.application import _source_query
+        from trendora.research.application import _target_query
         from trendora.research.models import ResearchRun
 
         yt = RecordingRetriever((_reference("youtube", "v1", 1, view_count=1),))
@@ -244,11 +244,12 @@ class TestCombinedExecution:
         )
         run = ResearchRun(query)
         run.resolve_capabilities(ResearchCapabilityResolver())
-        allocations = allocate_result_limits(4, ("youtube", "facebook"))
         entries = tuple(
-            (code, _source_query(query, code, limit), retriever)
-            for (code, retriever), (_, limit) in zip(
-                (("youtube", yt), ("facebook", fb)), allocations, strict=True
+            (code, _target_query(query, code, market, limit), retriever)
+            for (code, market, retriever), limit in zip(
+                (("youtube", "SG", yt), ("facebook", None, fb)),
+                (2, 2),
+                strict=True,
             )
         )
         with pytest.raises(RuntimeError, match="facebook boom"):
@@ -287,7 +288,7 @@ class TestCombinedExecution:
 class TestExecutionLifecycle:
     def _plan(self, result_limit: int, retrievers: dict) -> tuple:
         from trendora.research import ResearchQuery
-        from trendora.research.application import _source_query
+        from trendora.research.application import _target_query
         from trendora.research.models import ResearchRun
 
         query = ResearchQuery(
@@ -297,13 +298,15 @@ class TestExecutionLifecycle:
         )
         run = ResearchRun(query)
         run.resolve_capabilities(ResearchCapabilityResolver())
-        allocations = dict(
-            allocate_result_limits(result_limit, ("youtube", "facebook"))
-        )
+        base, remainder = divmod(result_limit, 2)
+        yt_limit = base + (1 if remainder else 0)
+        fb_limit = base
         entries = tuple(
-            (code, _source_query(query, code, allocations[code]), retriever)
-            for code, retriever in (("youtube", retrievers["youtube"]),
-                                    ("facebook", retrievers["facebook"]))
+            (code, _target_query(query, code, market, limit), retriever)
+            for (code, market, retriever), limit in (
+                (("youtube", "SG", retrievers["youtube"]), yt_limit),
+                (("facebook", None, retrievers["facebook"]), fb_limit),
+            )
         )
         return run, entries
 

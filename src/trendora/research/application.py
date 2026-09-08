@@ -26,7 +26,10 @@ from datetime import date
 
 from trendora.connectors.facebook.client import FacebookPublicClient
 from trendora.connectors.youtube.client import YouTubeClient
-from trendora.research.exceptions import ResearchSourceNotConfiguredError
+from trendora.research.exceptions import (
+    ResearchSourceNotConfiguredError,
+    ResearchValidationError,
+)
 from trendora.research.models import (
     CoverageStatus,
     ResearchCoverage,
@@ -34,7 +37,6 @@ from trendora.research.models import (
     ResearchRun,
     ResearchRunStatus,
     SourceCoverage,
-    allocate_result_limits,
 )
 from trendora.research.facebook import FacebookResearchRetriever
 from trendora.research.retrieval import ResearchRetriever
@@ -81,7 +83,8 @@ class ResearchApplicationService:
         self,
         *,
         topic: str,
-        market: str,
+        market: str | None = None,
+        markets: Sequence[str] | None = None,
         date_from: date,
         date_to: date,
         sources: Sequence[str],
@@ -90,11 +93,13 @@ class ResearchApplicationService:
     ) -> ResearchRun:
         """Run research for a request and return the completed/blocked run.
 
-        Domain validation happens inside ``ResearchQuery`` construction; the
-        HTTP adapter never duplicates it.
+        Accepts either legacy singular ``market`` or plural ``markets``. Domain
+        validation happens inside ``ResearchQuery`` construction; the HTTP
+        adapter never duplicates it.
         """
         query = ResearchQuery(
             topic=topic,
+            markets=_resolve_markets(market, markets),
             market=market,
             date_from=date_from,
             date_to=date_to,
@@ -110,43 +115,48 @@ class ResearchApplicationService:
         return run
 
     def _execute_available(self, run: ResearchRun) -> None:
-        """Build and execute the multi-source plan for a READY run.
+        """Build and execute the multi-target plan for a READY run.
 
-        The plan contains every requested source whose capability resolved
-        AVAILABLE, in normalized request order. Before any network call, every
-        planned source must have a configured retriever — one missing
+        The plan contains one retrieval target per selected market for every
+        available YouTube source, plus exactly one Facebook target regardless
+        of market count, in normalized request order. Before any network call,
+        every planned source must have a configured retriever — one missing
         retriever fails the whole request with the sanitized
         ``ResearchSourceNotConfiguredError`` and zero retrieval calls. The
-        global ``result_limit`` is split deterministically across the plan
-        (``divmod``; earlier requested sources take any remainder), and each
-        retriever receives its own source-specific validated query.
+        global ``result_limit`` is split deterministically across targets
+        (``divmod``; earlier targets take any remainder), and each retriever
+        receives its own target-specific validated query.
         """
         coverage = run.coverage
         assert coverage is not None
         query = run.query
-        plan: list[tuple[str, ResearchRetriever]] = []
+        targets: list[tuple[str, ResearchRetriever, str | None]] = []
         for source_code in query.source_codes:
             item = _source_coverage(coverage, source_code)
             if item is None or item.status is not CoverageStatus.AVAILABLE:
                 continue
             retriever = self._retrievers.get(source_code)
             if retriever is None:
-                # Available but unconfigured: fail closed before any call
-                # instead of silently returning a partial combined result.
                 raise ResearchSourceNotConfiguredError(
                     "no requested available source has a configured runtime retriever"
                 )
-            plan.append((source_code, retriever))
-        if not plan:
+            if source_code == "facebook":
+                targets.append((source_code, retriever, None))
+            else:
+                for market in query.markets:
+                    targets.append((source_code, retriever, market))
+        if not targets:
             raise ResearchSourceNotConfiguredError(
                 "no requested available source has a configured runtime retriever"
             )
-        allocations = allocate_result_limits(
-            query.result_limit, tuple(code for code, _ in plan)
-        )
+        if query.result_limit < len(targets):
+            raise ResearchValidationError(
+                f"result_limit must be at least the number of retrieval targets ({len(targets)})"
+            )
+        limits = _allocate_target_limits(query.result_limit, len(targets))
         entries = tuple(
-            (source_code, _source_query(query, source_code, limit), retriever)
-            for (source_code, retriever), (_, limit) in zip(plan, allocations, strict=True)
+            (source_code, _target_query(query, source_code, market, limit), retriever)
+            for (source_code, retriever, market), limit in zip(targets, limits, strict=True)
         )
         run.execute_sources(entries)
 
@@ -158,16 +168,48 @@ def _source_coverage(coverage: ResearchCoverage, source_code: str) -> SourceCove
     return None
 
 
-def _source_query(query: ResearchQuery, source_code: str, limit: int) -> ResearchQuery:
-    """A validated per-source query: own source code and allocated limit only.
+def _resolve_markets(
+    market: str | None, markets: Sequence[str] | None
+) -> tuple[str, ...]:
+    """Resolve singular/plural market inputs into the canonical market tuple.
 
-    Facebook keeps ``facebook_page_id``; non-Facebook queries never carry one.
-    Topic and market remain part of the shared contract. For Facebook they do
-    not filter which Page posts are collected (documented limitation).
+    Exactly one of ``market`` / ``markets`` must be supplied. The canonical
+    normalized/deduplicated/validated form is produced by ``ResearchQuery``.
     """
+    if market is not None and markets is not None:
+        raise ResearchValidationError(
+            "provide either 'market' or 'markets', not both"
+        )
+    if market is not None:
+        return (market,)
+    if markets is not None:
+        return tuple(markets)
+    raise ResearchValidationError("at least one market is required")
+
+
+def _allocate_target_limits(result_limit: int, target_count: int) -> tuple[int, ...]:
+    """Deterministically split the global limit across retrieval targets.
+
+    ``divmod``: even base share per target, earlier targets take any remainder.
+    """
+    base, remainder = divmod(result_limit, target_count)
+    return tuple(base + 1 if index < remainder else base for index in range(target_count))
+
+
+def _target_query(
+    query: ResearchQuery, source_code: str, market: str | None, limit: int
+) -> ResearchQuery:
+    """A validated per-target query: one market, own source code, allocated limit.
+
+    YouTube gets one market per target; Facebook gets all selected markets as
+    report context but does not filter using them. Facebook keeps
+    ``facebook_page_id``; non-Facebook queries never carry one.
+    """
+    markets = query.markets if source_code == "facebook" else ((market,) if market is not None else query.markets)
     return ResearchQuery(
         topic=query.topic,
-        market=query.market,
+        markets=markets,
+        market=market,
         date_from=query.date_from,
         date_to=query.date_to,
         source_codes=(source_code,),

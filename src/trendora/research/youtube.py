@@ -18,8 +18,9 @@ quota optimization, but M14 keeps enrichment on the established videos.list
 path to avoid introducing an untested endpoint shape. This is a documented
 engineering choice, not a claim that batchGetStats does not exist.
 
-Market semantics: ``ResearchQuery.market`` becomes YouTube ``regionCode``.
-The reference preserves ``market_context`` (the requested market) and
+Market semantics: each YouTube retrieval target collects for a single market
+(``ResearchQuery.markets[0]``), which becomes YouTube ``regionCode``.
+The reference preserves ``market_contexts`` (the market collected for) and
 ``market_basis`` (``youtube_region_availability``). regionCode is regional
 availability/viewability only; no creator/publisher/content-origin country
 and no language is ever inferred from it.
@@ -61,7 +62,6 @@ class _CollectedVideo:
     statistics: ResearchMetrics
     collected_at: datetime
 
-
 class YouTubeResearchRetriever:
     """Retrieves and normalizes YouTube research references for a query.
 
@@ -87,9 +87,10 @@ class YouTubeResearchRetriever:
         at = collected_at if collected_at is not None else datetime.now(timezone.utc)
         if at.tzinfo is None:
             raise ValueError("collected_at must be timezone-aware")
+        market = _single_market(query)
         search_results = self._client.search_videos(
             query=query.topic,
-            region_code=query.market,
+            region_code=market,
             published_after=_to_rfc3339(query.date_from),
             published_before=_to_rfc3339(query.date_to + timedelta(days=1)),
             limit=query.result_limit,
@@ -110,7 +111,7 @@ class YouTubeResearchRetriever:
                     by_id.get(video_id),
                     collected_at=at,
                     source_rank=rank,
-                    market_context=query.market,
+                    market_context=market,
                 )
             )
         return tuple(collected)
@@ -131,6 +132,7 @@ class YouTubeResearchRetriever:
                 published_at=item.published_at,
                 channel_external_id=item.channel_external_id,
                 channel_title=item.channel_title,
+                market_contexts=(item.market_context,),
                 market_context=item.market_context,
                 market_basis=MarketBasis.YOUTUBE_REGION_AVAILABILITY,
                 source_rank=item.source_rank,
@@ -138,6 +140,13 @@ class YouTubeResearchRetriever:
             )
             for item in collected
         )
+
+
+def _single_market(query: ResearchQuery) -> str:
+    """The single region this YouTube target collects for."""
+    if not query.markets:
+        raise ValueError("youtube research requires at least one market")
+    return query.markets[0]
 
 
 def _build_collected(

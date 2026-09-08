@@ -18,13 +18,15 @@ from trendora.research.models import ResearchReference, ResearchRun
 class ResearchRequest(BaseModel):
     """Structured research request body.
 
-    ``sources`` maps to ``ResearchQuery.source_codes``. No semantic validation
-    is duplicated here: blank topic, market validity, date range, source
-    normalization, and result_limit bounds are enforced by ``ResearchQuery``.
+    Accepts either legacy singular ``market`` or plural ``markets``. ``sources``
+    maps to ``ResearchQuery.source_codes``. No semantic validation is duplicated
+    here: blank topic, market validity, date range, source normalization, and
+    result_limit bounds are enforced by ``ResearchQuery``.
     """
 
     topic: str
-    market: str
+    market: str | None = None
+    markets: list[str] | None = None
     date_from: date
     date_to: date
     sources: list[str] = ["youtube"]
@@ -51,6 +53,7 @@ class ResearchReferenceResponse(BaseModel):
     published_at: datetime | None
     channel_external_id: str | None
     channel_title: str | None
+    market_contexts: list[str]
     market_context: str | None
     market_basis: str | None
     source_rank: int | None
@@ -60,7 +63,8 @@ class ResearchReferenceResponse(BaseModel):
 
 class ResearchQueryResponse(BaseModel):
     topic: str
-    market: str
+    markets: list[str]
+    market: str | None
     date_from: date
     date_to: date
     sources: list[str]
@@ -101,15 +105,17 @@ def to_research_response(run: ResearchRun) -> ResearchResponse:
     coverage = run.coverage
     assert coverage is not None
     references = run.references or ()
+    query = run.query
     return ResearchResponse(
         query=ResearchQueryResponse(
-            topic=run.query.topic,
-            market=run.query.market,
-            date_from=run.query.date_from,
-            date_to=run.query.date_to,
-            sources=list(run.query.source_codes),
-            result_limit=run.query.result_limit,
-            facebook_page_id=run.query.facebook_page_id,
+            topic=query.topic,
+            markets=list(query.markets),
+            market=query.market,
+            date_from=query.date_from,
+            date_to=query.date_to,
+            sources=list(query.source_codes),
+            result_limit=query.result_limit,
+            facebook_page_id=query.facebook_page_id,
         ),
         coverage=ResearchCoverageResponse(
             completeness=coverage.completeness.value,
@@ -139,6 +145,7 @@ def _to_reference_response(reference: ResearchReference) -> ResearchReferenceRes
         published_at=reference.published_at,
         channel_external_id=reference.channel_external_id,
         channel_title=reference.channel_title,
+        market_contexts=list(reference.market_contexts),
         market_context=reference.market_context,
         market_basis=reference.market_basis.value if reference.market_basis is not None else None,
         source_rank=reference.source_rank,
