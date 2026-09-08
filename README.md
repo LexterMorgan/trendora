@@ -264,6 +264,12 @@ An opt-in live smoke test (`tests/integration/test_research_youtube_live.py`) ex
 TRENDORA_LIVE_SMOKE=1 pytest tests/integration/test_research_youtube_live.py -v
 ```
 
+A report-pipeline live smoke (`tests/integration/test_research_youtube_report_live.py`) uses the same gate and additionally requires a complete AI provider config (`TRENDORA_AI_PROVIDER`/`TRENDORA_AI_MODEL`/`TRENDORA_AI_ENDPOINT_URL`/`TRENDORA_AI_API_KEY`). It runs one real `POST /api/v1/research/report` end-to-end (~102 YouTube units plus exactly one real AI completion, no retries) and asserts grounded citations and provenance:
+
+```bash
+TRENDORA_LIVE_SMOKE=1 pytest tests/integration/test_research_youtube_report_live.py -v
+```
+
 Current backend unit suite: **925 passing** (893 pre-M26C baseline + 32 M26C multi-market tests).
 
 ## Repository layout
