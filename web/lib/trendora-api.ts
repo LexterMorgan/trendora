@@ -74,6 +74,17 @@ export interface ResearchResponse {
   references: ResearchReferenceResponse[];
 }
 
+export interface ReportSummaryResponse {
+  id: string;
+  created_at: string;
+  status: string;
+  topic: string;
+  markets: string[];
+  source_codes: string[];
+  date_from: string;
+  date_to: string;
+}
+
 export class ResearchApiError extends Error {
   code: string;
 
@@ -120,4 +131,44 @@ export async function submitResearch(
   }
 
   return payload as ResearchResponse;
+}
+
+export async function listReports(params?: {
+  limit?: number;
+  offset?: number;
+}): Promise<ReportSummaryResponse[]> {
+  const query = new URLSearchParams();
+  if (params?.limit !== undefined) query.append("limit", String(params.limit));
+  if (params?.offset !== undefined) query.append("offset", String(params.offset));
+  const suffix = query.size > 0 ? `?${query.toString()}` : "";
+
+  let response: Response;
+  try {
+    response = await fetch(`/api/reports${suffix}`, { cache: "no-store" });
+  } catch {
+    throw new ResearchApiError(
+      "backend_unreachable",
+      "The Trendora backend could not be reached.",
+    );
+  }
+
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new ResearchApiError(
+      "invalid_response",
+      "Trendora returned an unreadable response.",
+    );
+  }
+
+  if (!response.ok) {
+    const err = payload as { error?: { code?: string; message?: string } };
+    throw new ResearchApiError(
+      err.error?.code ?? "unknown_error",
+      err.error?.message ?? "Report list request failed.",
+    );
+  }
+
+  return payload as ReportSummaryResponse[];
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 
 import { ResearchForm, type ResearchFormValues } from "@/components/ResearchForm";
 import { TurnView, userMessage, type SessionTurn } from "@/components/TurnView";
@@ -71,6 +72,9 @@ export default function Home() {
                 Every result traces back to real source evidence — references,
                 citations, and full provenance are surfaced with each answer.
               </p>
+              <Link className="secondary-button history-link" href="/past-reports">
+                Past reports
+              </Link>
             </header>
 
             <section className="composer-panel" aria-label="Research request">
@@ -93,6 +97,9 @@ export default function Home() {
               Ask Trendora about real content. Every answer is grounded in the
               supplied evidence.
             </p>
+            <Link className="secondary-button history-link" href="/past-reports">
+              Past reports
+            </Link>
           </header>
 
           <div className="chat-layout">

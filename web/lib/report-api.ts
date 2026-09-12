@@ -181,3 +181,45 @@ export async function submitReport(
   }
   return payload;
 }
+
+export async function getSingleReport(
+  reportId: string,
+): Promise<ResearchReportResponse> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/reports/${reportId}`, { cache: "no-store" });
+  } catch {
+    throw new ResearchApiError(
+      "backend_unreachable",
+      "The Trendora backend could not be reached.",
+    );
+  }
+
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new ResearchApiError(
+      "invalid_response",
+      "Trendora returned an unreadable response.",
+    );
+  }
+
+  if (response.status === 404) {
+    throw new ResearchApiError("not_found", "Report not found.");
+  }
+  if (!response.ok) {
+    const err = payload as { error?: { code?: string; message?: string } };
+    throw new ResearchApiError(
+      err.error?.code ?? "unknown_error",
+      err.error?.message ?? "Report request failed.",
+    );
+  }
+  if (!isResearchReport(payload)) {
+    throw new ResearchApiError(
+      "invalid_response",
+      "Trendora returned an unexpected report shape.",
+    );
+  }
+  return payload;
+}
