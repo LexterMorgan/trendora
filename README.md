@@ -2,7 +2,7 @@
 
 AI-powered Social Media Intelligence Platform for Southeast Asian education, AI, and technology markets.
 
-**Status:** Milestones 2A–4 ingest; M5 analytics; M6A in-memory forecast baselines; M6B evaluation docs; M6C naive-vs-challenger MAE comparison (in-memory); M7 series diagnostics (in-memory); M8 forecasting product contract & readiness gate ([docs/11](docs/11_FORECASTING_PRODUCT_SPEC.md)); M9 forecasting product requirements decided ([docs/12](docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md)); M10 V1 GitHub forecasting slice implemented ([src/trendora/product/](src/trendora/product/)) — naive level forecasts of GitHub repository `stargazer_count`/`fork_count`, 4 weekly points, on demand from M5, ≥4 observations, in-memory; M11A forecast API contract defined ([docs/13](docs/13_FORECASTING_API_CONTRACT.md)); M11B FastAPI adapter implemented ([src/trendora/api/](src/trendora/api/)) — no auth/persistence; M15 research API; M23A research report pipeline + API; M25A–M25D Facebook public Page client → normalization → research execution → API wiring (mocked only, opt-in via `META_ACCESS_TOKEN` + `META_GRAPH_API_VERSION`); M25E frontend Facebook Page research mode; M26B combined YouTube + Facebook backend execution (deterministic limit split, fail-closed unconfigured sources); M26C multi-market backend contract ([docs/32](docs/32_MULTI_MARKET_RESEARCH.md)) — canonical ordered `markets`, per-market YouTube targets, truthful reference provenance; M26D multi-market frontend selection (checkbox group, fixed-order submission); M28A report persistence (append-only JSONB snapshots); M28B report read API (list + fetch endpoints). Streamlit, advanced ML, WebSub, and other source connectors are not implemented.
+**Status:** Milestones 2A–4 ingest; M5 analytics; M6A in-memory forecast baselines; M6B evaluation docs; M6C naive-vs-challenger MAE comparison (in-memory); M7 series diagnostics (in-memory); M8 forecasting product contract & readiness gate ([docs/11](docs/11_FORECASTING_PRODUCT_SPEC.md)); M9 forecasting product requirements decided ([docs/12](docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md)); M10 V1 GitHub forecasting slice implemented ([src/trendora/product/](src/trendora/product/)) — naive level forecasts of GitHub repository `stargazer_count`/`fork_count`, 4 weekly points, on demand from M5, ≥4 observations, in-memory; M11A forecast API contract defined ([docs/13](docs/13_FORECASTING_API_CONTRACT.md)); M11B FastAPI adapter implemented ([src/trendora/api/](src/trendora/api/)) — no auth/persistence; M15 research API; M23A research report pipeline + API; M25A–M25D Facebook public Page client → normalization → research execution → API wiring (mocked only, opt-in via `META_ACCESS_TOKEN` + `META_GRAPH_API_VERSION`); M25E frontend Facebook Page research mode; M26B combined YouTube + Facebook backend execution (deterministic limit split, fail-closed unconfigured sources); M26C multi-market backend contract ([docs/32](docs/32_MULTI_MARKET_RESEARCH.md)) — canonical ordered `markets`, per-market YouTube targets, truthful reference provenance; M26D multi-market frontend selection (checkbox group, fixed-order submission); M28A report persistence (append-only JSONB snapshots); M28B report read API (list + fetch endpoints); M35A flexible research requests (topic-only simplified contract with defaults, full contract unchanged). Streamlit, advanced ML, WebSub, and other source connectors are not implemented.
 
 ## Product direction (M12 re-baseline)
 
@@ -57,6 +57,33 @@ Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 
 - [docs/01_ARCHITECTURE.md](docs/01_ARCHITECTURE.md) — layer boundaries and V1 database decision
 - [docs/02_DATABASE_SCHEMA.md](docs/02_DATABASE_SCHEMA.md) — tables, constraints, migrations
 - [docs/03_DATA_SOURCES.md](docs/03_DATA_SOURCES.md) — verified source research (read this before any connector work)
+
+## Flexible Research Requests (M35A)
+
+`POST /api/v1/research` and `POST /api/v1/research/report` accept two request shapes:
+
+**Full contract (unchanged):**
+
+```json
+{
+  "topic": "AI education",
+  "markets": ["SG", "ID"],
+  "date_from": "2026-08-01",
+  "date_to": "2026-08-31",
+  "sources": ["youtube"],
+  "result_limit": 30
+}
+```
+
+**Simplified contract:**
+
+```json
+{ "topic": "AI education" }
+```
+
+Omitted fields are completed by the adapter (`src/trendora/research/adapter.py`) with defaults — `markets=["SG"]`, last 30 days (ending today), `sources=["youtube"]`, `result_limit=50`. Any explicitly provided value overrides its default (e.g. `{"topic": "...", "result_limit": 10}` keeps the default market/date window).
+
+The adapter runs **before** the service executes anything and does not weaken validation: the resulting `ResearchQuery` is still fully validated (market validity, date order, source normalization, result limits), and all downstream evidence/citation grounding is unaffected. The M26C rule is preserved for full/partial requests: supplying an explicit date window requires exactly one of `market`/`markets`, and supplying both is rejected.
 
 ## Technology direction
 

@@ -32,6 +32,7 @@ from trendora.forecasting.exceptions import ForecastingValidationError
 from trendora.models.research import ResearchReportRecord
 from trendora.product import V1_METRICS, GitHubForecastProduct, GitHubForecastRequest
 from trendora.research.ai_provider import build_ai_provider_config
+from trendora.research.adapter import adapt_research_request
 from trendora.research.application import ResearchApplicationService, build_research_application_service
 from trendora.research.exceptions import ResearchNoCoverageError
 from trendora.research.models import ResearchRunStatus
@@ -262,15 +263,15 @@ def create_app() -> FastAPI:
         payload: ResearchRequest,
         service: ResearchApplicationService = Depends(get_research_application_service),
     ) -> ResearchResponse:
+        query = adapt_research_request(payload.model_dump())
         run = service.execute(
-            topic=payload.topic,
-            market=payload.market,
-            markets=payload.markets,
-            date_from=payload.date_from,
-            date_to=payload.date_to,
-            sources=payload.sources,
-            result_limit=payload.result_limit,
-            facebook_page_id=payload.facebook_page_id,
+            topic=query.topic,
+            markets=query.markets,
+            date_from=query.date_from,
+            date_to=query.date_to,
+            sources=query.source_codes,
+            result_limit=query.result_limit,
+            facebook_page_id=query.facebook_page_id,
         )
         if run.status is ResearchRunStatus.BLOCKED:
             raise ResearchNoCoverageError(
@@ -299,15 +300,15 @@ def create_app() -> FastAPI:
         payload: ResearchReportRequest,
         service: ResearchReportService = Depends(get_research_report_service),
     ) -> ResearchReportResponse:
+        query = adapt_research_request(payload.model_dump())
         report = service.build_report(
-            topic=payload.topic,
-            market=payload.market,
-            markets=payload.markets,
-            date_from=payload.date_from,
-            date_to=payload.date_to,
-            sources=payload.sources,
-            result_limit=payload.result_limit,
-            facebook_page_id=payload.facebook_page_id,
+            topic=query.topic,
+            markets=query.markets,
+            date_from=query.date_from,
+            date_to=query.date_to,
+            sources=query.source_codes,
+            result_limit=query.result_limit,
+            facebook_page_id=query.facebook_page_id,
         )
         response = to_report_response(report)
         _persist_research_report(payload, response)

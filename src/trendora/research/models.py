@@ -127,11 +127,18 @@ class ResearchQuery:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "topic", self.topic.strip())
-        object.__setattr__(self, "market", self.market.strip().upper() if self.market is not None else None)
         resolved = self.markets
         if not resolved and self.market is not None:
             resolved = (self.market,)
         object.__setattr__(self, "markets", _normalize_markets(resolved))
+        # Legacy singular field: the sole market for single-market requests,
+        # None for multi-market runs. Derived when not explicitly provided.
+        if self.market is None and len(self.markets) == 1:
+            object.__setattr__(self, "market", self.markets[0])
+        else:
+            object.__setattr__(
+                self, "market", self.market.strip().upper() if self.market is not None else None
+            )
         object.__setattr__(self, "source_codes", _normalize_source_codes(self.source_codes))
         object.__setattr__(self, "facebook_page_id", _normalize_facebook_page_id(self.facebook_page_id))
         validate_research_query(self)
