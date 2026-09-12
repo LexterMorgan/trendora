@@ -19,7 +19,9 @@ from contextlib import ExitStack
 from uuid import UUID
 
 import httpx
-from fastapi import Depends, FastAPI, Query
+from fastapi import Depends, FastAPI, HTTPException, Query
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from trendora.analytics.service import AnalyticsService
 from trendora.config import get_settings
@@ -52,6 +54,28 @@ from trendora.api.research_report_models import (
 )
 
 logger = logging.getLogger("trendora.api.app")
+
+
+class ReportSummaryResponse(BaseModel):
+    """Metadata-only summary of one persisted report (no JSONB payload)."""
+
+    id: str
+    created_at: str
+    status: str
+    topic: str
+    markets: list[str]
+    source_codes: list[str]
+    date_from: str
+    date_to: str
+
+
+def get_session() -> Generator[Session, None, None]:
+    """FastAPI dependency: opens a database session for report reads."""
+    session = get_session_factory()()
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 def _persist_research_report(
@@ -288,5 +312,45 @@ def create_app() -> FastAPI:
         response = to_report_response(report)
         _persist_research_report(payload, response)
         return response
+
+    @app.get(
+        "/api/v1/research/reports",
+        response_model=list[ReportSummaryResponse],
+        summary="List persisted research reports",
+        description=(
+            "Return a paginated list of all persisted reports ordered by "
+            "creation time descending. Summaries only — no full JSONB payloads."
+        ),
+    )
+    def list_research_reports(
+        limit: int = Query(default=50, ge=1, le=100, description="Max records to return"),
+        offset: int = Query(default=0, ge=0, description="Offset for pagination"),
+        session: Session = Depends(get_session),
+    ) -> list[ReportSummaryResponse]:
+        from trendora.research.repository import get_report_records
+
+        summaries, _total = get_report_records(session, limit=limit, offset=offset)
+        return [ReportSummaryResponse(**summary) for summary in summaries]
+
+    @app.get(
+        "/api/v1/research/reports/{report_id}",
+        response_model=ResearchReportResponse,
+        summary="Fetch single report by ID",
+        description=(
+            "Return the full report snapshot including evidence, interpretation, "
+            "strategy, and ideation."
+        ),
+        responses={404: {"description": "Report not found"}},
+    )
+    def get_single_report(
+        report_id: str,
+        session: Session = Depends(get_session),
+    ) -> ResearchReportResponse:
+        from trendora.research.repository import get_report_record_by_id
+
+        full_report = get_report_record_by_id(session, report_id)
+        if full_report is None:
+            raise HTTPException(status_code=404, detail="Report not found")
+        return ResearchReportResponse(**full_report["report"])
 
     return app
