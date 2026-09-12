@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 
 import { ResearchForm, type ResearchFormValues } from "@/components/ResearchForm";
+import { Header } from "@/components/Header";
 import { TurnView, userMessage, type SessionTurn } from "@/components/TurnView";
 import { submitReport } from "@/lib/report-api";
 import { ResearchApiError } from "@/lib/trendora-api";
@@ -90,17 +91,10 @@ export default function Home() {
         </div>
       ) : (
         <>
-          <header className="masthead">
-            <p className="brand">TRENDORA</p>
-            <h1 className="tagline">Social Content Intelligence</h1>
-            <p className="subtitle">
-              Ask Trendora about real content. Every answer is grounded in the
-              supplied evidence.
-            </p>
-            <Link className="secondary-button history-link" href="/past-reports">
-              Past reports
-            </Link>
-          </header>
+          <Header
+            section="Research Workspace"
+            actionLink={{ href: "/past-reports", label: "Past reports" }}
+          />
 
           <div className="chat-layout">
             <section className="panel form-panel" aria-label="Research request">

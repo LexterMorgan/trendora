@@ -55,13 +55,12 @@ a {
   padding: 28px 24px 96px;
 }
 
-/* Masthead — compact product header */
-
-.masthead {
+/* Masthead — replaced by .unified-header (M35C); kept commented during migration. */
+/* .masthead {
   padding: 8px 0 20px;
   border-bottom: var(--rule);
   margin-bottom: 28px;
-}
+} */
 
 .brand {
   margin: 0 0 2px;
@@ -72,19 +71,19 @@ a {
   text-transform: uppercase;
 }
 
-.tagline {
+/* .tagline {
   margin: 0 0 4px;
   font-size: 26px;
   font-weight: 650;
   letter-spacing: -0.02em;
-}
+} */
 
-.subtitle {
+/* .subtitle {
   margin: 0;
   color: var(--ink-soft);
   font-size: 14px;
   max-width: 46em;
-}
+} */
 
 /* Layout — sticky form rail + dominant session column */
 
@@ -1489,13 +1488,120 @@ a {
   color: var(--ink-soft);
 }
 
-.report-viewer-header {
+/* .report-viewer-header {
   align-items: flex-start;
-}
+} */
 
 @media (max-width: 640px) {
   .history-row {
     grid-template-columns: 1fr;
     gap: 4px;
+  }
+}
+
+/* Unified header (M35C) */
+
+.unified-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0 16px;
+  border-bottom: var(--rule);
+  margin-bottom: 28px;
+}
+
+.header-brand {
+  flex-shrink: 0;
+}
+
+.brand-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.brand-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.brand-name {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.header-breadcrumb {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.breadcrumb-home {
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.breadcrumb-home:hover {
+  color: var(--ink);
+}
+
+.breadcrumb-separator {
+  color: var(--ink-faint);
+  font-size: 14px;
+}
+
+.breadcrumb-current {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-action {
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .unified-header {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .header-breadcrumb {
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .header-action {
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-action {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .header-action .secondary-button {
+    display: block;
+    text-align: center;
   }
 }

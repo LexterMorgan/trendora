@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import { listReports, ResearchApiError, type ReportSummaryResponse } from "@/lib/trendora-api";
+import { Header } from "@/components/Header";
 import { formatDate } from "@/lib/format";
 
 const PAGE_SIZE = 50;
@@ -62,14 +63,10 @@ export default function PastReportsPage() {
 
   return (
     <main className="workspace history-workspace">
-      <header className="masthead">
-        <p className="brand">TRENDORA</p>
-        <h1 className="tagline">Past reports</h1>
-        <p className="subtitle">Every completed research run, replayable.</p>
-        <Link className="secondary-button history-new-link" href="/">
-          New research
-        </Link>
-      </header>
+      <Header
+        section="Past Reports"
+        actionLink={{ href: "/", label: "New research" }}
+      />
 
       {loading && (
         <p className="loading-note" role="status">

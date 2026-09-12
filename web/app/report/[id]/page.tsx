@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { getSingleReport, isResearchReport, type ResearchReportResponse } from "@/lib/report-api";
 import { ResearchApiError } from "@/lib/trendora-api";
+import { Header } from "@/components/Header";
 import { ReportView } from "@/components/ReportView";
 
 interface ReportPageProps {
@@ -42,13 +43,15 @@ export default function ReportPage({ params }: ReportPageProps) {
     };
   }, [id]);
 
+  const topic = report?.research.query.topic;
+  const section = topic ? `Report: ${topic}` : "Report";
+
   return (
     <main className="workspace report-viewer">
-      <header className="masthead report-viewer-header">
-        <Link className="secondary-button" href="/past-reports">
-          ← Past reports
-        </Link>
-      </header>
+      <Header
+        section={section}
+        actionLink={{ href: "/past-reports", label: "← Past reports" }}
+      />
 
       {loading && (
         <p className="loading-note" role="status">
