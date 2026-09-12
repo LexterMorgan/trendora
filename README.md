@@ -106,6 +106,8 @@ Copy the template and fill in secrets locally. Never commit `.env`.
 cp .env.example .env
 ```
 
+Separate reference templates exist for each side: `.env.example.backend` (FastAPI: `DATABASE_URL`, `YOUTUBE_API_KEY`, `META_*`, `TRENDORA_AI_*`) and `.env.example.frontend` (Next.js: `TRENDORA_API_BASE_URL`). See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
 Required for Alembic and any live database session:
 
 | Variable | Purpose |
@@ -302,6 +304,8 @@ docs/                  # architecture and research documents
 ```
 
 `.cursor/` is gitignored except for example files. Do not commit `.cursor/mcp.json` or `.env`.
+
+**Deployment instructions:** See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (reference templates: `Dockerfile`, `docker-compose.yml`, `render.yaml`, `.env.example.backend`, `.env.example.frontend`).
 
 ## License
 

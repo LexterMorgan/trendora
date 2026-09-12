@@ -1,0 +1,30 @@
+# Render blueprint (optional reference template).
+# Docs: https://render.com/docs/blueprint-spec
+# Deploying is a manual action: create a Blueprint from this repo in Render.
+services:
+  - type: web
+    name: trendora-backend
+    runtime: python
+    plan: free
+    buildCommand: pip install -e .
+    startCommand: uvicorn trendora.api.app:create_app --factory --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/v1/research/reports
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.14
+      - key: DATABASE_URL
+        sync: false
+      - key: YOUTUBE_API_KEY
+        sync: false
+      - key: META_ACCESS_TOKEN
+        sync: false
+      - key: META_GRAPH_API_VERSION
+        sync: false
+      - key: TRENDORA_AI_PROVIDER
+        sync: false
+      - key: TRENDORA_AI_MODEL
+        sync: false
+      - key: TRENDORA_AI_ENDPOINT_URL
+        sync: false
+      - key: TRENDORA_AI_API_KEY
+        sync: false

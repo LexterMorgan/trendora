@@ -1,0 +1,10 @@
+# Local container orchestration (optional reference template).
+# Uses the external Supabase database via DATABASE_URL in .env — no local Postgres.
+# Note: the Compose "version" key is obsolete and intentionally omitted.
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
