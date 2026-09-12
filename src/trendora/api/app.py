@@ -13,6 +13,7 @@ the route layer, no persistence, no auth, no rate limiting.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Generator
 from contextlib import ExitStack
 from uuid import UUID
@@ -26,6 +27,7 @@ from trendora.connectors.facebook.client import FacebookPublicClient
 from trendora.connectors.youtube.client import YouTubeClient
 from trendora.db.session import get_session_factory
 from trendora.forecasting.exceptions import ForecastingValidationError
+from trendora.models.research import ResearchReportRecord
 from trendora.product import V1_METRICS, GitHubForecastProduct, GitHubForecastRequest
 from trendora.research.ai_provider import build_ai_provider_config
 from trendora.research.application import ResearchApplicationService, build_research_application_service
@@ -48,6 +50,39 @@ from trendora.api.research_report_models import (
     ResearchReportResponse,
     to_report_response,
 )
+
+logger = logging.getLogger("trendora.api.app")
+
+
+def _persist_research_report(
+    payload: ResearchReportRequest,
+    response: ResearchReportResponse,
+) -> None:
+    """Best-effort append-only persistence of a completed report snapshot.
+
+    Persistence is strictly optional: a missing ``DATABASE_URL`` or any insert
+    failure is logged and swallowed so the HTTP response is never affected.
+    """
+    try:
+        if not get_settings().database_url:
+            return
+        session = get_session_factory()()
+        try:
+            record = ResearchReportRecord(
+                status=response.status,
+                topic=payload.topic,
+                markets=list(payload.markets) if payload.markets else list(response.research.query.markets),
+                source_codes=list(payload.sources),
+                date_from=payload.date_from,
+                date_to=payload.date_to,
+                report=response.model_dump(mode="json"),
+            )
+            session.add(record)
+            session.commit()
+        finally:
+            session.close()
+    except Exception as exc:  # noqa: BLE001 — best-effort only
+        logger.warning("Failed to persist research report: %s", exc)
 
 
 def get_github_forecast_product() -> Generator[GitHubForecastProduct, None, None]:
@@ -250,6 +285,8 @@ def create_app() -> FastAPI:
             result_limit=payload.result_limit,
             facebook_page_id=payload.facebook_page_id,
         )
-        return to_report_response(report)
+        response = to_report_response(report)
+        _persist_research_report(payload, response)
+        return response
 
     return app

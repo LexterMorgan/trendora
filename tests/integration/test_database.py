@@ -50,4 +50,4 @@ def test_application_tables_exist(engine) -> None:
 def test_alembic_revision(engine) -> None:
     with engine.connect() as connection:
         revision = connection.execute(text("select version_num from alembic_version")).scalar_one()
-        assert revision == "0001_initial_schema"
+        assert revision == "0002_research_reports"
