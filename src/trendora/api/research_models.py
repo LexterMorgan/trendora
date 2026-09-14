@@ -19,16 +19,18 @@ class ResearchRequest(BaseModel):
     """Structured research request body.
 
     Accepts either legacy singular ``market`` or plural ``markets``. ``sources``
-    maps to ``ResearchQuery.source_codes``. No semantic validation is duplicated
-    here: blank topic, market validity, date range, source normalization, and
-    result_limit bounds are enforced by ``ResearchQuery``.
+    maps to ``ResearchQuery.source_codes``. Fields beyond ``topic`` are optional
+    (M35A): a simplified ``{"topic": "..."}`` request is completed with defaults
+    by the M35A adapter before the service executes. No semantic validation is
+    duplicated here: blank topic, market validity, date range, source
+    normalization, and result_limit bounds are enforced by ``ResearchQuery``.
     """
 
     topic: str
     market: str | None = None
     markets: list[str] | None = None
-    date_from: date
-    date_to: date
+    date_from: date | None = None
+    date_to: date | None = None
     sources: list[str] = ["youtube"]
     result_limit: int = 50
     facebook_page_id: str | None = None

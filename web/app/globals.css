@@ -1605,3 +1605,75 @@ a {
     text-align: center;
   }
 }
+
+/* Simplified research form (M35D) */
+
+.simple-research-form .advanced-options {
+  margin-top: 16px;
+  border-top: var(--rule);
+  padding-top: 12px;
+}
+
+.advanced-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 2px;
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.advanced-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.advanced-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 10px;
+}
+
+.simple-research-form .primary-button {
+  width: 100%;
+}
+
+/* Report primary output vs. secondary detail (M35D) */
+
+.report-primary-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.report-primary-section .section-title {
+  margin-top: 12px;
+}
+
+.report-primary-section .section-title:first-child {
+  margin-top: 0;
+}
+
+.report-secondary-details {
+  margin-top: 12px;
+}
+
+.report-viewer-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 768px) {
+  .report-primary-section .secondary-button {
+    min-height: 40px;
+  }
+}

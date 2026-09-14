@@ -11,8 +11,8 @@ export interface ResearchRequest {
   topic: string;
   market?: string;
   markets: string[];
-  date_from: string;
-  date_to: string;
+  date_from?: string;
+  date_to?: string;
   sources: string[];
   result_limit: number;
   facebook_page_id?: string;

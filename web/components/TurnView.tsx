@@ -27,10 +27,14 @@ export function userMessage(request: ResearchFormValues): string {
       ? `Facebook · Page ${request.facebook_page_id}`
       : "Facebook"
     : request.sources.map(sourceLabel).join(", ");
+  const dateSummary =
+    request.date_from && request.date_to
+      ? `${request.date_from} → ${request.date_to}`
+      : "Last 30 days";
   return [
     request.topic,
     request.markets.join(", "),
-    `${request.date_from} → ${request.date_to}`,
+    dateSummary,
     depthWording(request.result_limit),
     sourceSummary,
   ]

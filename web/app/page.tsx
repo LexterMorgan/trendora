@@ -3,7 +3,8 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 
-import { ResearchForm, type ResearchFormValues } from "@/components/ResearchForm";
+import { type ResearchFormValues } from "@/components/ResearchForm";
+import { SimpleForm } from "@/components/SimpleForm";
 import { Header } from "@/components/Header";
 import { TurnView, userMessage, type SessionTurn } from "@/components/TurnView";
 import { submitReport } from "@/lib/report-api";
@@ -79,7 +80,7 @@ export default function Home() {
             </header>
 
             <section className="composer-panel" aria-label="Research request">
-              <ResearchForm
+              <SimpleForm
                 key={composerKey}
                 onSubmit={handleSubmit}
                 disabled={busy}
@@ -99,7 +100,7 @@ export default function Home() {
           <div className="chat-layout">
             <section className="panel form-panel" aria-label="Research request">
               <h2 className="section-title">Research</h2>
-              <ResearchForm
+              <SimpleForm
                 key={composerKey}
                 onSubmit={handleSubmit}
                 disabled={busy}

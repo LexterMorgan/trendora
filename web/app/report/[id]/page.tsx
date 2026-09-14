@@ -53,6 +53,12 @@ export default function ReportPage({ params }: ReportPageProps) {
         actionLink={{ href: "/past-reports", label: "← Past reports" }}
       />
 
+      <nav className="report-viewer-actions" aria-label="Report actions">
+        <Link className="secondary-button" href="/">
+          + New research
+        </Link>
+      </nav>
+
       {loading && (
         <p className="loading-note" role="status">
           Loading report…

@@ -121,75 +121,120 @@ export function ReportView({ report }: ReportViewProps) {
 
   return (
     <div className="report">
-      {/* 1. Report at a glance — deterministic existing information only */}
-      <section className="report-glance" aria-labelledby="glance-title">
-        <h3 className="section-title" id="glance-title">
-          Report at a glance
+      {/* Primary output — always visible and expanded */}
+      <section className="report-primary-section" aria-labelledby="ideas-title">
+        <h3 className="section-title" id="ideas-title">
+          Content ideas
         </h3>
-        <dl className="glance-grid">
-          <div className="glance-item">
-            <dt>Topic</dt>
-            <dd>{research.query.topic}</dd>
+        {ideas.length === 0 ? (
+          <p className="drawer-muted">No content ideas were generated for this report.</p>
+        ) : (
+          ideas.map((idea, index) => {
+            const grouped = briefsByIdea.get(index) ?? [];
+            return (
+              <article key={index} className="report-item idea-group">
+                <ClaimKind kind="recommendation" />
+                <h5 className="idea-title">{idea.title}</h5>
+                <p className="report-statement">Angle: {idea.angle}</p>
+                <button type="button" className="secondary-button" onClick={() => copyIdea(index)}>
+                  Copy idea as Markdown
+                </button>
+                {copied === `idea-${index}` && (
+                  <span className="copy-feedback" role="status">
+                    Copied
+                  </span>
+                )}
+                {copied === `failed-${index}` && (
+                  <span className="copy-feedback copy-failed" role="status">
+                    Clipboard unavailable
+                  </span>
+                )}
+                {grouped.length > 0 && (
+                  <div className="brief-group">
+                    <h6 className="drawer-subheading">Execution briefs</h6>
+                    {grouped.map(({ brief, index: briefIndex }) => (
+                      <div key={briefIndex} className="brief-card">
+                        <p className="report-statement">
+                          {brief.objective} · {brief.format}
+                        </p>
+                        <p className="report-statement">Hook: {brief.hook}</p>
+                        <ul className="outline-list">
+                          {brief.outline.map((line, lineIndex) => (
+                            <li key={lineIndex}>{line}</li>
+                          ))}
+                        </ul>
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => copyBrief(briefIndex)}
+                        >
+                          Copy brief as Markdown
+                        </button>
+                        {copied === `brief-${briefIndex}` && (
+                          <span className="copy-feedback" role="status">
+                            Copied
+                          </span>
+                        )}
+                        {copied === `failed-${briefIndex}` && (
+                          <span className="copy-feedback copy-failed" role="status">
+                            Clipboard unavailable
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </article>
+            );
+          })
+        )}
+
+        <h3 className="section-title" id="briefs-title">
+          Content briefs
+        </h3>
+        {orphanBriefs.length > 0 ? (
+          <div className="brief-fallback">
+            <p className="drawer-muted">
+              These briefs reference an idea index not present in this report.
+              They are shown here rather than discarded.
+            </p>
+            {orphanBriefs.map(({ brief, index }) => (
+              <div key={index} className="brief-card">
+                <p className="report-statement">
+                  {brief.objective} · {brief.format}
+                </p>
+                <p className="report-statement">Hook: {brief.hook}</p>
+                <ul className="outline-list">
+                  {brief.outline.map((line, lineIndex) => (
+                    <li key={lineIndex}>{line}</li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => copyBrief(index)}
+                >
+                  Copy brief as Markdown
+                </button>
+                {copied === `brief-${index}` && (
+                  <span className="copy-feedback" role="status">
+                    Copied
+                  </span>
+                )}
+              </div>
+            ))}
           </div>
-          <div className="glance-item">
-            <dt>Market</dt>
-            <dd>{research.query.markets.join(", ")}</dd>
-          </div>
-          <div className="glance-item">
-            <dt>Date range</dt>
-            <dd>
-              {research.query.date_from} → {research.query.date_to}
-            </dd>
-          </div>
-          <div className="glance-item">
-            <dt>Executed sources</dt>
-            <dd>
-              {research.executed_sources.map(sourceLabel).join(", ") || "none"}
-            </dd>
-          </div>
-          <div className="glance-item">
-            <dt>References</dt>
-            <dd>{research.references.length}</dd>
-          </div>
-          <div className="glance-item">
-            <dt>Evidence patterns</dt>
-            <dd>{report.evidence?.patterns.length ?? 0}</dd>
-          </div>
-          <div className="glance-item">
-            <dt>Interpretations</dt>
-            <dd>{report.interpretation?.interpretations.length ?? 0}</dd>
-          </div>
-          <div className="glance-item">
-            <dt>Gaps / opportunities</dt>
-            <dd>
-              {report.strategy?.content_gaps.length ?? 0} /{" "}
-              {report.strategy?.opportunities.length ?? 0}
-            </dd>
-          </div>
-          <div className="glance-item">
-            <dt>Ideas / briefs</dt>
-            <dd>
-              {ideas.length} / {briefs.length}
-            </dd>
-          </div>
-        </dl>
-        <MarketCaveat
-          markets={research.query.markets}
-          executedSources={research.executed_sources}
-        />
-        <button
-          type="button"
-          className="secondary-button"
-          onClick={() => downloadReportJson(report)}
-        >
-          Download report JSON
-        </button>
+        ) : (
+          briefs.length === 0 && (
+            <p className="drawer-muted">No content briefs were generated for this report.</p>
+          )
+        )}
       </section>
 
-      {/* 2. Key evidence patterns — deterministic, before AI output */}
+      {/* Secondary detail — collapsed by default */}
       {(report.evidence?.patterns.length ?? 0) > 0 && (
-        <details className="report-section" open>
-          <summary>Key evidence patterns (deterministic)</summary>
+        <details className="report-section report-secondary-details">
+          <summary>Evidence patterns ({report.evidence?.patterns.length})</summary>
           <p className="section-note">
             Deterministic aggregation over the collected references — not AI
             output. Trace a pattern to see every supporting reference.
@@ -236,10 +281,11 @@ export function ReportView({ report }: ReportViewProps) {
         </details>
       )}
 
-      {/* 3. What the evidence may mean — AI interpretations */}
       {report.interpretation && report.interpretation.interpretations.length > 0 && (
-        <details className="report-section" open>
-          <summary>What the evidence may mean (AI interpretation)</summary>
+        <details className="report-section report-secondary-details">
+          <summary>
+            AI interpretations ({report.interpretation.interpretations.length})
+          </summary>
           {report.interpretation.interpretations.map((item, index) => {
             const citations = item.citations.map((citation) => resolveCitation(citation, maps));
             const chain = resolveUpstreamChain(report, { kind: "interpretation", item });
@@ -260,10 +306,9 @@ export function ReportView({ report }: ReportViewProps) {
         </details>
       )}
 
-      {/* 4. Content gaps and opportunities — no raw indexes in normal view */}
       {report.strategy && (
-        <details className="report-section" open>
-          <summary>Content gaps and recommended opportunities</summary>
+        <details className="report-section report-secondary-details">
+          <summary>Gaps and opportunities</summary>
           <h4 className="drawer-subheading">Gaps</h4>
           {report.strategy.content_gaps.map((gap, index) => {
             const citations = gap.citations.map((citation) => resolveCitation(citation, maps));
@@ -299,124 +344,8 @@ export function ReportView({ report }: ReportViewProps) {
         </details>
       )}
 
-      {/* 5. Recommended content ideas and execution briefs */}
-      {report.ideation && (
-        <details className="report-section" open>
-          <summary>Recommended content ideas and briefs (recommendations)</summary>
-          {ideas.map((idea, index) => {
-            const citations = idea.citations.map((citation) => resolveCitation(citation, maps));
-            const chain = resolveUpstreamChain(report, { kind: "idea", item: idea });
-            const grouped = briefsByIdea.get(index) ?? [];
-            return (
-              <article key={index} className="report-item idea-group">
-                <ClaimKind kind="recommendation" />
-                <h5 className="idea-title">{idea.title}</h5>
-                <p className="report-statement">Angle: {idea.angle}</p>
-                {citationsButton(`Idea #${index}`, idea.title, citations, chain, setDrawer)}
-                <button type="button" className="secondary-button" onClick={() => copyIdea(index)}>
-                  Copy idea as Markdown
-                </button>
-                {copied === `idea-${index}` && (
-                  <span className="copy-feedback" role="status">
-                    Copied
-                  </span>
-                )}
-                {copied === `failed-${index}` && (
-                  <span className="copy-feedback copy-failed" role="status">
-                    Clipboard unavailable
-                  </span>
-                )}
-                {grouped.length > 0 && (
-                  <div className="brief-group">
-                    <h6 className="drawer-subheading">Execution briefs</h6>
-                    {grouped.map(({ brief, index: briefIndex }) => {
-                      const briefCitations = brief.citations.map((citation) =>
-                        resolveCitation(citation, maps),
-                      );
-                      const briefChain = resolveUpstreamChain(report, { kind: "brief", item: brief });
-                      return (
-                        <div key={briefIndex} className="brief-card">
-                          <p className="report-statement">
-                            {brief.objective} · {brief.format}
-                          </p>
-                          <p className="report-statement">Hook: {brief.hook}</p>
-                          <ul className="outline-list">
-                            {brief.outline.map((line, lineIndex) => (
-                              <li key={lineIndex}>{line}</li>
-                            ))}
-                          </ul>
-                          {citationsButton(
-                            `Brief #${briefIndex}`,
-                            `idea ${brief.idea_index}`,
-                            briefCitations,
-                            briefChain,
-                            setDrawer,
-                          )}
-                          <button
-                            type="button"
-                            className="secondary-button"
-                            onClick={() => copyBrief(briefIndex)}
-                          >
-                            Copy brief as Markdown
-                          </button>
-                          {copied === `brief-${briefIndex}` && (
-                            <span className="copy-feedback" role="status">
-                              Copied
-                            </span>
-                          )}
-                          {copied === `failed-${briefIndex}` && (
-                            <span className="copy-feedback copy-failed" role="status">
-                              Clipboard unavailable
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </article>
-            );
-          })}
-          {orphanBriefs.length > 0 && (
-            <div className="brief-fallback">
-              <h4 className="drawer-subheading">Briefs without a matching idea</h4>
-              <p className="drawer-muted">
-                These briefs reference an idea index not present in this
-                report. They are shown here rather than discarded.
-              </p>
-              {orphanBriefs.map(({ brief, index }) => {
-                const briefCitations = brief.citations.map((citation) =>
-                  resolveCitation(citation, maps),
-                );
-                const briefChain = resolveUpstreamChain(report, { kind: "brief", item: brief });
-                return (
-                  <div key={index} className="brief-card">
-                    <p className="report-statement">
-                      {brief.objective} · {brief.format}
-                    </p>
-                    <p className="report-statement">Hook: {brief.hook}</p>
-                    <ul className="outline-list">
-                      {brief.outline.map((line, lineIndex) => (
-                        <li key={lineIndex}>{line}</li>
-                      ))}
-                    </ul>
-                    {citationsButton(
-                      `Brief #${index}`,
-                      `idea ${brief.idea_index}`,
-                      briefCitations,
-                      briefChain,
-                      setDrawer,
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </details>
-      )}
-
-      {/* 6. Sources and evidence */}
-      <details className="report-section" open>
+      {/* Sources and evidence */}
+      <details className="report-section report-secondary-details">
         <summary>Sources and evidence ({research.references.length})</summary>
         {research.references.length > 0 ? (
           <ReferenceList references={research.references} />
@@ -425,8 +354,8 @@ export function ReportView({ report }: ReportViewProps) {
         )}
       </details>
 
-      {/* 7. Research scope, coverage, and provenance — progressive disclosure */}
-      <details className="report-section">
+      {/* Research scope, coverage, and provenance — progressive disclosure */}
+      <details className="report-section report-secondary-details">
         <summary>Research scope, coverage, and provenance</summary>
         <CoveragePanel coverage={research.coverage} executedSources={research.executed_sources} />
         <ul className="provenance-list">
@@ -446,6 +375,17 @@ export function ReportView({ report }: ReportViewProps) {
           actually searched. Structural grounding is not proof of semantic
           entailment.
         </p>
+        <MarketCaveat
+          markets={research.query.markets}
+          executedSources={research.executed_sources}
+        />
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() => downloadReportJson(report)}
+        >
+          Download report JSON
+        </button>
       </details>
 
       {drawer && (
@@ -478,13 +418,6 @@ function NoEvidenceView({ report }: { report: ResearchReportResponse }) {
             References: {research.references.length}
           </p>
         )}
-        <MarketCaveat
-          markets={research.query.markets}
-          executedSources={research.executed_sources}
-        />
-        <button type="button" className="secondary-button" onClick={() => downloadReportJson(report)}>
-          Download report JSON
-        </button>
       </div>
       <details className="report-section">
         <summary>Research scope, coverage, and provenance</summary>
@@ -505,6 +438,13 @@ function NoEvidenceView({ report }: { report: ResearchReportResponse }) {
           Coverage reflects capability truth; executed sources reflect what was
           actually searched.
         </p>
+        <MarketCaveat
+          markets={research.query.markets}
+          executedSources={research.executed_sources}
+        />
+        <button type="button" className="secondary-button" onClick={() => downloadReportJson(report)}>
+          Download report JSON
+        </button>
       </details>
     </div>
   );
