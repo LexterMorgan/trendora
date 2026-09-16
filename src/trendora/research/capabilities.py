@@ -19,9 +19,11 @@ from trendora.research.models import (
 )
 
 # Canonical source codes for research resolution: persisted SOURCE_IDS plus
-# the in-memory-only "facebook" source. Facebook persistence remains deferred
-# (no SOURCE_IDS / seed / migration changes; Meta approval/access still owed).
-KNOWN_SOURCE_CODES: Final[frozenset[str]] = frozenset({*SOURCE_IDS, "facebook"})
+# the in-memory-only "facebook" and "public_web" sources. Neither is persisted
+# today (no SOURCE_IDS / seed / migration changes).
+KNOWN_SOURCE_CODES: Final[frozenset[str]] = frozenset(
+    {*SOURCE_IDS, "facebook", "public_web"}
+)
 
 
 def default_declarations() -> dict[str, SourceCapabilities]:
@@ -95,6 +97,19 @@ def default_declarations() -> dict[str, SourceCapabilities]:
             retention_note=(
                 "Facebook public Page posts only; no keyword search or "
                 "regional discovery; Meta approval/access still required."
+            ),
+        ),
+        "public_web": SourceCapabilities(
+            source_code="public_web",
+            supported=frozenset(
+                {
+                    PlatformCapability.PUBLIC_SEARCH,
+                    PlatformCapability.CONTENT_LOOKUP,
+                }
+            ),
+            retention_note=(
+                "Indexed public content only. No engagement metrics. "
+                "Published dates may be unavailable."
             ),
         ),
     }

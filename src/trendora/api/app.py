@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 from trendora.analytics.service import AnalyticsService
 from trendora.config import get_settings
 from trendora.connectors.facebook.client import FacebookPublicClient
+from trendora.connectors.web_search.serper_gateway import SerperGateway
 from trendora.connectors.youtube.client import YouTubeClient
 from trendora.db.session import get_session_factory
 from trendora.forecasting.exceptions import ForecastingValidationError
@@ -110,6 +111,15 @@ def _persist_research_report(
         logger.warning("Failed to persist research report: %s", exc)
 
 
+def _build_serp_gateway(settings) -> SerperGateway | None:
+    """Build the web-search gateway when enabled and configured, else ``None``."""
+    enabled = getattr(settings, "web_search_enabled", True)
+    api_key = getattr(settings, "serper_api_key", None)
+    if enabled and api_key:
+        return SerperGateway(api_key)
+    return None
+
+
 def get_github_forecast_product() -> Generator[GitHubForecastProduct, None, None]:
     """FastAPI dependency: M10 product over the established M5 read path.
 
@@ -128,12 +138,13 @@ def get_github_forecast_product() -> Generator[GitHubForecastProduct, None, None
 def get_research_application_service() -> Generator[ResearchApplicationService, None, None]:
     """FastAPI dependency: synchronous research application service.
 
-    Builds a YouTube client only when ``YOUTUBE_API_KEY`` is configured, and a
+    Builds a YouTube client only when ``YOUTUBE_API_KEY`` is configured, a
     Facebook client only when both ``META_ACCESS_TOKEN`` and
-    ``META_GRAPH_API_VERSION`` are configured. If a source's settings are
-    missing, no runtime retriever is registered; an available source then
-    surfaces as a ``research_source_not_configured`` error. Each owned client
-    closes exactly once. Tests override this dependency.
+    ``META_GRAPH_API_VERSION`` are configured, and a Serper web-search gateway
+    only when ``TRENDORA_WEB_SEARCH_ENABLED`` is true and ``SERPER_API_KEY`` is
+    set. If a source's settings are missing, no runtime retriever is registered;
+    an available source then surfaces as a ``research_source_not_configured``
+    error. Each owned client closes exactly once. Tests override this dependency.
     """
 
     settings = get_settings()
@@ -152,8 +163,13 @@ def get_research_application_service() -> Generator[ResearchApplicationService, 
         )
         if facebook_client is not None:
             stack.callback(facebook_client.close)
+        serp_gateway = _build_serp_gateway(settings)
+        if serp_gateway is not None:
+            stack.callback(serp_gateway.close)
         service = build_research_application_service(
-            youtube_client=youtube_client, facebook_client=facebook_client
+            youtube_client=youtube_client,
+            facebook_client=facebook_client,
+            serp_gateway=serp_gateway,
         )
         yield service
 
@@ -189,11 +205,15 @@ def get_research_report_service() -> Generator[ResearchReportService, None, None
         )
         if facebook_client is not None:
             stack.callback(facebook_client.close)
+        serp_gateway = _build_serp_gateway(settings)
+        if serp_gateway is not None:
+            stack.callback(serp_gateway.close)
         http = httpx.Client(timeout=config.timeout_seconds)
         stack.callback(http.close)
         service = build_research_report_service(
             youtube_client=youtube_client,
             facebook_client=facebook_client,
+            serp_gateway=serp_gateway,
             http_client=http,
             config=config,
         )

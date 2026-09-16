@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     ai_model: str | None = Field(default=None, alias="TRENDORA_AI_MODEL")
     ai_endpoint_url: str | None = Field(default=None, alias="TRENDORA_AI_ENDPOINT_URL")
     ai_api_key: str | None = Field(default=None, alias="TRENDORA_AI_API_KEY")
+    serper_api_key: str | None = Field(default=None, alias="SERPER_API_KEY")
+    web_search_enabled: bool = Field(default=True, alias="TRENDORA_WEB_SEARCH_ENABLED")
 
     @field_validator("database_url")
     @classmethod
@@ -72,6 +74,7 @@ class Settings(BaseSettings):
         "ai_model",
         "ai_endpoint_url",
         "ai_api_key",
+        "serper_api_key",
         mode="before",
     )
     @classmethod
@@ -108,6 +111,12 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
+    """Cached application settings from environment and optional ``.env``.
+
+    Every connector credential is optional: ``SERPER_API_KEY`` enables the
+    public web-search source when present and leaves it unconfigured (503) when
+    absent. ``TRENDORA_WEB_SEARCH_ENABLED`` toggles the source off entirely.
+    """
     return Settings()
 
 

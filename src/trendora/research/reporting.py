@@ -297,6 +297,7 @@ def build_research_report_service(
     *,
     youtube_client: YouTubeClient | None,
     facebook_client: FacebookPublicClient | None = None,
+    serp_gateway=None,
     http_client,
     config: AIProviderConfig,
 ) -> ResearchReportService:
@@ -304,6 +305,7 @@ def build_research_report_service(
     research = build_research_application_service(
         youtube_client=youtube_client,
         facebook_client=facebook_client,
+        serp_gateway=serp_gateway,
     )
     interpretation = GroundedInterpretationService(
         OpenAICompatibleInterpretationProvider(config, http_client=http_client)

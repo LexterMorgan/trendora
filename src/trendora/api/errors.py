@@ -21,6 +21,10 @@ from trendora.connectors.facebook.exceptions import (
     FacebookConnectorError,
 )
 from trendora.connectors.youtube.exceptions import YouTubeConnectorError
+from trendora.connectors.web_search.exceptions import (
+    WebSearchConfigurationError,
+    WebSearchConnectorError,
+)
 from trendora.forecasting.exceptions import ForecastingValidationError, InsufficientHistoryError
 from trendora.research.exceptions import (
     ResearchAIProviderError,
@@ -93,6 +97,22 @@ async def _handle_facebook_upstream(
     return _error(502, "research_upstream_error", "The upstream source failed.")
 
 
+def _handle_web_search_configuration(
+    _request: Request, _exc: WebSearchConfigurationError
+) -> JSONResponse:
+    return _error(
+        503,
+        "research_source_not_configured",
+        "The requested source is not configured.",
+    )
+
+
+def _handle_web_search_upstream(
+    _request: Request, _exc: WebSearchConnectorError
+) -> JSONResponse:
+    return _error(502, "research_upstream_error", "The upstream source failed.")
+
+
 async def _handle_ai_not_configured(
     _request: Request, _exc: ResearchAIProviderNotConfiguredError
 ) -> JSONResponse:
@@ -124,6 +144,8 @@ def register_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(YouTubeConnectorError, _handle_youtube_upstream)
     app.add_exception_handler(FacebookConfigurationError, _handle_facebook_configuration)
     app.add_exception_handler(FacebookConnectorError, _handle_facebook_upstream)
+    app.add_exception_handler(WebSearchConfigurationError, _handle_web_search_configuration)
+    app.add_exception_handler(WebSearchConnectorError, _handle_web_search_upstream)
     app.add_exception_handler(ResearchAIProviderNotConfiguredError, _handle_ai_not_configured)
     app.add_exception_handler(ResearchAIProviderError, _handle_ai_provider)
     app.add_exception_handler(ResearchAIResponseError, _handle_ai_response)
