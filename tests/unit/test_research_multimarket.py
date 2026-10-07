@@ -298,7 +298,7 @@ class TestMultimarketAPI:
         import httpx
         from fastapi.testclient import TestClient
 
-        from trendora.api import create_app
+        from tests.support.app import create_test_app
         from trendora.api.app import get_research_application_service
         from trendora.connectors.youtube.client import YouTubeClient
         from trendora.research import YouTubeResearchRetriever
@@ -309,7 +309,7 @@ class TestMultimarketAPI:
         service = ResearchApplicationService(
             ResearchCapabilityResolver(), {"youtube": YouTubeResearchRetriever(client)}
         )
-        app = create_app()
+        app = create_test_app()
         app.dependency_overrides[get_research_application_service] = lambda: service
         return TestClient(app)
 

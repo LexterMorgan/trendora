@@ -1,6 +1,6 @@
 # 00 — Project overview
 
-Status: Product brief still applies. Milestone 1 added the database foundation; see [02_DATABASE_SCHEMA.md](02_DATABASE_SCHEMA.md). Connectors and product surfaces are not implemented.
+Status: Historical Phase 0 product brief. The authoritative [research-first product PRD](14_PRODUCT_ARCHITECTURE_REBASELINE.md) supersedes this document's product scope, framework direction, and phase restrictions. The content below records the original proposal; its implementation-status statements are not current. See the PRD and repository source for current behavior and remaining gaps.
 
 ## Product
 

@@ -4,7 +4,7 @@
  * surfaced explicitly.
  */
 
-import type { ResearchReferenceResponse } from "@/lib/trendora-api";
+import type { ResearchReferenceResponse } from "./trendora-api.ts";
 import type {
   CitationJson,
   ContentBriefJson,
@@ -16,7 +16,7 @@ import type {
   PatternAggregateJson,
   ReferenceIdJson,
   ResearchReportResponse,
-} from "@/lib/report-api";
+} from "./report-api.ts";
 
 export function referenceKey(reference: ReferenceIdJson): string {
   return `${reference.source_code}:${reference.content_external_id}`;
@@ -30,7 +30,7 @@ export interface ProvenanceMaps {
 
 export function buildProvenanceMaps(report: ResearchReportResponse): ProvenanceMaps {
   const referenceById = new Map<string, ResearchReferenceResponse>();
-  for (const reference of report.research.references) {
+  for (const reference of report.research.references ?? []) {
     referenceById.set(
       referenceKey({ source_code: reference.source_code, content_external_id: reference.content_external_id }),
       reference,
@@ -38,13 +38,13 @@ export function buildProvenanceMaps(report: ResearchReportResponse): ProvenanceM
   }
   const analysisById = new Map<string, EvidenceAnalysisJson>();
   if (report.evidence) {
-    for (const analysis of report.evidence.analyses) {
+    for (const analysis of report.evidence.analyses ?? []) {
       analysisById.set(referenceKey(analysis.reference_id), analysis);
     }
   }
   const patternByType = new Map<string, PatternAggregateJson>();
   if (report.evidence) {
-    for (const pattern of report.evidence.patterns) {
+    for (const pattern of report.evidence.patterns ?? []) {
       patternByType.set(pattern.observation_type, pattern);
     }
   }
@@ -69,6 +69,52 @@ export interface ResolvedCitation {
   detail: string;
 }
 
+export type PublicationScope = "in_window" | "outside_window" | "undated" | "unknown_window";
+type DateWindow = { date_from?: string; date_to?: string } | null | undefined;
+
+export function hasSourceBackedSummaries(report: ResearchReportResponse): boolean {
+  const provenance = report.interpretation?.model_provenance;
+  return provenance?.provider === "source_evidence" && provenance.model === "extractive-v1";
+}
+
+function validCalendarDate(value: string | undefined): boolean {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+export function publicationDay(publishedAt: string | null | undefined): string | null {
+  if (!publishedAt || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(publishedAt) || !validCalendarDate(publishedAt.slice(0, 10))) return null;
+  const published = new Date(publishedAt);
+  return Number.isFinite(published.getTime()) ? published.toISOString().slice(0, 10) : null;
+}
+
+export function publicationScope(publishedAt: string | null | undefined, window: DateWindow): PublicationScope {
+  const from = window?.date_from, to = window?.date_to;
+  if (!from || !to || !validCalendarDate(from) || !validCalendarDate(to) || from > to) return "unknown_window";
+  const day = publicationDay(publishedAt);
+  if (!day) return "undated";
+  return day >= from && day <= to ? "in_window" : "outside_window";
+}
+
+export function citationPublicationScope(citations: ResolvedCitation[], window: DateWindow): PublicationScope {
+  if (!validCalendarDate(window?.date_from) || !validCalendarDate(window?.date_to) || window!.date_from! > window!.date_to!) return "unknown_window";
+  if (!citations.length || citations.some((citation) => !citation.resolved || citation.unresolvedIdentifiers.length)) return "undated";
+  const references = citations.flatMap((citation) => citation.references);
+  if (!references.length) return "undated";
+  const scopes = references.map(({ reference }) => publicationScope(reference.published_at, window));
+  if (scopes.includes("outside_window")) return "outside_window";
+  if (scopes.includes("unknown_window")) return "unknown_window";
+  return scopes.every((scope) => scope === "in_window") ? "in_window" : "undated";
+}
+
+export function publicationScopeLabel(scope: PublicationScope): string {
+  if (scope === "in_window") return "Source published within requested timeframe";
+  if (scope === "outside_window") return "Outside-window source context";
+  if (scope === "undated") return "Undated source context";
+  return "Publication timeframe unavailable";
+}
+
 export function resolveCitation(citation: CitationJson, maps: ProvenanceMaps): ResolvedCitation {
   if (citation.kind === "pattern") {
     const pattern = maps.patternByType.get(citation.observation_type);
@@ -84,8 +130,8 @@ export function resolveCitation(citation: CitationJson, maps: ProvenanceMaps): R
       };
     }
     const supporting = [
-      ...pattern.matching_reference_ids,
-      ...pattern.non_matching_reference_ids,
+      ...(pattern.matching_reference_ids ?? []),
+      ...(pattern.non_matching_reference_ids ?? []),
     ];
     const resolved = resolveReferences(supporting, maps);
     return {
@@ -103,7 +149,7 @@ export function resolveCitation(citation: CitationJson, maps: ProvenanceMaps): R
   const analysis = maps.analysisById.get(referenceKey(referenceId)) ?? null;
 
   if (citation.kind === "fact") {
-    const fact = analysis?.facts.find((item) => item.field === citation.field) ?? null;
+    const fact = analysis?.facts?.find((item) => item.field === citation.field);
     const resolved = resolveReferences([referenceId], maps);
     return {
       citation,
@@ -118,7 +164,7 @@ export function resolveCitation(citation: CitationJson, maps: ProvenanceMaps): R
     };
   }
 
-  const observation = analysis?.observations.find(
+  const observation = analysis?.observations?.find(
     (item) => item.observation_type === citation.observation_type,
   );
   const resolved = resolveReferences([referenceId], maps);
@@ -173,6 +219,9 @@ type StageItem =
 
 export function resolveUpstreamChain(report: ResearchReportResponse, entry: StageItem): ChainLink[] {
   const links: ChainLink[] = [];
+  if (entry.kind === "interpretation") {
+    return [{ label: "Interpretation", value: entry.item.statement, resolved: true }];
+  }
   if (!report.ideation || !report.strategy || !report.interpretation) {
     return links;
   }
@@ -183,7 +232,7 @@ export function resolveUpstreamChain(report: ResearchReportResponse, entry: Stag
 
   if (entry.kind === "brief") {
     push("Brief", `#${entry.item.idea_index}`, true);
-    const idea = report.ideation.content_ideas[entry.item.idea_index];
+    const idea = report.ideation.content_ideas?.[entry.item.idea_index];
     if (!idea) {
       push("Idea", `#${entry.item.idea_index}`, false);
       return links;
@@ -196,21 +245,21 @@ export function resolveUpstreamChain(report: ResearchReportResponse, entry: Stag
   }
   if (entry.kind === "opportunity") {
     push("Opportunity", entry.item.statement, true);
-    for (const gapIndex of entry.item.gap_indexes) {
-      const gap = report.strategy.content_gaps[gapIndex];
+    for (const gapIndex of entry.item.gap_indexes ?? []) {
+      const gap = report.strategy.content_gaps?.[gapIndex];
       if (!gap) {
         push("Gap", `#${gapIndex}`, false);
       } else {
         push("Gap", gap.statement, true);
-        push("Interpretation", `#${gap.supporting_interpretation_indexes.join(", ")}`, true);
+        push("Interpretation", `#${(gap.supporting_interpretation_indexes ?? []).join(", ")}`, true);
       }
     }
     return links;
   }
   if (entry.kind === "gap") {
     push("Gap", entry.item.statement, true);
-    for (const index of entry.item.supporting_interpretation_indexes) {
-      const interpretation = report.interpretation.interpretations[index];
+    for (const index of entry.item.supporting_interpretation_indexes ?? []) {
+      const interpretation = report.interpretation.interpretations?.[index];
       if (!interpretation) {
         push("Interpretation", `#${index}`, false);
       } else {
@@ -219,21 +268,20 @@ export function resolveUpstreamChain(report: ResearchReportResponse, entry: Stag
     }
     return links;
   }
-  push("Interpretation", entry.item.statement, true);
   return links;
 }
 
 function ideaChain(report: ResearchReportResponse, idea: ContentIdeaJson): ChainLink[] {
   const links: ChainLink[] = [];
-  for (const opportunityIndex of idea.opportunity_indexes) {
-    const opportunity = report.strategy?.opportunities[opportunityIndex];
+  for (const opportunityIndex of idea.opportunity_indexes ?? []) {
+    const opportunity = report.strategy?.opportunities?.[opportunityIndex];
     if (!opportunity) {
       links.push({ label: "Opportunity", value: `#${opportunityIndex}`, resolved: false });
       continue;
     }
     links.push({ label: "Opportunity", value: opportunity.statement, resolved: true });
-    for (const gapIndex of opportunity.gap_indexes) {
-      const gap = report.strategy?.content_gaps[gapIndex];
+    for (const gapIndex of opportunity.gap_indexes ?? []) {
+      const gap = report.strategy?.content_gaps?.[gapIndex];
       if (!gap) {
         links.push({ label: "Gap", value: `#${gapIndex}`, resolved: false });
       } else {

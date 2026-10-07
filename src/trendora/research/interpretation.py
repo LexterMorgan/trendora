@@ -27,6 +27,7 @@ from trendora.research.evidence import (
     ReferenceId,
 )
 from trendora.research.exceptions import ResearchInterpretationError
+from trendora.research.models import ResearchQuery
 from trendora.research.patterns import PatternAggregate
 
 _FACT_FIELD_TO_BASIS: dict[EvidenceField, AnalysisBasis] = {
@@ -93,6 +94,7 @@ class EvidencePack:
 
     analyses: tuple[ReferenceAnalysis, ...]
     patterns: tuple[PatternAggregate, ...] = ()
+    research_query: ResearchQuery | None = None
 
     def __post_init__(self) -> None:
         if not self.analyses:

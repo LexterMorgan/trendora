@@ -9,14 +9,12 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 
-from trendora.config import reset_settings_cache
 from trendora.connectors.github.connector import GitHubConnector
 from trendora.connectors.github.normalizer import NormalizedRepository
 from trendora.connectors.github.persistence import persist_repository
 from trendora.connectors.github.schemas import RepositoryResource
-from trendora.db.session import get_engine, reset_engine
 from trendora.models import ContentItem, ContentItemTopic, MetricSnapshot, Publisher
 from trendora.reference import SOURCE_IDS
 from tests.fixtures.github_responses import REPO_A, REPO_A_FULL_NAME, REPO_B, REPO_B_FULL_NAME
@@ -26,26 +24,6 @@ pytestmark = pytest.mark.integration
 COLLECTED = datetime(2026, 8, 20, 22, 0, tzinfo=timezone.utc)
 COLLECTED_LATER = datetime(2026, 8, 20, 23, 0, tzinfo=timezone.utc)
 GH_SOURCE = SOURCE_IDS["github"]
-
-
-@pytest.fixture
-def db_session(database_url: str) -> Session:
-    assert database_url
-    reset_settings_cache()
-    reset_engine()
-    engine = get_engine()
-    connection = engine.connect()
-    transaction = connection.begin()
-    factory = sessionmaker(bind=connection, autoflush=False, expire_on_commit=False)
-    session = factory()
-    try:
-        yield session
-    finally:
-        session.close()
-        transaction.rollback()
-        connection.close()
-        reset_engine()
-        reset_settings_cache()
 
 
 class _SessionStore:

@@ -8,7 +8,10 @@ Research:
   capability resolution → configured source retriever → ResearchRun → response
 
 Thin adapters only: no forecasting/retrieval logic, no SQL, no connectors in
-the route layer, no persistence, no auth, no rate limiting.
+the route layer, no persistence, no rate limiting. Authentication is the one
+exception: every route except ``/health`` requires an active local membership
+(``require_member``); the admin router adds ``require_admin``. Report reads
+carry the rolling 30-day visibility cutoff for non-admins.
 """
 
 from __future__ import annotations
@@ -16,7 +19,8 @@ from __future__ import annotations
 import logging
 from collections.abc import Generator
 from contextlib import ExitStack
-from uuid import UUID
+from datetime import datetime
+from uuid import UUID, uuid4
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query
@@ -30,26 +34,39 @@ from trendora.connectors.web_search.serper_gateway import SerperGateway
 from trendora.connectors.youtube.client import YouTubeClient
 from trendora.db.session import get_session_factory
 from trendora.forecasting.exceptions import ForecastingValidationError
-from trendora.models.research import ResearchReportRecord
 from trendora.product import V1_METRICS, GitHubForecastProduct, GitHubForecastRequest
 from trendora.research.ai_provider import build_ai_provider_config
 from trendora.research.adapter import adapt_research_request
 from trendora.research.application import ResearchApplicationService, build_research_application_service
-from trendora.research.exceptions import ResearchNoCoverageError
+from trendora.research.exceptions import ResearchAIProviderNotConfiguredError, ResearchNoCoverageError
 from trendora.research.models import ResearchRunStatus
+from trendora.research.recovery import issue_recovery_receipt
 from trendora.research.reporting import (
     ResearchReportService,
     build_research_report_service,
 )
+from trendora.research.repository import insert_report_snapshot
+from trendora.retention import report_source_deadline
 
+from trendora.api.admin import admin_router
+from trendora.api.auth import (
+    Member,
+    get_utc_now,
+    report_visible_from,
+    require_member,
+)
+from trendora.api.deps import get_session
 from trendora.api.errors import register_error_handlers
 from trendora.api.models import ForecastResponse, to_forecast_response
+from trendora.api.report_save import ReportExpiredError, report_save_router
+from trendora.api.report_snapshot import SNAPSHOT_FIELDS, snapshot_fingerprint
 from trendora.api.research_models import (
     ResearchRequest,
     ResearchResponse,
     to_research_response,
 )
 from trendora.api.research_report_models import (
+    PersistenceOutcomeResponse,
     ResearchReportRequest,
     ResearchReportResponse,
     to_report_response,
@@ -69,46 +86,96 @@ class ReportSummaryResponse(BaseModel):
     source_codes: list[str]
     date_from: str
     date_to: str
-
-
-def get_session() -> Generator[Session, None, None]:
-    """FastAPI dependency: opens a database session for report reads."""
-    session = get_session_factory()()
-    try:
-        yield session
-    finally:
-        session.close()
+    snapshot_origin: str = "legacy_unclassified"
 
 
 def _persist_research_report(
     payload: ResearchReportRequest,
     response: ResearchReportResponse,
-) -> None:
-    """Best-effort append-only persistence of a completed report snapshot.
+    actor_id: UUID,
+) -> PersistenceOutcomeResponse:
+    """Best-effort append-only persistence with an explicit outcome.
 
     Persistence is strictly optional: a missing ``DATABASE_URL`` or any insert
-    failure is logged and swallowed so the HTTP response is never affected.
+    failure never affects the HTTP generation response. The outcome is derived
+    from the normalized query, fingerprinted canonically, and keyed on the
+    authenticated actor plus a stable request id so a later recovery by the
+    same actor can acknowledge it.
     """
+    request_id = uuid4()
+    snapshot = _snapshot_projection(response)
+    fingerprint = snapshot_fingerprint(snapshot)
+    now = get_utc_now()
+    source_expires_at = report_source_deadline(snapshot, now=now)
+    recovery_receipt = None
+    query = response.research.query
+    outcome_meta = {
+        "topic": query.topic,
+        "markets": list(query.markets),
+        "source_codes": list(query.sources),
+        "date_from": query.date_from,
+        "date_to": query.date_to,
+    }
     try:
-        if not get_settings().database_url:
-            return
+        settings = get_settings()
+        if source_expires_at is not None and source_expires_at > now:
+            recovery_receipt = issue_recovery_receipt(
+                actor_id=actor_id, request_id=request_id, fingerprint=fingerprint,
+                source_expires_at=source_expires_at,
+                signing_key=getattr(settings, "report_recovery_signing_key", None),
+            )
+        if not settings.database_url:
+            return PersistenceOutcomeResponse(
+                status="failed",
+                request_id=str(request_id),
+                report_id=None,
+                snapshot_origin="server_generated",
+                error_code="persistence_unconfigured",
+                recovery_receipt=recovery_receipt,
+            )
         session = get_session_factory()()
         try:
-            record = ResearchReportRecord(
+            record = insert_report_snapshot(
+                session,
+                snapshot=snapshot,
+                fingerprint=fingerprint,
+                request_id=request_id,
+                created_by=actor_id,
+                origin="server_generated",
+                source_expires_at=source_expires_at,
                 status=response.status,
-                topic=payload.topic,
-                markets=list(payload.markets) if payload.markets else list(response.research.query.markets),
-                source_codes=list(payload.sources),
-                date_from=payload.date_from,
-                date_to=payload.date_to,
-                report=response.model_dump(mode="json"),
+                **outcome_meta,
             )
-            session.add(record)
+            # Copy the generated id before commit: commit expires the ORM
+            # instance, so reading it afterwards would trigger a reload.
+            report_id = str(record.id)
             session.commit()
         finally:
             session.close()
-    except Exception as exc:  # noqa: BLE001 — best-effort only
-        logger.warning("Failed to persist research report: %s", exc)
+    except Exception as exc:  # noqa: BLE001 - best-effort only
+        logger.warning("Failed to persist research report: %s", type(exc).__name__)
+        return PersistenceOutcomeResponse(
+            status="unknown",
+            request_id=str(request_id),
+            report_id=None,
+            snapshot_origin="server_generated",
+            error_code="persistence_uncertain",
+            recovery_receipt=recovery_receipt,
+        )
+    return PersistenceOutcomeResponse(
+        status="saved",
+        request_id=str(request_id),
+        report_id=report_id,
+        snapshot_origin="server_generated",
+        error_code=None,
+        recovery_receipt=recovery_receipt,
+    )
+
+
+def _snapshot_projection(response: ResearchReportResponse) -> dict:
+    """The immutable six-field snapshot, excluding persistence metadata."""
+    dumped = response.model_dump(mode="json")
+    return {field: dumped.get(field) for field in SNAPSHOT_FIELDS}
 
 
 def _build_serp_gateway(settings) -> SerperGateway | None:
@@ -174,22 +241,24 @@ def get_research_application_service() -> Generator[ResearchApplicationService, 
         yield service
 
 
-def get_research_report_service() -> Generator[ResearchReportService, None, None]:
-    """FastAPI dependency: report pipeline service.
-
-    Fails fast when AI configuration is missing (missing provider config is
-    never ``no_evidence`` or empty AI output). Owns one YouTube client, one
-    Facebook client, and one shared HTTP client for the three AI adapters;
-    each closes exactly once. Tests override this dependency.
-    """
+def get_research_report_service(
+    payload: ResearchReportRequest | None = None,
+) -> Generator[ResearchReportService, None, None]:
+    """Own source clients, research interpretation, and optional content adapters."""
 
     settings = get_settings()
-    config = build_ai_provider_config(
-        provider=settings.ai_provider,
-        model=settings.ai_model,
-        endpoint_url=settings.ai_endpoint_url,
-        api_key=settings.ai_api_key,
-    )
+    config = None
+    content_tools = payload.include_content_tools if payload is not None else None
+    try:
+        config = build_ai_provider_config(
+            provider=settings.ai_provider,
+            model=settings.ai_model,
+            endpoint_url=settings.ai_endpoint_url,
+            api_key=settings.ai_api_key,
+        )
+    except ResearchAIProviderNotConfiguredError:
+        if content_tools is None:
+            raise
     with ExitStack() as stack:
         youtube_client = (
             YouTubeClient(settings.youtube_api_key) if settings.youtube_api_key else None
@@ -208,8 +277,10 @@ def get_research_report_service() -> Generator[ResearchReportService, None, None
         serp_gateway = _build_serp_gateway(settings)
         if serp_gateway is not None:
             stack.callback(serp_gateway.close)
-        http = httpx.Client(timeout=config.timeout_seconds)
-        stack.callback(http.close)
+        http = None
+        if config is not None:
+            http = httpx.Client(timeout=config.timeout_seconds)
+            stack.callback(http.close)
         service = build_research_report_service(
             youtube_client=youtube_client,
             facebook_client=facebook_client,
@@ -221,20 +292,45 @@ def get_research_report_service() -> Generator[ResearchReportService, None, None
 
 
 def create_app() -> FastAPI:
+    settings = get_settings()
+    if settings.app_env.lower() == "production" and not settings.supabase_url:
+        raise RuntimeError(
+            "SUPABASE_URL must be configured when APP_ENV=production; "
+            "refusing to start without authentication"
+        )
     app = FastAPI(
         title="Trendora API",
         description=(
             "Trendora read-model API. V1 exposes the GitHub forecast product "
             "(M10) and the source-routed research workflow (M15): query + "
-            "capability coverage + normalized in-memory references."
+            "capability coverage + normalized in-memory references. Every "
+            "route except /health requires a Supabase access token with an "
+            "active local membership."
         ),
     )
     register_error_handlers(app)
+    app.include_router(admin_router)
+    app.include_router(report_save_router)
+    # Imported here: trendora.api.planner imports trendora.planner, which
+    # imports trendora.api.errors and re-enters this module while the
+    # trendora.api package is still initializing.
+    from trendora.api.planner import planner_router
+
+    app.include_router(planner_router)
+
+    @app.get(
+        "/health",
+        summary="Liveness probe",
+        description="Unauthenticated health probe used by the platform.",
+    )
+    def health() -> dict[str, str]:
+        return {"status": "ok"}
 
     @app.get(
         "/api/v1/forecasts/github/{content_item_id}",
         response_model=ForecastResponse,
         summary="GitHub repository forecast",
+        dependencies=[Depends(require_member)],
         description=(
             "Trendora-derived naive level forecast for a GitHub repository "
             "content_item (stargazer_count or fork_count). Exactly 4 points "
@@ -265,6 +361,7 @@ def create_app() -> FastAPI:
         "/api/v1/research",
         response_model=ResearchResponse,
         summary="Run source-routed research",
+        dependencies=[Depends(require_member)],
         description=(
             "Run one synchronous research request: topic + market + date "
             "window → capability coverage → configured source retrievers "
@@ -302,13 +399,14 @@ def create_app() -> FastAPI:
     @app.post(
         "/api/v1/research/report",
         response_model=ResearchReportResponse,
-        summary="Run full research report",
+        summary="Run research with optional content tools",
+        dependencies=[Depends(require_member)],
         description=(
-            "Run one synchronous full research report: research → evidence → "
-            "patterns → grounded interpretation → gaps/opportunities → ideas/"
-            "briefs. Returns the validated report with provenance at every "
-            "stage. Requires AI provider configuration; no persistence, no "
-            "ranking, no performance claims."
+            "Collect sources and synthesize research with grounded interpretation, "
+            "falling back to labeled source excerpts if interpretation is unavailable. "
+            "Explicit include_content_tools=false skips content stages; true adds optional "
+            "grounded strategy and ideation. Omission preserves the legacy pipeline. "
+            "Generation returns an explicit best-effort save outcome."
         ),
         responses={
             422: {"description": "Invalid research request, or no requested source has usable coverage"},
@@ -319,6 +417,7 @@ def create_app() -> FastAPI:
     def research_report(
         payload: ResearchReportRequest,
         service: ResearchReportService = Depends(get_research_report_service),
+        member: Member = Depends(require_member),
     ) -> ResearchReportResponse:
         query = adapt_research_request(payload.model_dump())
         report = service.build_report(
@@ -329,9 +428,10 @@ def create_app() -> FastAPI:
             sources=query.source_codes,
             result_limit=query.result_limit,
             facebook_page_id=query.facebook_page_id,
+            include_content_tools=payload.include_content_tools,
         )
         response = to_report_response(report)
-        _persist_research_report(payload, response)
+        response.persistence = _persist_research_report(payload, response, member.user_id)
         return response
 
     @app.get(
@@ -339,18 +439,27 @@ def create_app() -> FastAPI:
         response_model=list[ReportSummaryResponse],
         summary="List persisted research reports",
         description=(
-            "Return a paginated list of all persisted reports ordered by "
-            "creation time descending. Summaries only — no full JSONB payloads."
+            "Return a paginated list of persisted reports ordered by "
+            "creation time descending, newest first. Summaries only, no "
+            "full JSONB payloads. Non-admins only see reports from the "
+            "rolling 30-day window; admins see all of them."
         ),
     )
     def list_research_reports(
         limit: int = Query(default=50, ge=1, le=100, description="Max records to return"),
         offset: int = Query(default=0, ge=0, description="Offset for pagination"),
         session: Session = Depends(get_session),
+        member: Member = Depends(require_member),
+        now: datetime = Depends(get_utc_now),
     ) -> list[ReportSummaryResponse]:
         from trendora.research.repository import get_report_records
 
-        summaries, _total = get_report_records(session, limit=limit, offset=offset)
+        summaries, _total = get_report_records(
+            session,
+            limit=limit,
+            offset=offset,
+            visible_from=report_visible_from(member, now),
+        )
         return [ReportSummaryResponse(**summary) for summary in summaries]
 
     @app.get(
@@ -359,19 +468,38 @@ def create_app() -> FastAPI:
         summary="Fetch single report by ID",
         description=(
             "Return the full report snapshot including evidence, interpretation, "
-            "strategy, and ideation."
+            "strategy, and ideation. The same rolling 30-day visibility rule "
+            "as the list route applies to non-admins."
         ),
         responses={404: {"description": "Report not found"}},
     )
     def get_single_report(
         report_id: str,
         session: Session = Depends(get_session),
+        member: Member = Depends(require_member),
+        now: datetime = Depends(get_utc_now),
     ) -> ResearchReportResponse:
         from trendora.research.repository import get_report_record_by_id
 
-        full_report = get_report_record_by_id(session, report_id)
+        full_report = get_report_record_by_id(
+            session,
+            report_id,
+            visible_from=report_visible_from(member, now),
+        )
         if full_report is None:
             raise HTTPException(status_code=404, detail="Report not found")
-        return ResearchReportResponse(**full_report["report"])
+        if full_report.get("status") == "source_data_expired" or (
+            full_report["report"].get("status") == "source_data_expired"
+        ):
+            raise ReportExpiredError("This report's source data has expired and was removed.")
+        response = ResearchReportResponse(**full_report["report"])
+        response.persistence = PersistenceOutcomeResponse(
+            status="saved",
+            request_id=None,
+            report_id=full_report["id"],
+            snapshot_origin=full_report.get("snapshot_origin", "legacy_unclassified"),
+            error_code=None,
+        )
+        return response
 
     return app

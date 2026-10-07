@@ -3,9 +3,10 @@ import { ReferenceCard } from "./ReferenceCard";
 
 interface ReferenceListProps {
   references: ResearchReferenceResponse[];
+  window?: { date_from?: string; date_to?: string };
 }
 
-export function ReferenceList({ references }: ReferenceListProps) {
+export function ReferenceList({ references, window }: ReferenceListProps) {
   return (
     <section className="reference-list" aria-label="Research references">
       <h2 className="section-title">References</h2>
@@ -14,6 +15,7 @@ export function ReferenceList({ references }: ReferenceListProps) {
           <ReferenceCard
             key={`${reference.source_code}-${reference.content_external_id}`}
             reference={reference}
+            window={window}
           />
         ))}
       </div>

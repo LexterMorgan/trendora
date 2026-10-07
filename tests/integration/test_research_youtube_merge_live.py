@@ -23,8 +23,9 @@ from datetime import date, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from trendora.api import create_app
+from tests.support.app import create_test_app
 from trendora.config import get_settings, reset_settings_cache
+from tests.io_guards import GUARDS
 
 pytestmark = pytest.mark.integration
 
@@ -38,9 +39,11 @@ def live_client():
     reset_settings_cache()
     if not get_settings().youtube_api_key:
         pytest.skip("YOUTUBE_API_KEY is not configured")
-    app = create_app()
-    with TestClient(app) as client:
-        yield client
+    app = create_test_app()
+    # Network permit comes after every opt-in check above; no database permit.
+    with GUARDS.permit_network():
+        with TestClient(app) as client:
+            yield client
 
 
 def _summary(body: dict) -> dict:

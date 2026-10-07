@@ -63,6 +63,11 @@ def test_cli_empty_watchlist(monkeypatch: pytest.MonkeyPatch) -> None:
     _db_env(monkeypatch)
     monkeypatch.setenv("YOUTUBE_API_KEY", "test-key-not-real")
     monkeypatch.setenv("YOUTUBE_CHANNEL_IDS", "")
+    # Persistence is not under test; never construct the application engine here.
+    monkeypatch.setattr(
+        "trendora.connectors.youtube.connector.SqlAlchemyChannelStore",
+        lambda *args, **kwargs: object(),
+    )
     assert main([]) == 2
 
 

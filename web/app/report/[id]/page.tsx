@@ -5,7 +5,9 @@ import Link from "next/link";
 
 import { getSingleReport, isResearchReport, type ResearchReportResponse } from "@/lib/report-api";
 import { ResearchApiError } from "@/lib/trendora-api";
+import { ApiErrorPanel, type ApiErrorState } from "@/components/ApiErrorPanel";
 import { Header } from "@/components/Header";
+import { Protected } from "@/components/Protected";
 import { ReportView } from "@/components/ReportView";
 
 interface ReportPageProps {
@@ -14,13 +16,23 @@ interface ReportPageProps {
 
 export default function ReportPage({ params }: ReportPageProps) {
   const { id } = use(params);
+  return (
+    <Protected>
+      <ReportContent id={id} />
+    </Protected>
+  );
+}
+
+function ReportContent({ id }: { id: string }) {
   const [report, setReport] = useState<ResearchReportResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<{ code: string; message: string } | null>(null);
+  const [error, setError] = useState<ApiErrorState | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
-    getSingleReport(id)
+    const controller = new AbortController();
+    getSingleReport(id, { signal: controller.signal })
       .then((data) => {
         if (!active) return;
         setReport(isResearchReport(data) ? data : null);
@@ -31,7 +43,7 @@ export default function ReportPage({ params }: ReportPageProps) {
         setReport(null);
         setError(
           err instanceof ResearchApiError
-            ? { code: err.code, message: err.message }
+            ? { code: err.code, message: err.message, kind: err.kind }
             : { code: "internal_error", message: "An unexpected error occurred." },
         );
       })
@@ -40,10 +52,16 @@ export default function ReportPage({ params }: ReportPageProps) {
       });
     return () => {
       active = false;
+      controller.abort();
     };
-  }, [id]);
+  }, [id, reloadKey]);
 
-  const topic = report?.research.query.topic;
+  function retry() {
+    setLoading(true);
+    setReloadKey((key) => key + 1);
+  }
+
+  const topic = report?.research.query?.topic;
   const section = topic ? `Report: ${topic}` : "Report";
 
   return (
@@ -66,18 +84,18 @@ export default function ReportPage({ params }: ReportPageProps) {
       )}
 
       {error && (
-        <section className="error-state" role="alert">
-          <h2 className="section-title">
-            {error.code === "not_found" ? "Report not found" : "Could not load report"}
-          </h2>
-          <p>{error.message}</p>
+        <ApiErrorPanel
+          error={error}
+          title={error.code === "not_found" ? "Report not found" : "Could not load report"}
+          onRetry={retry}
+        >
           <Link className="secondary-button" href="/past-reports">
             Back to past reports
           </Link>
-        </section>
+        </ApiErrorPanel>
       )}
 
-      {!loading && !error && report && <ReportView report={report} />}
+      {!loading && !error && report && <ReportView key={id} report={report} />}
     </main>
   );
 }

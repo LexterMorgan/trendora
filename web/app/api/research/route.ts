@@ -39,9 +39,14 @@ export async function POST(request: NextRequest) {
 
   let upstream: Response;
   try {
+    const headers: Record<string, string> = {
+      "content-type": "application/json",
+    };
+    const authorization = request.headers.get("authorization");
+    if (authorization) headers.authorization = authorization;
     upstream = await fetch(`${API_BASE_URL}/api/v1/research`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers,
       body: JSON.stringify(body),
       cache: "no-store",
     });
@@ -61,6 +66,9 @@ export async function POST(request: NextRequest) {
   const contentType = upstream.headers.get("content-type") ?? "application/json";
   return new NextResponse(text, {
     status: upstream.status,
-    headers: { "content-type": contentType },
+    headers: {
+      "content-type": contentType,
+      "cache-control": "private, no-store",
+    },
   });
 }

@@ -25,9 +25,13 @@ export async function GET(request: NextRequest) {
   }
 
   const search = request.nextUrl.search;
+  const headers: Record<string, string> = {};
+  const authorization = request.headers.get("authorization");
+  if (authorization) headers.authorization = authorization;
   let upstream: Response;
   try {
     upstream = await fetch(`${API_BASE_URL}/api/v1/research/reports${search}`, {
+      headers,
       cache: "no-store",
     });
   } catch {
@@ -46,6 +50,9 @@ export async function GET(request: NextRequest) {
   const contentType = upstream.headers.get("content-type") ?? "application/json";
   return new NextResponse(text, {
     status: upstream.status,
-    headers: { "content-type": contentType },
+    headers: {
+      "content-type": contentType,
+      "cache-control": "private, no-store",
+    },
   });
 }

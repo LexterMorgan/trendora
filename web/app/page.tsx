@@ -1,26 +1,36 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 
 import { type ResearchFormValues } from "@/components/ResearchForm";
 import { SimpleForm } from "@/components/SimpleForm";
 import { Header } from "@/components/Header";
+import { Protected } from "@/components/Protected";
+import { SignOutButton } from "@/components/SignOutButton";
 import { TurnView, userMessage, type SessionTurn } from "@/components/TurnView";
 import { submitReport } from "@/lib/report-api";
 import { ResearchApiError } from "@/lib/trendora-api";
+import { createSubmitGate } from "@/lib/submit-gate";
 
 export default function Home() {
+  return (
+    <Protected>
+      <Workspace />
+    </Protected>
+  );
+}
+
+function Workspace() {
   const [turns, setTurns] = useState<SessionTurn[]>([]);
   const [composerKey, setComposerKey] = useState(0);
   const [editValues, setEditValues] = useState<Partial<ResearchFormValues>>({});
   const [busy, setBusy] = useState(false);
-  const busyRef = useRef(false);
+  const [gate] = useState(createSubmitGate);
   const emptySession = turns.length === 0;
 
   async function handleSubmit(values: ResearchFormValues) {
-    if (busyRef.current) return;
-    busyRef.current = true;
+    if (!gate.acquire()) return;
     setBusy(true);
 
     const id = Date.now();
@@ -43,13 +53,13 @@ export default function Home() {
     } catch (err) {
       const error =
         err instanceof ResearchApiError
-          ? { code: err.code, message: err.message }
+          ? { code: err.code, message: err.message, kind: err.kind }
           : { code: "internal_error", message: "An unexpected error occurred." };
       setTurns((current) =>
         current.map((item) => (item.id === id ? { ...item, state: "error", error } : item)),
       );
     } finally {
-      busyRef.current = false;
+      gate.release();
       setBusy(false);
     }
   }
@@ -68,15 +78,21 @@ export default function Home() {
             <header className="canvas-masthead">
               <p className="brand">TRENDORA</p>
               <h1 className="canvas-headline">
-                Turn social signals into content decisions.
+                Understand what’s happening in your topics.
               </h1>
               <p className="canvas-subtitle">
-                Every result traces back to real source evidence — references,
-                citations, and full provenance are surfaced with each answer.
+                Explore sourced findings, publication dates, and coverage limits.
+                Content ideas and briefs are optional.
               </p>
-              <Link className="secondary-button history-link" href="/past-reports">
-                Past reports
-              </Link>
+              <div className="canvas-actions">
+                <Link className="secondary-button history-link" href="/planner">
+                  Planner
+                </Link>
+                <Link className="secondary-button history-link" href="/past-reports">
+                  Past reports
+                </Link>
+                <SignOutButton className="canvas-signout" />
+              </div>
             </header>
 
             <section className="composer-panel" aria-label="Research request">
@@ -110,7 +126,12 @@ export default function Home() {
 
             <section className="chat-session" aria-live="polite">
               {turns.map((turn) => (
-                <TurnView key={turn.id} turn={turn} onEdit={handleEdit} />
+                <TurnView
+                  key={turn.id}
+                  turn={turn}
+                  onEdit={handleEdit}
+                  onRetry={handleSubmit}
+                />
               ))}
             </section>
           </div>

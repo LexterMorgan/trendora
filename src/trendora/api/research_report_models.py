@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, StrictBool
 
 from trendora.api.research_models import ResearchRequest, ResearchResponse, to_research_response
 from trendora.research.ai_provider import evidence_pack_to_payload
@@ -25,6 +25,8 @@ class ResearchReportRequest(ResearchRequest):
     """Same body as M15 research, but unknown fields are rejected."""
 
     model_config = ConfigDict(extra="forbid")
+    # None keeps requests from older clients on their existing pipeline.
+    include_content_tools: StrictBool | None = None
 
 
 class ModelProvenanceResponse(BaseModel):
@@ -120,6 +122,17 @@ class IdeationResultResponse(BaseModel):
     content_briefs: list[ContentBriefResponse]
 
 
+class PersistenceOutcomeResponse(BaseModel):
+    """Persistence metadata, outside the immutable six-field snapshot."""
+
+    status: str
+    request_id: str | None
+    report_id: str | None
+    snapshot_origin: str
+    error_code: str | None
+    recovery_receipt: str | None = None
+
+
 class ResearchReportResponse(BaseModel):
     status: str
     research: ResearchResponse
@@ -127,6 +140,7 @@ class ResearchReportResponse(BaseModel):
     interpretation: InterpretationResultResponse | None
     strategy: StrategicResultResponse | None
     ideation: IdeationResultResponse | None
+    persistence: PersistenceOutcomeResponse | None = None
 
 
 def to_report_response(report: ResearchReport) -> ResearchReportResponse:

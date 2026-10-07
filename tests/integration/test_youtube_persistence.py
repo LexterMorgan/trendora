@@ -1,4 +1,4 @@
-"""PostgreSQL persistence tests for YouTube ingestion. Skipped without DATABASE_URL.
+"""PostgreSQL persistence tests for YouTube ingestion. Skipped without TRENDORA_TEST_DATABASE_URL.
 
 These tests roll back and never call the YouTube API.
 """
@@ -8,13 +8,11 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 
-from trendora.config import reset_settings_cache
 from trendora.connectors.youtube.normalizer import normalize_channel
 from trendora.connectors.youtube.persistence import persist_channel
 from trendora.connectors.youtube.schemas import ChannelResource, VideoResource
-from trendora.db.session import get_engine, reset_engine
 from trendora.models import ContentItem, MetricSnapshot, Publisher
 from trendora.reference import RETENTION_POLICY_IDS, SOURCE_IDS
 from tests.fixtures.youtube_responses import CHANNEL_A, CHANNELS_LIST_OK, VIDEOS_LIST_OK
@@ -23,26 +21,6 @@ pytestmark = pytest.mark.integration
 
 COLLECTED = datetime(2026, 8, 19, 16, 0, tzinfo=timezone.utc)
 COLLECTED_LATER = datetime(2026, 8, 19, 17, 0, tzinfo=timezone.utc)
-
-
-@pytest.fixture
-def db_session(database_url: str) -> Session:
-    assert database_url
-    reset_settings_cache()
-    reset_engine()
-    engine = get_engine()
-    connection = engine.connect()
-    transaction = connection.begin()
-    factory = sessionmaker(bind=connection, autoflush=False, expire_on_commit=False)
-    session = factory()
-    try:
-        yield session
-    finally:
-        session.close()
-        transaction.rollback()
-        connection.close()
-        reset_engine()
-        reset_settings_cache()
 
 
 def _bundle(collected_at: datetime):

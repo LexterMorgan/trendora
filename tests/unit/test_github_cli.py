@@ -115,6 +115,11 @@ def test_cli_missing_token_is_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_cli_invalid_max_items(monkeypatch: pytest.MonkeyPatch) -> None:
     _db_env(monkeypatch)
+    # Persistence is not under test; never construct the application engine here.
+    monkeypatch.setattr(
+        "trendora.connectors.github.connector.SqlAlchemyRepositoryStore",
+        lambda *args, **kwargs: object(),
+    )
     assert main(["--max-items", "0"]) == 2
 
 

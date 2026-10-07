@@ -25,6 +25,7 @@ export function SimpleForm({ onSubmit, disabled, initialValues, showExamples }: 
   const [topic, setTopic] = useState(initialValues?.topic ?? "");
   const [expanded, setExpanded] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [includeContentTools, setIncludeContentTools] = useState(initialValues?.include_content_tools ?? false);
 
   const [markets, setMarkets] = useState<string[]>(() =>
     initialValues?.markets?.length ? [...initialValues.markets] : ["SG"],
@@ -114,6 +115,7 @@ export function SimpleForm({ onSubmit, disabled, initialValues, showExamples }: 
       sources: source === "facebook" ? ["facebook"] : ["youtube"],
       result_limit: resultLimit,
       facebook_page_id: source === "facebook" ? facebookPageId.trim() : undefined,
+      include_content_tools: includeContentTools,
     };
     // Only send an explicit window when the user actually set one; otherwise
     // omit the fields so the M35A adapter applies its default last-30-days
@@ -134,7 +136,7 @@ export function SimpleForm({ onSubmit, disabled, initialValues, showExamples }: 
           type="text"
           value={topic}
           onChange={(event) => setTopic(event.target.value)}
-          placeholder="What content topic do you want to research?"
+          placeholder="What topic do you want to research?"
           required
           disabled={disabled}
         />
@@ -159,6 +161,11 @@ export function SimpleForm({ onSubmit, disabled, initialValues, showExamples }: 
           </div>
         </div>
       )}
+
+      <label className="source-option">
+        <input type="checkbox" checked={includeContentTools} onChange={(event) => setIncludeContentTools(event.target.checked)} disabled={disabled} />
+        <span className="source-name">Include content ideas and briefs</span>
+      </label>
 
       <button type="submit" className="primary-button" disabled={disabled}>
         {disabled ? "Generating report…" : "Generate research report"}

@@ -47,11 +47,12 @@ export const SOURCE_OPTIONS = [
 export interface ResearchFormValues {
   topic: string;
   markets: string[];
-  date_from: string;
-  date_to: string;
+  date_from?: string;
+  date_to?: string;
   sources: string[];
   result_limit: number;
   facebook_page_id?: string;
+  include_content_tools?: boolean;
 }
 
 /* Local-calendar date helpers. Never UTC, never hardcoded years. */
@@ -61,11 +62,15 @@ function todayLocal(): Date {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
-function toISODate(value: Date): string {
+export function toISODate(value: Date): string {
   const year = value.getFullYear();
   const month = String(value.getMonth() + 1).padStart(2, "0");
   const day = String(value.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+export function todayISODate(): string {
+  return toISODate(todayLocal());
 }
 
 function daysAgoLocal(today: Date, offset: number): Date {
@@ -129,6 +134,7 @@ export function ResearchForm({ onSubmit, disabled, initialValues, showExamples }
     initialValues?.facebook_page_id ?? "",
   );
   const [localError, setLocalError] = useState<string | null>(null);
+  const [includeContentTools, setIncludeContentTools] = useState(initialValues?.include_content_tools ?? false);
 
   const [preset, setPreset] = useState<string>(() => {
     if (initialValues?.date_from || initialValues?.date_to) return "custom";
@@ -207,6 +213,7 @@ export function ResearchForm({ onSubmit, disabled, initialValues, showExamples }
         sources: ["facebook"],
         result_limit: resultLimit,
         facebook_page_id: facebookPageId.trim(),
+        include_content_tools: includeContentTools,
       });
       return;
     }
@@ -217,6 +224,7 @@ export function ResearchForm({ onSubmit, disabled, initialValues, showExamples }
       date_to: dateTo,
       sources: ["youtube"],
       result_limit: resultLimit,
+      include_content_tools: includeContentTools,
     });
   }
 
@@ -229,7 +237,7 @@ export function ResearchForm({ onSubmit, disabled, initialValues, showExamples }
           type="text"
           value={topic}
           onChange={(event) => setTopic(event.target.value)}
-          placeholder="What content topic do you want to research?"
+          placeholder="What topic do you want to research?"
           required
           disabled={disabled}
         />
@@ -409,8 +417,13 @@ export function ResearchForm({ onSubmit, disabled, initialValues, showExamples }
 
       <div className="what-you-get">
         <span className="form-label">What you’ll get</span>
-        <p>References · Patterns · Opportunities · Ideas · Content briefs</p>
+        <p>Sourced findings, references, dates, and coverage limits.</p>
       </div>
+
+      <label className="source-option">
+        <input type="checkbox" checked={includeContentTools} onChange={(event) => setIncludeContentTools(event.target.checked)} disabled={disabled} />
+        <span className="source-name">Include content ideas and briefs</span>
+      </label>
 
       <button type="submit" className="primary-button" disabled={disabled}>
         {disabled ? "Generating report…" : "Generate research report"}

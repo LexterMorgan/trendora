@@ -27,11 +27,18 @@ export async function GET(
   }
 
   const { id } = await params;
+  const headers: Record<string, string> = {};
+  const authorization = request.headers.get("authorization");
+  if (authorization) headers.authorization = authorization;
   let upstream: Response;
   try {
-    upstream = await fetch(`${API_BASE_URL}/api/v1/research/reports/${id}`, {
-      cache: "no-store",
-    });
+    upstream = await fetch(
+      `${API_BASE_URL}/api/v1/research/reports/${encodeURIComponent(id)}`,
+      {
+        headers,
+        cache: "no-store",
+      },
+    );
   } catch {
     return NextResponse.json(
       {
@@ -48,6 +55,9 @@ export async function GET(
   const contentType = upstream.headers.get("content-type") ?? "application/json";
   return new NextResponse(text, {
     status: upstream.status,
-    headers: { "content-type": contentType },
+    headers: {
+      "content-type": contentType,
+      "cache-control": "private, no-store",
+    },
   });
 }

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { REPORT_BODY_LIMIT, proxyError, readBoundedBody } from "../../../lib/report-proxy.ts";
+
 /**
  * Thin same-origin proxy for the Trendora research report API.
  *
@@ -10,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
  */
 
 const API_BASE_URL = process.env.TRENDORA_API_BASE_URL;
+const REPORT_TIMEOUT_MS = 180_000;
 
 export async function POST(request: NextRequest) {
   if (!API_BASE_URL) {
@@ -25,40 +28,45 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: unknown;
+  const body = await readBoundedBody(request, REPORT_BODY_LIMIT, "report_request_too_large");
+  if (body instanceof Response) return body;
   try {
-    body = await request.json();
+    JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(body));
   } catch {
-    return NextResponse.json(
-      { error: { code: "invalid_request", message: "Request body must be valid JSON." } },
-      { status: 422 },
-    );
+    return proxyError(422, "invalid_request", "Request body must be valid JSON.");
   }
 
-  let upstream: Response;
+  const deadline = AbortSignal.timeout(REPORT_TIMEOUT_MS);
+  const signal = AbortSignal.any([request.signal, deadline]);
   try {
-    upstream = await fetch(`${API_BASE_URL}/api/v1/research/report`, {
+    signal.throwIfAborted();
+    const headers: Record<string, string> = {
+      "content-type": "application/json",
+    };
+    const authorization = request.headers.get("authorization");
+    if (authorization) headers.authorization = authorization;
+    const upstream = await fetch(`${API_BASE_URL}/api/v1/research/report`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
+      headers,
+      body,
       cache: "no-store",
+      redirect: "error",
+      signal,
+    });
+    const text = await upstream.text();
+    signal.throwIfAborted();
+    const contentType = upstream.headers.get("content-type") ?? "application/json";
+    return new NextResponse(text, {
+      status: upstream.status,
+      headers: {
+        "content-type": contentType,
+        "cache-control": "private, no-store",
+      },
     });
   } catch {
-    return NextResponse.json(
-      {
-        error: {
-          code: "backend_unreachable",
-          message: "Trendora backend could not be reached.",
-        },
-      },
-      { status: 502 },
-    );
+    if (deadline.aborted && !request.signal.aborted) {
+      return proxyError(504, "report_timeout", "Research took too long. Try a smaller scope or timeframe.");
+    }
+    return proxyError(502, "backend_unreachable", "Trendora backend could not be reached.");
   }
-
-  const text = await upstream.text();
-  const contentType = upstream.headers.get("content-type") ?? "application/json";
-  return new NextResponse(text, {
-    status: upstream.status,
-    headers: { "content-type": contentType },
-  });
 }

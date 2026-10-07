@@ -3,6 +3,7 @@
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
+from urllib.parse import urlparse
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -23,6 +24,7 @@ class Settings(BaseSettings):
     app_name: str = Field(default="trendora", alias="APP_NAME")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     database_url: str = Field(alias="DATABASE_URL")
+    supabase_url: str | None = Field(default=None, alias="SUPABASE_URL")
     youtube_api_key: str | None = Field(default=None, alias="YOUTUBE_API_KEY")
     youtube_channel_ids: Annotated[list[str], NoDecode] = Field(
         default_factory=list,
@@ -46,6 +48,9 @@ class Settings(BaseSettings):
     ai_model: str | None = Field(default=None, alias="TRENDORA_AI_MODEL")
     ai_endpoint_url: str | None = Field(default=None, alias="TRENDORA_AI_ENDPOINT_URL")
     ai_api_key: str | None = Field(default=None, alias="TRENDORA_AI_API_KEY")
+    report_recovery_signing_key: str | None = Field(
+        default=None, alias="TRENDORA_REPORT_RECOVERY_SIGNING_KEY", repr=False,
+    )
     serper_api_key: str | None = Field(default=None, alias="SERPER_API_KEY")
     web_search_enabled: bool = Field(default=True, alias="TRENDORA_WEB_SEARCH_ENABLED")
 
@@ -75,6 +80,8 @@ class Settings(BaseSettings):
         "ai_endpoint_url",
         "ai_api_key",
         "serper_api_key",
+        "supabase_url",
+        "report_recovery_signing_key",
         mode="before",
     )
     @classmethod
@@ -83,6 +90,28 @@ class Settings(BaseSettings):
             return None
         text = str(value).strip()
         return text or None
+
+    @field_validator("report_recovery_signing_key", mode="after")
+    @classmethod
+    def validate_recovery_signing_key(cls, value: str | None) -> str | None:
+        if value is not None and len(value.encode("utf-8")) < 32:
+            raise ValueError("TRENDORA_REPORT_RECOVERY_SIGNING_KEY must contain at least 32 UTF-8 bytes")
+        return value
+
+    @field_validator("supabase_url", mode="after")
+    @classmethod
+    def normalize_supabase_url(cls, value: str | None) -> str | None:
+        """Optional Supabase project URL; blank means auth is unavailable."""
+        if value is None:
+            return None
+        url = value.strip().rstrip("/")
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https") or not parsed.netloc:
+            raise ValueError(
+                "SUPABASE_URL must be an http(s) URL like "
+                "https://<project>.supabase.co"
+            )
+        return url
 
     @field_validator("youtube_channel_ids", mode="before")
     @classmethod

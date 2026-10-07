@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import { listReports, ResearchApiError, type ReportSummaryResponse } from "@/lib/trendora-api";
+import { ApiErrorPanel, type ApiErrorState } from "@/components/ApiErrorPanel";
 import { Header } from "@/components/Header";
+import { Protected } from "@/components/Protected";
 import { formatDate } from "@/lib/format";
 
 const PAGE_SIZE = 50;
@@ -16,9 +18,17 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function PastReportsPage() {
+  return (
+    <Protected>
+      <PastReportsContent />
+    </Protected>
+  );
+}
+
+function PastReportsContent() {
   const [reports, setReports] = useState<ReportSummaryResponse[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<{ code: string; message: string } | null>(null);
+  const [error, setError] = useState<ApiErrorState | null>(null);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -27,7 +37,8 @@ export default function PastReportsPage() {
 
   useEffect(() => {
     let active = true;
-    listReports({ limit: PAGE_SIZE + 1, offset })
+    const controller = new AbortController();
+    listReports({ limit: PAGE_SIZE + 1, offset }, { signal: controller.signal })
       .then((data) => {
         if (!active) return;
         setHasMore(data.length > PAGE_SIZE);
@@ -39,7 +50,7 @@ export default function PastReportsPage() {
         setReports([]);
         setError(
           err instanceof ResearchApiError
-            ? { code: err.code, message: err.message }
+            ? { code: err.code, message: err.message, kind: err.kind }
             : { code: "internal_error", message: "An unexpected error occurred." },
         );
       })
@@ -48,6 +59,7 @@ export default function PastReportsPage() {
       });
     return () => {
       active = false;
+      controller.abort();
     };
   }, [offset, reloadKey]);
 
@@ -75,13 +87,7 @@ export default function PastReportsPage() {
       )}
 
       {error && (
-        <section className="error-state" role="alert">
-          <h2 className="section-title">Could not load reports</h2>
-          <p>{error.message}</p>
-          <button type="button" className="secondary-button" onClick={retry}>
-            Retry
-          </button>
-        </section>
+        <ApiErrorPanel error={error} title="Could not load reports" onRetry={retry} />
       )}
 
       {!loading && !error && reports.length === 0 && (

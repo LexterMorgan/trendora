@@ -16,6 +16,7 @@ export interface ResearchRequest {
   sources: string[];
   result_limit: number;
   facebook_page_id?: string;
+  include_content_tools?: boolean;
 }
 
 export interface ResearchQueryResponse {
@@ -85,90 +86,32 @@ export interface ReportSummaryResponse {
   date_to: string;
 }
 
-export class ResearchApiError extends Error {
-  code: string;
-
-  constructor(code: string, message: string) {
-    super(message);
-    this.name = "ResearchApiError";
-    this.code = code;
-  }
-}
+export { ResearchApiError } from "./api.ts";
+export type { ApiErrorKind } from "./api.ts";
+import { requestJson } from "./api.ts";
 
 export async function submitResearch(
   request: ResearchRequest,
 ): Promise<ResearchResponse> {
-  let response: Response;
-  try {
-    response = await fetch("/api/research", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(request),
-    });
-  } catch {
-    throw new ResearchApiError(
-      "backend_unreachable",
-      "The Trendora backend could not be reached.",
-    );
-  }
-
-  let payload: unknown;
-  try {
-    payload = await response.json();
-  } catch {
-    throw new ResearchApiError(
-      "invalid_response",
-      "Trendora returned an unreadable response.",
-    );
-  }
-
-  if (!response.ok) {
-    const err = payload as { error?: { code?: string; message?: string } };
-    throw new ResearchApiError(
-      err.error?.code ?? "unknown_error",
-      err.error?.message ?? "Research request failed.",
-    );
-  }
-
-  return payload as ResearchResponse;
+  return requestJson<ResearchResponse>("/api/research", {
+    method: "POST",
+    body: request,
+  });
 }
 
-export async function listReports(params?: {
-  limit?: number;
-  offset?: number;
-}): Promise<ReportSummaryResponse[]> {
+export async function listReports(
+  params?: {
+    limit?: number;
+    offset?: number;
+  },
+  options?: { signal?: AbortSignal },
+): Promise<ReportSummaryResponse[]> {
   const query = new URLSearchParams();
   if (params?.limit !== undefined) query.append("limit", String(params.limit));
   if (params?.offset !== undefined) query.append("offset", String(params.offset));
   const suffix = query.size > 0 ? `?${query.toString()}` : "";
 
-  let response: Response;
-  try {
-    response = await fetch(`/api/reports${suffix}`, { cache: "no-store" });
-  } catch {
-    throw new ResearchApiError(
-      "backend_unreachable",
-      "The Trendora backend could not be reached.",
-    );
-  }
-
-  let payload: unknown;
-  try {
-    payload = await response.json();
-  } catch {
-    throw new ResearchApiError(
-      "invalid_response",
-      "Trendora returned an unreadable response.",
-    );
-  }
-
-  if (!response.ok) {
-    const err = payload as { error?: { code?: string; message?: string } };
-    throw new ResearchApiError(
-      err.error?.code ?? "unknown_error",
-      err.error?.message ?? "Report list request failed.",
-    );
-  }
-
-  return payload as ReportSummaryResponse[];
+  return requestJson<ReportSummaryResponse[]>(`/api/reports${suffix}`, {
+    signal: options?.signal,
+  });
 }

@@ -8,7 +8,7 @@ from uuid import UUID
 import httpx
 from fastapi.testclient import TestClient
 
-from trendora.api import create_app
+from tests.support.app import create_test_app
 from trendora.api.app import (
     get_github_forecast_product,
     get_research_application_service,
@@ -71,7 +71,7 @@ def _make_app_no_config() -> TestClient:
 
 
 def _app_with_service(service: ResearchApplicationService) -> TestClient:
-    app = create_app()
+    app = create_test_app()
     app.dependency_overrides[get_research_application_service] = lambda: service
     return TestClient(app)
 
@@ -194,7 +194,11 @@ class TestCombinedSources:
         assert by_source["youtube"]["capability"] == "public_search"
         assert by_source["facebook"]["capability"] == "creator_watchlist"
 
-    def test_mixed_report_runs_retrieval_once_and_ai_once(self) -> None:
+    def test_mixed_report_runs_retrieval_once_and_ai_once(self, monkeypatch) -> None:
+        # Endpoint test: report persistence is mocked, not under test here.
+        monkeypatch.setattr(
+            "trendora.api.app._persist_research_report", lambda *args, **kwargs: None
+        )
         from trendora.research import (
             GroundedIdeationService,
             GroundedInterpretationService,
@@ -221,7 +225,7 @@ class TestCombinedSources:
 
             return handler
 
-        app = create_app()
+        app = create_test_app()
         yt_client = YouTubeClient(
             TEST_KEY,
             http_client=httpx.Client(transport=httpx.MockTransport(counting_youtube_handler)),
@@ -731,7 +735,7 @@ class TestForecastBoundary:
         )
 
     def test_forecast_endpoint_still_works_alongside_research(self) -> None:
-        app = create_app()
+        app = create_test_app()
         result = self._stub_forecast_result()
 
         class _Stub:
@@ -752,7 +756,7 @@ class TestForecastBoundary:
 
 class TestOpenAPI:
     def test_openapi_has_research_post_and_forecast_get(self) -> None:
-        app = create_app()
+        app = create_test_app()
         schema = app.openapi()
         paths = schema["paths"]
         assert "post" in paths["/api/v1/research"]

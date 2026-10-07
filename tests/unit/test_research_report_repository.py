@@ -7,7 +7,7 @@ from uuid import UUID
 
 from fastapi.testclient import TestClient
 
-from trendora.api import create_app
+from tests.support.app import create_test_app
 from trendora.api.app import get_session
 
 REPORT_ID = "123e4567-e89b-12d3-a456-426614174000"
@@ -46,6 +46,7 @@ class FakeRecord:
         self.source_codes = ["youtube"]
         self.date_from = date(2026, 8, 1)
         self.date_to = date(2026, 8, 31)
+        self.snapshot_origin = "server_generated"
         self.report = FULL_SNAPSHOT
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -91,7 +92,7 @@ class FakeSession:
 
 
 def _app_with_session(session) -> TestClient:
-    app = create_app()
+    app = create_test_app()
     app.dependency_overrides[get_session] = lambda: session
     return TestClient(app)
 

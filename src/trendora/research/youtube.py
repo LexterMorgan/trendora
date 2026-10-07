@@ -164,7 +164,7 @@ def _build_collected(
         title = video.snippet.title or result.snippet.title
         description = video.snippet.description or result.snippet.description
         channel = video.snippet.channel_id or result.snippet.channel_id
-        published_at = parse_youtube_datetime(video.snippet.published_at) or parse_youtube_datetime(
+        published_at = _publication_date(video.snippet.published_at) or _publication_date(
             result.snippet.published_at
         )
         statistics = _parse_metrics(video.statistics)
@@ -172,7 +172,7 @@ def _build_collected(
         title = result.snippet.title
         description = result.snippet.description
         channel = result.snippet.channel_id
-        published_at = parse_youtube_datetime(result.snippet.published_at)
+        published_at = _publication_date(result.snippet.published_at)
         statistics = _parse_metrics({})
     return _CollectedVideo(
         video_id=video_id,
@@ -186,6 +186,19 @@ def _build_collected(
         collected_at=collected_at,
         market_context=market_context,
     )
+
+
+def _publication_date(value: str | None) -> datetime | None:
+    """A missing offset cannot establish a publication-window boundary."""
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.utcoffset() is None:
+        return None
+    return parse_youtube_datetime(value)
 
 
 def _parse_metrics(statistics: Mapping[str, Any]) -> ResearchMetrics:

@@ -124,6 +124,11 @@ def test_cli_more_than_five_tags(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_cli_invalid_max_items(monkeypatch: pytest.MonkeyPatch) -> None:
     _db_env(monkeypatch)
+    # Persistence is not under test; never construct the application engine here.
+    monkeypatch.setattr(
+        "trendora.connectors.stackexchange.connector.SqlAlchemyQuestionStore",
+        lambda *args, **kwargs: object(),
+    )
     assert main(["--max-items", "0"]) == 2
 
 

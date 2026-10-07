@@ -1,6 +1,7 @@
 # 11 — Deployment
 
-Status: Phase 0 placeholder. Nothing is deployed.
+Historical deployment outline. Hosting and deployment status are unverified.
+Use [DEPLOYMENT.md](DEPLOYMENT.md) for current templates and ordered release operations.
 
 ## Target shape
 
@@ -24,7 +25,9 @@ SQLAlchemy + Alembic remain the migration path in both environments.
 
 ## Not started
 
-Dockerfiles, CI, migrate/release runbooks, observability.
+The repository now contains optional Docker/Render templates and a release
+runbook. Target-specific database verification, secret provisioning, cleanup
+scheduling and deployed acceptance remain pending in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Related
 

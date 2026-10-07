@@ -9,14 +9,12 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 
-from trendora.config import reset_settings_cache
 from trendora.connectors.stackexchange.connector import StackExchangeConnector
 from trendora.connectors.stackexchange.normalizer import NormalizedQuestion, question_external_id
 from trendora.connectors.stackexchange.persistence import persist_question
 from trendora.connectors.stackexchange.schemas import QuestionResource
-from trendora.db.session import get_engine, reset_engine
 from trendora.models import ContentItem, ContentItemTopic, MetricSnapshot, Publisher
 from trendora.reference import SOURCE_IDS
 from tests.fixtures.stackexchange_responses import (
@@ -32,26 +30,6 @@ COLLECTED_LATER = datetime(2026, 8, 20, 23, 0, tzinfo=timezone.utc)
 SE_SOURCE = SOURCE_IDS["stack_exchange"]
 SO_EXTERNAL = question_external_id("stackoverflow", SO_QUESTION_ID)
 DS_EXTERNAL = question_external_id("datascience", SO_QUESTION_ID)
-
-
-@pytest.fixture
-def db_session(database_url: str) -> Session:
-    assert database_url
-    reset_settings_cache()
-    reset_engine()
-    engine = get_engine()
-    connection = engine.connect()
-    transaction = connection.begin()
-    factory = sessionmaker(bind=connection, autoflush=False, expire_on_commit=False)
-    session = factory()
-    try:
-        yield session
-    finally:
-        session.close()
-        transaction.rollback()
-        connection.close()
-        reset_engine()
-        reset_settings_cache()
 
 
 class _SessionStore:

@@ -10,8 +10,6 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from trendora.analytics.repository import ObservationQuery
 from trendora.analytics.service import AnalyticsService
-from trendora.config import reset_settings_cache
-from trendora.db.session import get_engine, reset_engine
 from trendora.forecasting import ForecastModel, ForecastRequest, ForecastingService
 from trendora.models import MetricSnapshot
 from tests.fixtures.analytics_observations import T15, YT_VIDEO_ID, seed_analytics_fixture
@@ -20,12 +18,8 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.fixture
-def db_session(database_url: str) -> Session:
-    assert database_url
-    reset_settings_cache()
-    reset_engine()
-    engine = get_engine()
-    connection = engine.connect()
+def db_session(test_engine) -> Session:
+    connection = test_engine.connect()
     transaction = connection.begin()
     factory = sessionmaker(bind=connection, autoflush=False, expire_on_commit=False)
     session = factory()
@@ -36,8 +30,6 @@ def db_session(database_url: str) -> Session:
         session.close()
         transaction.rollback()
         connection.close()
-        reset_engine()
-        reset_settings_cache()
 
 
 def test_naive_forecast_reads_analytics_without_writing(db_session: Session) -> None:

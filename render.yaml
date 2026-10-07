@@ -8,11 +8,17 @@ services:
     plan: free
     buildCommand: pip install -e .
     startCommand: uvicorn trendora.api.app:create_app --factory --host 0.0.0.0 --port $PORT
-    healthCheckPath: /api/v1/research/reports
+    healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.14
+      - key: APP_ENV
+        value: production
       - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: TRENDORA_REPORT_RECOVERY_SIGNING_KEY
         sync: false
       - key: YOUTUBE_API_KEY
         sync: false

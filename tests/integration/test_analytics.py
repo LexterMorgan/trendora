@@ -6,7 +6,7 @@ M5 fixture identities.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy import select
@@ -15,8 +15,6 @@ from sqlalchemy.orm import Session, sessionmaker
 from trendora.analytics.models import Aggregation
 from trendora.analytics.repository import ObservationQuery
 from trendora.analytics.service import AnalyticsService
-from trendora.config import reset_settings_cache
-from trendora.db.session import get_engine, reset_engine
 from trendora.models import MetricSnapshot
 from trendora.reference import MARKET_IDS
 from tests.fixtures.analytics_observations import (
@@ -36,12 +34,8 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.fixture
-def db_session(database_url: str) -> Session:
-    assert database_url
-    reset_settings_cache()
-    reset_engine()
-    engine = get_engine()
-    connection = engine.connect()
+def db_session(test_engine) -> Session:
+    connection = test_engine.connect()
     transaction = connection.begin()
     factory = sessionmaker(bind=connection, autoflush=False, expire_on_commit=False)
     session = factory()
@@ -52,8 +46,6 @@ def db_session(database_url: str) -> Session:
         session.close()
         transaction.rollback()
         connection.close()
-        reset_engine()
-        reset_settings_cache()
 
 
 def test_sql_series_matches_fixture_identities(db_session: Session) -> None:
@@ -123,7 +115,8 @@ def test_sql_like_count_gap_is_not_filled(db_session: Session) -> None:
     series = AnalyticsService.from_session(db_session).get_content_metric_series(
         YT_VIDEO_ID, "like_count"
     )
-    assert [row.observed_at.hour for row in series.observations] == [10, 15]
+    hours = [row.observed_at.astimezone(timezone.utc).hour for row in series.observations]
+    assert hours == [10, 15]
 
 
 def test_sql_aggregates_and_read_only(db_session: Session) -> None:

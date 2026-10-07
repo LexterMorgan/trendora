@@ -2,8 +2,9 @@
 
 Thin FastAPI adapters. The forecast endpoint exposes the M10 GitHub forecast
 product; the research endpoint exposes the M15 research application service.
-No SQL, no connectors, no persistence, no auth, no rate limiting in the
-adapter layer.
+No SQL, no connectors, no persistence, no rate limiting in the adapter layer.
+Authentication is the exception: ``require_member`` / ``require_admin`` carry
+the Supabase JWT verification chain (Gate A).
 """
 
 from trendora.api.app import (
@@ -11,7 +12,11 @@ from trendora.api.app import (
     get_github_forecast_product,
     get_research_application_service,
     get_research_report_service,
+    get_session,
+    get_utc_now,
+    report_visible_from,
 )
+from trendora.api.auth import Member, require_admin, require_member
 from trendora.api.models import ForecastPointResponse, ForecastResponse
 from trendora.api.research_models import (
     ResearchCoverageResponse,
@@ -54,17 +59,18 @@ __all__ = [
     "IdeationResultResponse",
     "InterpretationItemResponse",
     "InterpretationResultResponse",
+    "Member",
     "ModelProvenanceResponse",
     "OpportunityResponse",
+    "OrchestrationResultResponse",
     "PatternAggregateResponse",
     "ReferenceIdResponse",
     "ResearchCoverageResponse",
     "ResearchMetricsResponse",
     "ResearchQueryResponse",
     "ResearchReferenceResponse",
-    "ResearchReportRequest",
-    "ResearchReportResponse",
     "ResearchRequest",
+    "ResearchResponse",
     "ResearchResponse",
     "SourceCoverageResponse",
     "StrategicResultResponse",
@@ -72,5 +78,10 @@ __all__ = [
     "get_github_forecast_product",
     "get_research_application_service",
     "get_research_report_service",
+    "get_session",
+    "get_utc_now",
+    "report_visible_from",
+    "require_admin",
+    "require_member",
     "to_report_response",
 ]

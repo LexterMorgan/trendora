@@ -3,7 +3,7 @@
  * content only; no invented text.
  */
 
-import type { ContentBriefJson, ContentIdeaJson, ResearchReportResponse } from "@/lib/report-api";
+import type { ContentBriefJson, ContentIdeaJson, ResearchReportResponse } from "./report-api.ts";
 
 export function ideaMarkdown(idea: ContentIdeaJson): string {
   const lines = [

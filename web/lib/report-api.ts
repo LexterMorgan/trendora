@@ -5,7 +5,8 @@
  * request goes through the same-origin Next.js proxy (`/api/report`).
  */
 
-import { ResearchApiError, type ResearchRequest, type ResearchResponse } from "@/lib/trendora-api";
+import { requestJson, type RequestOptions } from "./api.ts";
+import { ResearchApiError, type ResearchRequest, type ResearchResponse } from "./trendora-api.ts";
 
 export type { ResearchRequest };
 
@@ -118,6 +119,15 @@ export interface IdeationResultJson {
   content_briefs: ContentBriefJson[];
 }
 
+export interface PersistenceOutcomeJson {
+  status: "saved" | "failed" | "unknown";
+  request_id: string | null;
+  report_id: string | null;
+  snapshot_origin: "server_generated" | "client_supplied" | "legacy_unclassified";
+  error_code: string | null;
+  recovery_receipt?: string | null;
+}
+
 export interface ResearchReportResponse {
   status: string;
   research: ResearchResponse;
@@ -125,6 +135,39 @@ export interface ResearchReportResponse {
   interpretation: InterpretationResultJson | null;
   strategy: StrategicResultJson | null;
   ideation: IdeationResultJson | null;
+  persistence?: PersistenceOutcomeJson | null;
+}
+
+export const SNAPSHOT_FIELDS = [
+  "status",
+  "research",
+  "evidence",
+  "interpretation",
+  "strategy",
+  "ideation",
+] as const;
+
+export const SAVE_BODY_LIMIT_BYTES = 8_388_608;
+
+export type SnapshotJson = Pick<
+  ResearchReportResponse,
+  "status" | "research" | "evidence" | "interpretation" | "strategy" | "ideation"
+>;
+
+/** The immutable six-field snapshot, excluding persistence metadata. */
+export function snapshotOf(report: ResearchReportResponse): SnapshotJson {
+  return {
+    status: report.status,
+    research: report.research,
+    evidence: report.evidence,
+    interpretation: report.interpretation,
+    strategy: report.strategy,
+    ideation: report.ideation,
+  };
+}
+
+export interface SaveReportResult {
+  persistence: PersistenceOutcomeJson;
 }
 
 export function isResearchReport(value: unknown): value is ResearchReportResponse {
@@ -141,38 +184,10 @@ export function isResearchReport(value: unknown): value is ResearchReportRespons
 export async function submitReport(
   request: ResearchRequest,
 ): Promise<ResearchReportResponse> {
-  let response: Response;
-  try {
-    response = await fetch("/api/report", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(request),
-    });
-  } catch {
-    throw new ResearchApiError(
-      "backend_unreachable",
-      "The Trendora backend could not be reached.",
-    );
-  }
-
-  let payload: unknown;
-  try {
-    payload = await response.json();
-  } catch {
-    throw new ResearchApiError(
-      "invalid_response",
-      "Trendora returned an unreadable response.",
-    );
-  }
-
-  if (!response.ok) {
-    const err = payload as { error?: { code?: string; message?: string } };
-    throw new ResearchApiError(
-      err.error?.code ?? "unknown_error",
-      err.error?.message ?? "Report request failed.",
-    );
-  }
-
+  const payload = await requestJson<ResearchReportResponse>("/api/report", {
+    method: "POST",
+    body: request,
+  });
   if (!isResearchReport(payload)) {
     throw new ResearchApiError(
       "invalid_response",
@@ -184,41 +199,60 @@ export async function submitReport(
 
 export async function getSingleReport(
   reportId: string,
+  options?: { signal?: AbortSignal },
 ): Promise<ResearchReportResponse> {
-  let response: Response;
   try {
-    response = await fetch(`/api/reports/${reportId}`, { cache: "no-store" });
-  } catch {
+    const payload = await requestJson<ResearchReportResponse>(
+      `/api/reports/${encodeURIComponent(reportId)}`,
+      { signal: options?.signal },
+    );
+    if (!isResearchReport(payload)) {
+      throw new ResearchApiError(
+        "invalid_response",
+        "Trendora returned an unexpected report shape.",
+      );
+    }
+    return payload;
+  } catch (err) {
+    if (err instanceof ResearchApiError && err.kind === "not_found") {
+      throw new ResearchApiError("not_found", "Report not found.", "not_found", 404);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Save or recover one report snapshot under a frozen request key.
+ *
+ * The caller measures the serialized envelope before calling this, so an
+ * oversized snapshot never leaves the browser. No research or AI runs here.
+ */
+export async function saveReportSnapshot(
+  requestId: string,
+  report: ResearchReportResponse,
+  options?: { signal?: AbortSignal; runtime?: RequestOptions["runtime"]; recoveryReceipt?: string | null },
+): Promise<SaveReportResult> {
+  const snapshot = snapshotOf(report);
+  const receipt = options?.recoveryReceipt === undefined ? report.persistence?.recovery_receipt : options.recoveryReceipt;
+  const body = { schema_version: 1, request_id: requestId, snapshot, ...(receipt == null ? {} : { recovery_receipt: receipt }) };
+  const encoded = new TextEncoder().encode(JSON.stringify(body));
+  if (encoded.byteLength > SAVE_BODY_LIMIT_BYTES) {
     throw new ResearchApiError(
-      "backend_unreachable",
-      "The Trendora backend could not be reached.",
+      "snapshot_too_large",
+      "This report is too large to save for later recovery.",
+      "invalid_request",
+      413,
     );
   }
-
-  let payload: unknown;
-  try {
-    payload = await response.json();
-  } catch {
+  const payload = await requestJson<SaveReportResult>("/api/reports/save", {
+    method: "POST",
+    body,
+    signal: options?.signal,
+  });
+  if (!payload || typeof payload.persistence !== "object" || payload.persistence === null) {
     throw new ResearchApiError(
       "invalid_response",
-      "Trendora returned an unreadable response.",
-    );
-  }
-
-  if (response.status === 404) {
-    throw new ResearchApiError("not_found", "Report not found.");
-  }
-  if (!response.ok) {
-    const err = payload as { error?: { code?: string; message?: string } };
-    throw new ResearchApiError(
-      err.error?.code ?? "unknown_error",
-      err.error?.message ?? "Report request failed.",
-    );
-  }
-  if (!isResearchReport(payload)) {
-    throw new ResearchApiError(
-      "invalid_response",
-      "Trendora returned an unexpected report shape.",
+      "Trendora returned an unexpected save response.",
     );
   }
   return payload;

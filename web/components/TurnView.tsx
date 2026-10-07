@@ -12,12 +12,13 @@ export interface SessionTurn {
   userMessage: string;
   state: "loading" | "success" | "error";
   report: ResearchReportResponse | null;
-  error: { code: string; message: string } | null;
+  error: { code: string; message: string; kind?: string } | null;
 }
 
 interface TurnViewProps {
   turn: SessionTurn;
   onEdit: (request: ResearchFormValues) => void;
+  onRetry: (request: ResearchFormValues) => void;
 }
 
 export function userMessage(request: ResearchFormValues): string {
@@ -37,12 +38,13 @@ export function userMessage(request: ResearchFormValues): string {
     dateSummary,
     depthWording(request.result_limit),
     sourceSummary,
+    request.include_content_tools ? "Content ideas and briefs included" : "Research only",
   ]
     .filter(Boolean)
     .join(" · ");
 }
 
-export function TurnView({ turn, onEdit }: TurnViewProps) {
+export function TurnView({ turn, onEdit, onRetry }: TurnViewProps) {
   return (
     <article className="turn">
       <div className="turn-user">
@@ -65,9 +67,24 @@ export function TurnView({ turn, onEdit }: TurnViewProps) {
           </p>
         )}
         {turn.state === "error" && turn.error && (
-          <ErrorState code={turn.error.code} message={turn.error.message} />
+          <>
+            <ErrorState code={turn.error.code} message={turn.error.message} />
+            {(turn.error.kind === "unavailable" || turn.error.kind === "network") && (
+              <div className="error-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => onRetry(turn.request)}
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+          </>
         )}
-        {turn.state === "success" && turn.report && <ReportView report={turn.report} />}
+        {turn.state === "success" && turn.report && (
+          <ReportView key={turn.id} report={turn.report} />
+        )}
       </div>
     </article>
   );

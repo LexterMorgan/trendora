@@ -9,7 +9,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from trendora.api import create_app
+from tests.support.app import create_test_app
 from trendora.api.app import (
     get_research_application_service,
     get_research_report_service,
@@ -540,7 +540,7 @@ class TestApiExecution:
             ResearchCapabilityResolver(),
             {retriever_key: WebSearchResearchRetriever(gateway)},
         )
-        app = create_app()
+        app = create_test_app()
         app.dependency_overrides[get_research_application_service] = lambda: service
         return TestClient(app), service
 
@@ -607,7 +607,7 @@ class TestApiExecution:
 
     def test_unconfigured_public_web_maps_503(self):
         service = ResearchApplicationService(ResearchCapabilityResolver(), {})
-        app = create_app()
+        app = create_test_app()
         app.dependency_overrides[get_research_application_service] = lambda: service
         response = TestClient(app).post(
             PATH,
@@ -642,7 +642,7 @@ class TestApiExecution:
                 ),
             },
         )
-        app = create_app()
+        app = create_test_app()
         app.dependency_overrides[get_research_application_service] = lambda: service
         body = TestClient(app).post(PATH, json=full).json()
         assert body["status"] == "completed"
@@ -715,7 +715,7 @@ class TestReportPipeline:
         service, _ = self._report_service(
             events, lambda request: httpx.Response(500, json={"message": FAKE_KEY})
         )
-        app = create_app()
+        app = create_test_app()
         app.dependency_overrides[get_research_report_service] = lambda: service
         response = TestClient(app).post(
             "/api/v1/research/report",

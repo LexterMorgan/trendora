@@ -7,6 +7,12 @@ forecast_insufficient_history, 500 analytics_query_error / internal_error.
 
 Research (docs/17): 422 invalid_research_request / research_no_coverage,
 503 research_source_not_configured, 502 research_upstream_error.
+
+Auth / membership (Gate A): 401 auth_missing / auth_invalid_token,
+403 auth_not_member / auth_inactive / auth_forbidden_admin,
+404 member_not_found, 409 last_admin_protected,
+503 auth_unavailable / data_unavailable. 401 responses carry
+``WWW-Authenticate: Bearer``.
 """
 
 from __future__ import annotations
@@ -37,8 +43,73 @@ from trendora.research.exceptions import (
 )
 
 
-def _error(status_code: int, code: str, message: str) -> JSONResponse:
-    return JSONResponse(status_code=status_code, content={"error": {"code": code, "message": message}})
+class ApiError(Exception):
+    """Base class for errors rendered with the standard error envelope."""
+
+    status_code: int = 500
+    code: str = "internal_error"
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
+
+
+class AuthMissingError(ApiError):
+    status_code = 401
+    code = "auth_missing"
+
+
+class AuthInvalidTokenError(ApiError):
+    status_code = 401
+    code = "auth_invalid_token"
+
+
+class AuthNotMemberError(ApiError):
+    status_code = 403
+    code = "auth_not_member"
+
+
+class AuthInactiveError(ApiError):
+    status_code = 403
+    code = "auth_inactive"
+
+
+class AuthForbiddenAdminError(ApiError):
+    status_code = 403
+    code = "auth_forbidden_admin"
+
+
+class MemberNotFoundError(ApiError):
+    status_code = 404
+    code = "member_not_found"
+
+
+class LastAdminError(ApiError):
+    status_code = 409
+    code = "last_admin_protected"
+
+
+class AuthUnavailableError(ApiError):
+    status_code = 503
+    code = "auth_unavailable"
+
+
+class DataUnavailableError(ApiError):
+    status_code = 503
+    code = "data_unavailable"
+
+
+def _error(
+    status_code: int,
+    code: str,
+    message: str,
+    headers: dict[str, str] | None = None,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status_code,
+        content={"error": {"code": code, "message": message}},
+        headers=headers,
+    )
 
 
 async def _handle_insufficient_history(_request: Request, exc: InsufficientHistoryError) -> JSONResponse:
@@ -128,10 +199,16 @@ async def _handle_ai_response(_request: Request, _exc: ResearchAIResponseError) 
 
 
 async def _handle_interpretation(_request: Request, _exc: ResearchInterpretationError) -> JSONResponse:
-    return _error(502, "ai_response_invalid", "AI provider returned an invalid response.")
+    return _error(502, "ai_response_invalid", "Research provider returned an invalid response.")
+
+
+async def _handle_api_error(_request: Request, exc: ApiError) -> JSONResponse:
+    headers = {"WWW-Authenticate": "Bearer"} if exc.status_code == 401 else None
+    return _error(exc.status_code, exc.code, exc.message, headers)
 
 
 def register_error_handlers(app: FastAPI) -> None:
+    app.add_exception_handler(ApiError, _handle_api_error)
     app.add_exception_handler(InsufficientHistoryError, _handle_insufficient_history)
     app.add_exception_handler(ForecastingValidationError, _handle_forecasting_validation)
     app.add_exception_handler(AnalyticsQueryError, _handle_analytics_query)

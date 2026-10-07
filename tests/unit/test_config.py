@@ -136,3 +136,25 @@ def test_meta_settings_preserve_values(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = Settings(_env_file=None)
     assert settings.meta_access_token == "test-token-not-real"
     assert settings.meta_graph_api_version == "v19.0"
+
+
+@pytest.mark.parametrize("value", [None, "", "   "])
+def test_recovery_signing_key_is_optional_and_blank_means_absent(monkeypatch, value):
+    _database_env(monkeypatch)
+    if value is None:
+        monkeypatch.delenv("TRENDORA_REPORT_RECOVERY_SIGNING_KEY", raising=False)
+    else:
+        monkeypatch.setenv("TRENDORA_REPORT_RECOVERY_SIGNING_KEY", value)
+    assert Settings(_env_file=None).report_recovery_signing_key is None
+
+
+def test_recovery_signing_key_requires_32_utf8_bytes_and_is_not_in_repr(monkeypatch):
+    _database_env(monkeypatch)
+    monkeypatch.setenv("TRENDORA_REPORT_RECOVERY_SIGNING_KEY", "fictional-short")
+    with pytest.raises(ValidationError, match="at least 32 UTF-8 bytes"):
+        Settings(_env_file=None)
+    key = "é" * 16
+    monkeypatch.setenv("TRENDORA_REPORT_RECOVERY_SIGNING_KEY", key)
+    settings = Settings(_env_file=None)
+    assert settings.report_recovery_signing_key == key
+    assert key not in repr(settings)

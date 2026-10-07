@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 
+import { SignOutButton } from "@/components/SignOutButton";
+
 export interface HeaderProps {
   /** Current view name, shown in the breadcrumb (e.g. "Research Workspace"). */
   section: string;
@@ -27,13 +29,17 @@ export function Header({ section, actionLink }: HeaderProps) {
         </span>
       </nav>
 
-      {actionLink && (
-        <div className="header-action">
+      <div className="header-action">
+        <Link href="/planner" className="secondary-button planner-nav">
+          Planner
+        </Link>
+        {actionLink && (
           <Link href={actionLink.href} className="secondary-button">
             {actionLink.label}
           </Link>
-        </div>
-      )}
+        )}
+        <SignOutButton />
+      </div>
     </header>
   );
 }

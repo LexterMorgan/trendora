@@ -15,13 +15,15 @@ from __future__ import annotations
 
 import os
 from datetime import date, timedelta
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
 
-from trendora.api import create_app
+from tests.support.app import create_test_app
 from trendora.config import get_settings, reset_settings_cache
 from trendora.research.ai_provider import build_ai_provider_config
+from tests.io_guards import GUARDS
 
 pytestmark = pytest.mark.integration
 
@@ -53,9 +55,15 @@ def live_report_client():
         pytest.skip("YOUTUBE_API_KEY is not configured")
     if not _ai_config_resolved():
         pytest.skip("AI provider configuration is incomplete")
-    app = create_app()
-    with TestClient(app) as client:
-        yield client
+    app = create_test_app()
+    # Provider smoke test: never persist into the application database.
+    # Database persistence is covered by the dedicated-TRENDORA_TEST_DATABASE_URL tests.
+    # Network permit comes after every opt-in check above and never covers
+    # database seams (live fixtures must not enable database access).
+    with GUARDS.permit_network():
+        with patch("trendora.api.app._persist_research_report"):
+            with TestClient(app) as client:
+                yield client
 
 
 def _summary(body: dict) -> dict:

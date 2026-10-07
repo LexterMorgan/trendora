@@ -1,513 +1,102 @@
-# 14 — Product & Architecture Re-baseline (M12)
+# 14 - Product requirements: research-first Trendora
 
-## Status
+## Status and authority
 
-**M12:** Documentation/architecture milestone. No application code, schema, migration, connector, API, dependency, or test changes were made.
+Updated 2026-10-07 for owner review of the targeted research essentials corrections. This remains the authoritative product PRD, continuing the existing M12 re-baseline in place. It replaces this file's older content-first framing and obsolete milestone roadmap.
 
-**Context:** M1–M11B established an evidence-first Python analytics platform with a forecasting product slice (M8–M11B). The product direction has now evolved: forecasting remains a valid capability but is no longer the center of the product. This document re-baselines the architecture and roadmap toward an **evidence-backed content intelligence and research platform**.
+The forecasting requirements in [12](12_FORECASTING_PRODUCT_REQUIREMENTS.md) govern that existing capability only. The [shared planner design](superpowers/specs/2026-09-25-shared-content-planner-design.md) governs the optional planner feature, not the primary research experience. Older numbered documents and [PROJECT_PREP](../PROJECT_PREP.md) remain milestone records; their historical product priorities do not override this PRD. Existing technical contracts stay in force until a separately approved implementation changes them.
 
-**Document discipline:** each section distinguishes
-- `CURRENT:` a fact true in the repository today,
-- `DECISION:` a direction chosen by this re-baseline,
-- `PROPOSAL:` a design to consider, not yet built,
-- `OPEN:` a question the repository cannot yet resolve.
+Source, configuration, offline tests, and isolated mocked browser scenarios were inspected or executed as recorded below. No real providers, databases, migrations, retention application, or deployments were run. Implemented behavior is distinct from release verification; no further implementation or operational action is authorized by this document.
 
-The repository remains the source of truth for everything labeled CURRENT.
+## 1. Product purpose
 
----
+Trendora helps its owner discover and understand developments in chosen topics across available internet sources. Topics can include AI, business, gaming, fashion, or another field. Existing Southeast Asian market filters remain supported where a source uses them; they do not define every topic or imply worldwide coverage.
 
-## 1. Executive Decision
+The main experience should help answer:
 
-- **What Trendora was originally becoming:** a SEA education/technology intelligence platform whose first visible product surface was a **forecasting dashboard** (M6 baselines → M7 diagnostics → M8/M9 product contract → M10 GitHub forecast product → M11 FastAPI adapter).
-- **Why the direction has evolved:** the product owner redefined the core job. The user does not primarily want to read forecast charts; they want help deciding **what to post and why, backed by inspectable evidence**. Forecasting answers one narrow question (“what is likely next for this metric”) and does not carry the discovery → evidence → opportunity workflow.
-- **What remains valid from M1–M11B:**
-  - The principle **“Python owns the truth. AI owns the explanation.”** ([00](00_PROJECT_OVERVIEW.md), [01](01_ARCHITECTURE.md)).
-  - The **source-agnostic normalized schema** (`sources`, `markets`, `topics`, `retention_policies`, `publishers`, `content_items`, `content_item_topics`, `metric_snapshots`) ([02](02_DATABASE_SCHEMA.md)).
-  - The **single M5 metric-analytics read path** — all downstream metric analytics continue through it; no second metric-SQL path ([05](05_ANALYTICS_SPEC.md)).
-  - The **connectors** as legitimate, policy-respecting ingestion (YouTube primary; HN/SE/GitHub supporting signals) ([03](03_DATA_SOURCES.md), [04](04_INGESTION_PIPELINE.md)).
-  - The **thin layered architecture** (M5 → M6/M7 → M10 product → M11 API adapter) as the pattern for every future feature surface.
-  - **M6–M11 forecasting** as a reusable predictive signal, not deleted.
-- **What becomes secondary:** forecasting as the primary product surface and the dedicated forecast-dashboard framing.
-- **What the new V1 product is:** a deliberately narrow, **YouTube-first** research workflow — *topic + market + recent date range* → legitimate content discovery → inspectable references/evidence → recurring patterns → opportunities → (later) ideas and content briefs. Every recommendation must trace backward to evidence.
-- **What Trendora explicitly is NOT:** an enterprise social-management suite, an omnichannel public firehose, a scraper, an LLM-chat product where the model is the source of truth, or a forecasting dashboard as the main interface.
+- What happened in AI this week?
+- What is gaining attention, and what evidence supports that?
+- Why does this development matter?
 
----
+A useful report stands on its own: a concise account of what the collected sources support, links to those sources, relevant dates, and explicit limits. Reading, understanding, saving, and reopening research must be useful without creating a post.
 
-## 2. North-Star User Workflow
+Content ideas, briefs, and the existing shared two-person planner are optional downstream uses. Preserve the planner's current behavior. Do not expand or remove it. Existing analytics and forecasting remain optional capabilities; they are not prerequisites for research.
 
-`CURRENT:` the repository has no research concept yet. The workflow below is the target.
+## 2. Practical requirements
 
-`DECISION:` the primary end-to-end flow is:
-
-```text
-research request
-    ↓
-structured ResearchQuery
-    ↓
-source capability resolution
-    ↓
-content/reference retrieval        (YouTube-first; capability-aware)
-    ↓
-evidence normalization             (into existing content_items + references)
-    ↓
-research result
-    ↓
-pattern analysis                  (recurring structure/topics/claims)
-    ↓
-opportunity discovery             (content gaps)
-    ↓
-evidence-backed ideas
-    ↓
-content brief
-    ↓
-report / workspace
-```
-
-Terminology maps onto existing repository concepts where possible:
-
-| Workflow step | Repository anchor |
+| Area | Required behavior |
 | --- | --- |
-| Sources / platforms | `sources` registry ([02](02_DATABASE_SCHEMA.md)) |
-| Markets, topics | `markets`, `topics`, `content_item_topics` |
-| Content | `content_items` (videos/stories/questions/repositories) |
-| Measured observations | `metric_snapshots` via M5 |
-| Evidence for recommendations | future research references (Section 10) |
+| Topic and timeframe | Accept a chosen topic and an explicit timeframe, including a short recent window or custom dates. Show the normalized dates actually used, including defaults, and the selected sources. Do not assume typing “this week” automatically selects a date range. |
+| Sourced summaries | Explain the developments supported by collected material in plain language. Link each substantive summary or interpretation to its supporting references. Distinguish a source's claim from a verified fact and an AI interpretation. Titles and search snippets are limited evidence, not proof of an event or full article analysis. |
+| Recency | Keep the requested window, source publication date, known event date, and collection timestamp distinct. Recent publication does not prove a development occurred then. Unknown dates remain unknown; collection today does not make an item a development from this week. |
+| Attention and trends | Label sample prevalence and current attention levels accurately. A growing or sustained trend needs comparable observations across time or another explicitly documented, validated signal, with its dates, sample, and limitations. A fresh item, high current count, or title pattern alone does not establish growth. If the available evidence cannot establish a trend, say so. Do not invent a trend score. |
+| Coverage and gaps | Show requested sources, executable capabilities, sources actually searched, collection dates, returned reference counts, and available reasons for gaps. Explain undated material, bounded samples, and source-specific restrictions. “Complete” capability coverage is not complete coverage of the internet. |
+| Explanation | Use existing grounded interpretations to explain possible significance, labeled as interpretation. Citation validation proves referenced evidence exists; it does not prove semantic entailment or causality. Do not promote speculation into a measured fact. |
+| Saving and history | Preserve immutable report snapshots until source-data expiry, explicit save outcomes, and same-key recovery without rerunning collection or AI. Reopened retained research keeps its source links, dates, coverage, and provenance where stored. Missing legacy metadata stays visibly unknown. Expiry removes source-bearing bodies but keeps the original identity and replay fingerprint. |
+| Optional content conversion | Keep ideas and briefs secondary to research. A new planner import requires an explicit action and a confirmed accessible report ID. Resolve the selected item server-side; retain its origin while planner edits remain independent of the snapshot. Preserve existing same-key import replay for lost-response recovery. |
 
-`OPEN:` exact object names for `research_runs`, references, patterns, opportunities, ideas, briefs — see Section 20.
+Preserve verified identity and active membership checks. Ordinary members retain the rolling 30-day report-history visibility rule; administrators can access all retained history. Apply the same rule to list, detail, and new import access. Preserve existing same-key import replay after history expiry. Planner sharing does not grant access to unrelated report history.
 
----
+Visibility is not retention. Hiding an older report or source link does not delete the underlying snapshot or source metadata. The manual expiry command removes source-bearing material independently of authored planner text. Its real execution and operating schedule remain release checks below.
 
-## 3. V1 Persona / Job To Be Done
+## 3. Current research flow
 
-`DECISION:` the primary V1 user is a **social media specialist, content strategist, or small marketing/content team** operating in SEA markets (ID, TH, MY, SG, VN, PH — the seeded `markets`).
-
-Core job to be done:
-
-> “Help me decide what content to create using real, inspectable evidence rather than generic AI advice.”
-
-The user is not a data scientist, does not want raw snapshots, and does not want unsourced recommendations. They want: a question in, a curated set of references, the patterns those references actually show, and opportunities with visible evidence.
-
-`DECISION:` V1 does **not** target enterprise social management, campaign ad buying, publishing, or multi-team workspaces.
-
----
-
-## 4. V1 Scope
-
-`DECISION:` the first useful vertical slice is:
-
-```text
-topic + market + recent date range
-    ↓
-legitimate YouTube-first content research
-    ↓
-reference results (content_items + URLs + collected metadata)
-    ↓
-evidence-backed patterns
-    ↓
-opportunities
-    ↓
-ideas / briefs later
-```
-
-| Bucket | Includes |
+| Step | Current path and boundary |
 | --- | --- |
-| **V1** | ResearchQuery contract; capability resolution; YouTube-first retrieval into `content_items`; evidence/reference collection; deterministic pattern extraction (e.g., topic/claim/format frequencies over returned references); opportunity flags with evidence back-references; provenance invariants (Section 14). |
-| **Next** | Ideas and briefs (AI-assisted, labeled); other sources; workspace UI. |
-| **Later** | Alerts/recurring research; competitor/watchlist tracking; richer media analysis where policy permits. |
-| **Explicitly out of scope (forever unless re-decided)** | Scraping; TikTok/Instagram/Facebook public firehose; pretending capabilities exist; LLM-as-truth; forecasting as the primary surface. |
+| User input | [SimpleForm](../web/components/SimpleForm.tsx) and [ResearchForm](../web/components/ResearchForm.tsx) collect topic, markets, dates, source, limit, and an unchecked optional-content selection. [Home](../web/app/page.tsx) submits explicit `include_content_tools=false` by default. Topic-only API query defaults remain SG, last 30 days, YouTube, and 50 references in [adapter.py](../src/trendora/research/adapter.py). |
+| Collection | The same-origin [report proxy](../web/app/api/report/route.ts) forwards to [app.py](../src/trendora/api/app.py). [application.py](../src/trendora/research/application.py) resolves capabilities and configured retrievers. YouTube, one Facebook Page, and indexed public-web search exist; HN/Stack Exchange/GitHub ingestion does not imply they participate in this topic-research flow. |
+| Source evidence | [models.py](../src/trendora/research/models.py) defines references; [retrieval.py](../src/trendora/research/retrieval.py) defines the retriever protocol. [evidence.py](../src/trendora/research/evidence.py) preserves source facts and deterministic observations. [patterns.py](../src/trendora/research/patterns.py) aggregates title/description structure within the collected sample. Missing metrics are not zero. Source rank is not a Trendora ranking. |
+| Findings and optional generation | [reporting.py](../src/trendora/research/reporting.py) invokes the existing grounded interpretation adapter independently of content tools, supplying topic and timeframe alongside untrusted source evidence. Unavailable, malformed, empty, or structurally ungrounded synthesis falls back to exact description/snippet excerpts or source titles with `source_evidence/extractive-v1` provenance. Explicit opt-in adds existing grounded strategy/ideation; their failure returns `content_unavailable` with research preserved. Omitting the flag retains the legacy three-stage AI pipeline and its error behavior. [interpretation.py](../src/trendora/research/interpretation.py) validates citation resolution, not factual correctness. |
+| Report and saving | [ReportView](../web/components/ReportView.tsx) leads with findings, scope, and references. Exact source excerpts remain distinct from AI interpretation; both show supporting-publication scope. Content tools use a closed native disclosure. [repository.py](../src/trendora/research/repository.py) and [report_save.py](../src/trendora/api/report_save.py) preserve the six-field snapshot, schema version 1, canonical fingerprint, and same-key recovery. A server-signed recovery receipt outside that snapshot binds the actor, original key, hash, and original expiry; recovered provenance stays `client_supplied`. [ReportPersistencePanel](../web/components/ReportPersistencePanel.tsx) forwards it without regenerating research. |
+| History | [Past reports](../web/app/past-reports/page.tsx) lists saved reports; [report detail](../web/app/report/[id]/page.tsx) loads the snapshot. Backend list/detail share the membership and history-window rules. |
+| Optional planner import | [SaveToPlanner](../web/components/SaveToPlanner.tsx) sends the selected idea/brief and frozen request key. [planner API](../src/trendora/api/planner.py) verifies report access and resolves the selection. [planner_origin.py](../src/trendora/planner_origin.py) retains origin and source-state information; the editable post remains separate. |
+| Source expiry | [retention.py](../src/trendora/retention.py) provides an explicit dry-run-first command. Apply tombstones expired source-bearing reports, scrubs derived origin payloads and catalog metadata, and deletes expired metrics/sidecars. Authored planner fields, version, activity, updated time, and original report/import replay identities remain intact. New imports lock the source report against concurrent cleanup. No job is enabled. |
 
-`RATIONALE:` YouTube is the only source with a documented legitimate broad public-discovery path already ingested ([03](03_DATA_SOURCES.md)); starting anywhere else would force unsupported capability claims.
+Research collection returns normalized references; it does not imply every result has been written to the ingestion tables or has longitudinal metric history. Keep the existing single analytics read path for persisted metric series; this review proposes no second metric query layer.
 
----
+## 4. Implemented, partial, and missing
 
-## 5. Existing Architecture Reuse
-
-| M1–M11 component | Reuse in the new product |
-| --- | --- |
-| `sources`, `markets`, `topics` | Remain the canonical registries; capability model attaches to `sources` (Section 9). |
-| `publishers`, `content_items` | Become **central**: `content_items` are the substrate every evidence/reference anchors to; `publishers` support watchlist/creator filters. |
-| `metric_snapshots` + M5 | Remain the **only** metric-analytics path. Reach/engagement signals (views, scores, stars) continue to flow through M5. |
-| M6 / M6C / M7 (forecasting/diagnostics) | Optional **predictive signal** inside research (Section 17). No rewrite, no deletion. |
-| M10 product layer | The thin `product → service → repository` pattern is the template for future research/evidence services. |
-| M11 FastAPI adapter | The pattern for exposing future read models. The existing forecast endpoint stays as a signal endpoint. |
-| Connectors (YouTube/HN/SE/GitHub) | Keep. YouTube is the V1 research source; HN/SE/GitHub remain supporting topic/technology signals, not pretended social networks. |
-| `retention_policies` | Keep and reuse for research-collected content (Section 21). |
-
-`DECISION:` **do not rewrite** M1–M11 code. It is the foundation; the new product layers on top.
-
----
-
-## 6. Content-Centric Read Model
-
-`CURRENT:` M5 (`AnalyticsRepository` / `AnalyticsService`) is observation-oriented: it answers “what snapshots exist for (source, metric, subject, window)” ([05](05_ANALYTICS_SPEC.md)). It is not oriented around content discovery (topic → content_items → references).
-
-`PROPOSAL:` add a separate **content research read/service layer** above `content_items` (not yet built). Responsibilities:
-- resolve a `ResearchQuery` to content items (topic, market, `published_at` range, publisher/creator, content type, URL);
-- expose references (content + collected metadata + original URL);
-- never re-aggregate `metric_snapshots` — if a research result needs measured metrics, it must get them through M5 (existing `AggregateSummary` / `MetricSeries`), preserving the single metric path.
-
-Boundaries:
-- `M5` = metric analytics. `ContentResearch` = content discovery/reference/evidence. They cooperate; they do not merge.
-- A content research layer must **not** create an uncontrolled second metric-SQL path. If it needs numbers, it calls M5.
-
-`DECISION:` keep the generic normalized `content_items` abstraction. **Do not create** platform-specific tables (`youtube_videos`, `instagram_posts`, `tiktok_posts`) — there is no repository evidence this is required, and it would fragment the evidence substrate.
-
----
-
-## 7. ResearchQuery Contract
-
-`PROPOSAL:` the conceptual V1 request contract.
-
-| Field | Class | Notes |
+| State | Assessment | Source evidence |
 | --- | --- | --- |
-| `topic` / query text | **required** | free text; topics registry may be applied later |
-| `market` | required for V1 | one of seeded SEA `markets` |
-| `platforms` / sources | required | V1: `youtube` only; the contract allows more later |
-| `date_from`, `date_to` | required | research window; V1 = recent range |
-| creator / watchlist filters | optional | constrained by `publishers` watchlist capability |
-| `content_type` | optional | e.g., `video` |
-| `result_limit` | optional | bound on references returned |
-| sort / ranking preference | optional | e.g., relevance, recency; ranking methodology OPEN |
-| `analysis_basis` | derived | from source capability (Section 12) |
+| Implemented | Free-text topics, date presets/custom dates, validated queries, bounded collection, source URLs, nullable publication dates, and collection timestamps. | [SimpleForm](../web/components/SimpleForm.tsx), [adapter.py](../src/trendora/research/adapter.py), [research serialization](../src/trendora/api/research_models.py), [adapter tests](../tests/unit/test_research_adapter.py). |
+| Implemented | Deterministic facts/patterns, structurally grounded interpretations, immutable saving/recovery/history, and explicit optional planner imports. Accepted P3 corrections preserve secure request keys and account-switch isolation. | [evidence.py](../src/trendora/research/evidence.py), [reporting.py](../src/trendora/research/reporting.py), [save regressions](../tests/unit/test_report_save_recovery.py), [history tests](../tests/unit/test_report_history_scope.py), [rendered regressions](../web/tests/planner-workspace.browser.mjs). |
+| Partial | Backend public-web search exists, but the current UI source selector exposes YouTube and Facebook only. Public-web collection passes topic and limit, ignores the requested date window, and deliberately returns unknown publication dates. It cannot currently substantiate an in-period news digest. | [ResearchForm](../web/components/ResearchForm.tsx), [web_search.py](../src/trendora/research/web_search.py), [web-search tests](../tests/unit/test_research_web_search.py). |
+| Implemented | Research leads fresh and saved reports; publication and collection dates, source-specific coverage, gap reasons, and citation URLs are visible. Legacy missing metadata remains unknown. | [ReportView](../web/components/ReportView.tsx), [ReferenceCard](../web/components/ReferenceCard.tsx), [CoveragePanel](../web/components/CoveragePanel.tsx), [browser regressions](../web/tests/planner-workspace.browser.mjs). |
+| Implemented | Explicit research-only requests may run interpretation and never run strategy/ideation. Failed synthesis preserves evidence and labeled excerpts; failed optional content preserves research and saving. Omitted selection keeps legacy API behavior. Empty collection and insufficient text have distinct states. | [reporting.py](../src/trendora/research/reporting.py), [API construction](../src/trendora/api/app.py), [focused offline tests](../tests/unit/test_research_final.py), [API tests](../tests/unit/test_research_report_api.py). |
+| Implemented, live quality unverified | The existing grounded adapter produces research synthesis with topic/timeframe context. Exact source excerpts are a labeled fallback, not synthesized findings. Both depend on limited source text, not verified events or full-article analysis. Publication-window groups distinguish dated material from outside-window and undated context; event dates are unavailable in the current contract. | [report contract](../src/trendora/api/research_report_models.py), [reporting.py](../src/trendora/research/reporting.py), [publication scope](../web/lib/report-provenance.ts), [ReportView](../web/components/ReportView.tsx). |
+| Implemented, operation pending | Source expiry is explicit and synthetically tested, including authored-content preservation, immutable retry fingerprints, and replay after expiry. It has not run against any database and has no enabled scheduler. | [retention.py](../src/trendora/retention.py), [retention tests](../tests/unit/test_retention.py), [deployment guide](DEPLOYMENT.md). |
+| Missing | Research-report evidence of increasing attention across time. Current structural pattern ratios describe the returned sample; collected counts alone do not show growth. Existing analytics/forecast capabilities are not wired into these report claims. | [patterns.py](../src/trendora/research/patterns.py), [negative pattern tests](../tests/unit/test_research_patterns.py), [reporting.py](../src/trendora/research/reporting.py). |
 
-`DECISION:` a natural-language request may later be parsed into this contract by an LLM, but **the LLM never retrieves content or metrics**. The parsed contract is executed by deterministic code.
+Offline tests and mocked browser execution verify application behavior, not providers, the database, retention enforcement, or deployment. The release table below separates those checks.
 
----
+## 5. Implemented research essentials and boundaries
 
-## 8. ResearchRun Lifecycle
+The accepted P4 reader remains in place. The bounded implementation reuses grounded interpretation for research synthesis, preserves excerpt fallback and publication-window grouping, isolates optional content failures, bounds the generation proxy, and makes source expiry explicit. The correction adds a dedicated server recovery signing configuration and one nullable expiry column through a new, unapplied migration; it adds no source, provider route, dependency, analytics signal, planner feature, or background job.
 
-`PROPOSAL:` a research run is the unit of work. States justified by the future workflow:
+The user can choose a topic and dates, read available sourced material without generating content, save it, and explicitly opt into existing ideas/briefs and planner import. Publication within the window establishes only publication timing. Collection timing, sample prevalence, and observed counts establish neither event timing nor growing attention.
 
-```text
-requested → validating → resolving_capabilities → collecting → normalizing
-→ analyzing → completed
-```
+Contract compatibility: the optional request flag, recovery receipt, and trusted stored expiry are outside the six-field snapshot and its hash. Existing nullable stage fields and outcome strings represent research-only and content-unavailable reports; no nested default was added to reinterpret old snapshots or change their retry hash. Source-excerpt output must match cited text exactly. AI paths retain strict parsing and structural grounding; this validation does not establish semantic truth. Malformed interpretation uses the existing single retry, not an additional retry layer.
 
-plus terminal degradation states: `partially_completed` (some sources succeeded, some failed/degraded) and `failed`.
+Date handling reuses existing YouTube publication filters and Facebook Page collection parameters. YouTube malformed or offset-free publication timestamps stay unknown. Returned outside-window items remain labeled context rather than being promoted into in-window findings. Public-web search still ignores the window and returns unknown publication dates. No event-date inference or trend score was added.
 
-Clarifications:
-- **V1 synchronous:** a single-source (YouTube) run can complete synchronously inside a request; no queue needed yet.
-- **Future asynchronous/background:** only when multi-source runs or long media analysis justify it (Section 19).
-- **Per-source success/failure:** each source reports its own outcome (Section 9), so one unavailable source degrades the run rather than failing it wholesale.
+Expiry changes the source-bearing body to an explicit tombstone while preserving the original hash and identity. Detail returns terminal `410 report_expired`; new imports cannot use the tombstone. Matching save/import replay acknowledges the existing identity before receipt/expiry checks and never restores removed source text. A new client-save key cannot renew expired data or bypass the original key's signed receipt. Verified recovery keeps `client_supplied` provenance and its trusted original deadline; recovery time never restarts retention. Legacy server-generated rows retain the existing original collection-date rule. Old client/unknown rows without a trusted deadline remain conservatively expired; unverified new source-bearing recovery is rejected. Authored planner fields are independent of expiry.
 
-`OPEN:` persistence of runs (Section 20, item B).
+## 6. Verification and remaining release checks
 
----
-
-## 9. Platform Capability Model
-
-`PROPOSAL:` a capability registry attached to `sources`, so the product never claims capabilities it does not have. A research run reports per source, e.g.:
-
-```text
-YouTube         searched (public_search)
-Instagram       watchlist-only / not configured
-TikTok          unavailable for organic public discovery
-Facebook        not configured
-Google Trends   not configured
-```
-
-Capability vocabulary:
-
-| Capability | Meaning |
+| Check | Result and evidence |
 | --- | --- |
-| `public_search` | legitimate public content search available |
-| `creator_watchlist` | track a fixed set of creators/channels |
-| `content_lookup` | fetch a known content item by id/URL |
-| `hashtag_discovery` | hashtag/tag-based discovery |
-| `public_metrics` | read public engagement/statistics |
-| `owned_account_metrics` | metrics only for accounts the user authorizes |
-| `regional_discovery` | region/market-scoped discovery |
-| `content_text_available` | title/description/caption text available |
-| `media_analysis_available` | media (video/image) accessible for analysis |
-| `retention_constraints` | source policy restricts storage (e.g., YouTube 30-day) |
-| `authorization_required` | access gated by OAuth/permissions/app review |
+| Application tests | PASSED for this correction pass: 1,443 offline backend unit checks, 131 frontend tests, and 30 maintained isolated mocked browser scenarios; zero failures or skips. Frontend lint, typecheck, Webpack build, and diff whitespace check passed. Each confirmed defect first had a failing focused regression. Database/live integration checks were not run; fictional accounts and mocked responses only. |
+| Grounding and failure paths | Targeted checks cover research-only interpretation without content calls, topic/timeframe context, exact excerpt fallback, invalid citations, bounded malformed-response retry, insufficient text, optional-stage failure, API saving, and unchanged canonical snapshot projection. Citation resolution does not verify real-world claims. [Focused tests](../tests/unit/test_research_final.py), [API tests](../tests/unit/test_research_report_api.py). |
+| Retention logic | PASSED synthetic ORM tests for fresh generation/recovery/cleanup/read, original expiry, forged dates/proofs, expired independent keys, old-key acknowledgment, legacy behavior, and authored fields/activity/time. Receipt binding and new migration construction were checked offline. Read-lock SQL construction passed; actual PostgreSQL concurrency is NOT RUN. [Tests](../tests/unit/test_retention.py), [receipt tests](../tests/unit/test_report_recovery_receipt.py). |
+| Migration/access review | Existing migration source through 0007 remains unchanged by this pass. New 0008 adds a nullable trusted expiry with no default or backfill and remains unapplied. Actual migrations, schema, privileges, defaults, concurrency, and two-account database behavior: NOT RUN; fresh explicit target authorization required. Dedicated recovery-key provisioning is also pending. |
+| Request budgets | Application checks cover the frontend 64 KiB generation cap, 180-second upstream/response deadline, save 8 MiB cap, and planner 128 KiB cap. Direct backend generation has no equivalent body cap. Actual host upload/response/duration limits and backend cancellation: NOT RUN. [Deployment guide](DEPLOYMENT.md). |
+| Operational retention | Dry-run/apply command exists; no database execution or scheduler activation. Elapsed deadlines are enforced by cleanup; detail/import rejects the resulting tombstone, not an unswept row solely because its deadline elapsed. NOT RUN until an operator approves a target, cadence, and deployment-compatible execution mechanism. History visibility is not deletion. |
+| Live source/provider/deployment | Access, policy eligibility, quotas, real latency, TLS, deployed auth/configuration, storage/backups, and recovery after actual outages: NOT RUN. Separate approval required. Provider/9router work remains separate. |
 
-Per-source record fields: capability set, access status (`available` / `degraded` / `unavailable` / `not_configured`), authorization requirement, coverage note, policy/retention note, failure/degradation behavior.
+Policy review used official public documentation on 2026-10-05. YouTube generally requires applicable non-authorized API data refreshed or deleted within 30 calendar days. Its additional-metrics amendment permits longer statistics retention only for accepted use cases; metadata remains subject to 30 days. Eligibility for derived-data/aggregation use and required privacy/Terms/user-requested deletion processes remain release blockers, not claims of compliance. [Developer policies](https://developers.google.com/youtube/terms/developer-policies), [amendment](https://developers.google.com/youtube/terms/derived-metrics-policy).
 
-`DECISION:` capability resolution runs **before** retrieval and is deterministic. No unsupported promise is ever emitted.
+The existing conservative 30-day application TTL for other report sources is not a claimed Meta or Serper policy. Current Meta terms could not be retrieved and remain unverified. Serper's inspected terms establish attribution/third-party-rights and accuracy limitations, not a universal 30-day TTL. [Meta terms](https://developers.facebook.com/terms/), [Serper terms](https://serper.dev/terms).
 
----
+The repository contains an optional Render Free template and Vercel deployment guidance, not evidence of the actual host or plan. Free Render cannot supply an assumed persistent scheduler; Vercel's 4.5 MB request/response limit is below the 8 MiB application save cap. Verify the selected deployment and operating retention mechanism before release. [Render limits](https://render.com/docs/free), [Vercel limits](https://vercel.com/docs/functions/limitations).
 
-## 10. Evidence Contract
-
-`PROPOSAL:` a conceptual evidence/reference item. Do not commit a DB schema yet (Section 20).
-
-An evidence item must be able to answer:
-
-| Question | Field concept |
-| --- | --- |
-| Which source produced this? | `source_code` |
-| Which content item does this refer to? | `content_item_id` |
-| What original URL supports it? | `content_item.url` (existing column) |
-| When was it collected? | `collected_at` / snapshot timestamps |
-| What observation/data supports the conclusion? | reference to `metric_snapshots` via M5, or stored source metadata/text |
-| What analysis basis was available? | `analysis_basis` (Section 12) |
-| Which ResearchRun produced it? | `research_run_id` |
-| What claim(s) rely on it? | reverse link from claims (Section 11, Section 14) |
-
-`DECISION:` evidence is the backbone of the provenance invariant (Section 14). Everything downstream points back to it.
-
----
-
-## 11. Claim / Assertion Types
-
-`DECISION:` four structured claim categories, with required evidence:
-
-| Claim type | Meaning | Required evidence |
-| --- | --- | --- |
-| `FACT` | directly supported by source data | direct reference to a `content_item`/`metric_snapshot`/source field |
-| `OBSERVATION` | deterministically derived, or a documented structural observation | the deterministic code path that produced it (or explicit “structural observation” note) |
-| `AI_INTERPRETATION` | model interpretation of structured evidence | cited evidence item(s) + model/provider + `analysis_basis`; **clearly labeled** as interpretation |
-| `RECOMMENDATION` | suggested action | trace to ≥1 opportunity/observation/evidence item |
-
-`DECISION:` unsupported AI inference is **never** labeled `FACT`. `FACT` requires direct source evidence. This is the mechanism that stops the LLM from silently converting interpretation into measured fact.
-
----
-
-## 12. Analysis Basis / Media Boundary
-
-`PROPOSAL:` every analysis records what the system actually had access to:
-
-- `metadata` (title, description, published_at, duration)
-- `source-provided_text` (e.g., YouTube title/description; HN text; SE body where stored)
-- `authorized_captions_transcript`
-- `user_supplied_text`
-- `user_supplied_media`
-- `platform_permitted_media`
-
-`DECISION:` the system **must not claim** visual-pacing, spoken-hook, scene, or body-language analysis unless the recorded `analysis_basis` includes the appropriate media/text access. Capability `media_analysis_available` gates this.
-
----
-
-## 13. Content Intelligence Pipeline
-
-`PROPOSAL:` conceptual transformations:
-
-```text
-ContentItem → Evidence → Analysis → Pattern → Opportunity
-```
-
-Stage nature:
-
-| Stage | Nature |
-| --- | --- |
-| ContentItem → Evidence | **deterministic** (collection + normalization) |
-| Evidence → Analysis | **deterministic + heuristic** (structure, topic/claim extraction on available text) |
-| Analysis → Pattern | **deterministic aggregation** over analyzed items; **AI-assisted** only for interpretation of the aggregated evidence, labeled as such |
-| Pattern → Opportunity | **heuristic scoring** + evidence back-links; AI may suggest candidates, never fabricate |
-
-`DECISION:` no vague “AI agent” architecture. Each stage names its method class (deterministic/heuristic/AI-assisted) and its provenance output.
-
----
-
-## 14. Opportunity → Idea → Brief Provenance
-
-`DECISION:` the following lineage is a **core product invariant**:
-
-```text
-Brief → Idea → Opportunity → Pattern → Evidence → ContentItem → original URL
-```
-
-Every downstream object must be able to point backward to the object(s) that produced it. At minimum each object carries the id of its upstream source object(s); the chain ends at a real `content_item.url`.
-
-`RATIONALE:` this is the mechanism that makes “every meaningful recommendation traceable to evidence” true by construction, not by promise.
-
----
-
-## 15. AI Boundary
-
-`CURRENT:` [07_AI_ORCHESTRATION.md](07_AI_ORCHESTRATION.md) already constrains the AI layer (structured inputs only; no unrestricted SQL; $0 no-op default).
-
-`DECISION:` the LLM **may** later:
-- parse natural language into a `ResearchQuery`,
-- summarize structured evidence,
-- classify content structure (from the recorded `analysis_basis`),
-- suggest pattern interpretations (labeled `AI_INTERPRETATION`),
-- identify candidate gaps/opportunities (labeled),
-- generate ideas,
-- draft briefs.
-
-The LLM **must not**:
-- invent metrics, source URLs, creators, or platform coverage,
-- fabricate capability availability,
-- bypass official access restrictions,
-- silently modify numeric evidence,
-- present unsupported inference as fact (`FACT`),
-- write to canonical source facts without validation.
-
-`DECISION:` provider-agnostic design: a replaceable `AIProvider` interface (no-op default) consuming **structured contracts** — consistent with [01](01_ARCHITECTURE.md) and [07](07_AI_ORCHESTRATION.md). No provider is chosen in M12.
-
----
-
-## 16. AI Evaluation Strategy
-
-`PROPOSAL:` future automated checks (not implemented in M12):
-
-- output schema validity,
-- every cited evidence reference exists,
-- every cited URL maps to a known `content_item`,
-- `FACT` claims contain direct source evidence,
-- `AI_INTERPRETATION` / `RECOMMENDATION` labels preserved,
-- unsupported-claim detection (a claim with no evidence back-link),
-- provider/model recorded,
-- `analysis_basis` recorded,
-- deterministic fallback behavior when the AI provider is a no-op or fails.
-
-`DECISION:` these become acceptance criteria for any AI-assisted milestone, reusing the existing test philosophy in [10_TESTING_EVALUATION.md](10_TESTING_EVALUATION.md).
-
----
-
-## 17. Forecasting's New Role
-
-`DECISION:` forecasting (M6–M11) is repositioned as **one optional predictive signal** within Trendora intelligence, not the primary surface.
-
-| Stage | What exists | Role |
-| --- | --- | --- |
-| Descriptive | M5 analytics (current levels, aggregates) | What is happening |
-| Diagnostic | M7 diagnostics, M5 deltas/cadence | Why it looks this way (evidence) |
-| Predictive | M6/M6C naive-vs-challenger; M10 product; M11 API | Optional: what is likely next for a tracked metric |
-| Decision | future research/opportunity layer | What to do, backed by evidence |
-
-`DECISION:` keep the forecast product and API. A research run may attach a forecast signal to a tracked subject (e.g., repository star growth) where it is genuinely useful, clearly labeled `origin=trendora_forecast`. Forecasting does not block, and is not required by, the V1 research slice.
-
----
-
-## 18. UI Product Direction
-
-`DECISION:` eventual primary surfaces:
-
-- **Research** (start a run: question/topic → results)
-- **References** (evidence/backing content with URLs)
-- **Opportunities** (gaps + evidence)
-- **Ideas**
-- **Briefs**
-- **Reports**
-- **Signals / Forecasts** (the M6–M11 capability as a secondary signal surface)
-
-The main interface should **begin with the research/action workflow**, not a wall of charts ([08_DASHBOARD_SPEC.md](08_DASHBOARD_SPEC.md) is superseded in priority, not deleted).
-
-`DECISION:` the old dedicated Streamlit forecast dashboard is **deferred / retained only as an internal or dev tool**. It is **not** the primary product surface. No dashboard decision here changes the “Streamlit, not React” constraint ([08](08_DASHBOARD_SPEC.md)) — that constraint concerns framework choice for the future workspace UI, which is still OPEN (Section 23).
-
----
-
-## 19. Deployment Direction
-
-`PROPOSAL:` long-term split (nothing implemented in M12):
-
-| Layer | Direction |
-| --- | --- |
-| Web frontend/application surface | Vercel (frontend) |
-| Python API/core | FastAPI (already exists as the adapter pattern) |
-| Canonical persisted data | Supabase/PostgreSQL (current) |
-| Background worker/queue | **only when** research jobs justify it (multi-source or long media analysis); do not choose infrastructure prematurely |
-| AI provider | replaceable external dependency (no-op default) |
-
-`DECISION:` V1 research runs are synchronous. No queue/worker/Celery/Redis in V1.
-
----
-
-## 20. Data Model Impact
-
-`CURRENT:` schema is generic and source-agnostic: `sources`, `markets`, `topics`, `retention_policies`, `publishers`, `content_items`, `content_item_topics`, `metric_snapshots` ([02](02_DATABASE_SCHEMA.md), `src/trendora/models/`). No research/evidence/pattern/idea/brief tables exist.
-
-### A. Current entities sufficient for:
-- source registry + capabilities (extend `sources` metadata or a new capability table later),
-- market/topic taxonomy,
-- publishers and content items (the evidence substrate),
-- append-only measured observations (M5),
-- retention hooks.
-
-### B. Conceptual entities eventually needed (names provisional — final names must fit the schema):
-- `research_runs` (lifecycle, Section 8),
-- research references / evidence (Section 10),
-- `content_analysis` (per-item analysis with `analysis_basis`),
-- `patterns`,
-- `opportunities`,
-- `ideas`,
-- `briefs`.
-
-### C. Additions that must **not** be created yet:
-- any of the above tables,
-- platform-specific tables (`youtube_videos`, etc.),
-- forecast/analysis/persistence tables beyond what M6–M11 already decided (none exist).
-
-`DECISION:` M12 creates **no** tables. The exact table names, keys, and lineage columns are a later schema milestone decision informed by Section 14 invariants.
-
----
-
-## 21. Policy / Retention Boundaries
-
-`CURRENT:` documented in [03_DATA_SOURCES.md](03_DATA_SOURCES.md), [04](04_INGESTION_PIPELINE.md), [05](05_ANALYTICS_SPEC.md):
-- YouTube non-authorized statistics/metadata carry `retention_policies` (30-day default; amendment path for longer storage from 2026-06-01). `retain_until` exists on publishers, content_items, and metric_snapshots.
-- Prohibited scraping; no fake stand-ins for official metrics; derived metrics on YouTube data require policy review.
-- Capability-dependent access (Instagram professional/authorized, TikTok research restrictions, Facebook permissions).
-
-`DECISION:` research-collected content inherits these boundaries. The capability model (Section 9) exposes retention/c authorization constraints per source. Source facts are distinguished from derived and AI output (Sections 10–11).
-
-`OPEN:` any current policy detail that changed since [03](03_DATA_SOURCES.md) was researched (2026-08-18) requires re-verification against live official documentation before a source milestone.
-
----
-
-## 22. Revised Roadmap
-
-`DECISION:` the old “forecast dashboard next” assumption is replaced by research-aligned vertical slices. Milestones are sized as vertical slices; each must state goal, deliverable, dependencies, out-of-scope, readiness criterion.
-
-| Milestone | Goal | Concrete deliverable | Depends on | Out of scope | Readiness |
-| --- | --- | --- | --- | --- | --- |
-| **M13 Research Core** | capability + query contracts | ResearchQuery contract, capability registry, research-run lifecycle scaffolding (docs + minimal code) | M12 | retrieval, UI, AI, schema | contracts exercised by unit tests |
-| **M14 YouTube-first vertical slice** | first real research | ResearchRun that resolves capabilities, retrieves YouTube content into `content_items`, returns references | M13 | other sources, media analysis | end-to-end run with seeded YouTube data |
-| **M15 Research workspace UI** | usable surface | Research UI (query → results → references) | M14 | patterns/opportunities UI | user can run a research query and inspect references |
-| **M16 Content intelligence** | analysis + patterns | deterministic per-item analysis + pattern aggregation over references | M14 | AI interpretation | patterns have evidence back-links |
-| **M17 Opportunities** | gaps | opportunity candidates with evidence back-links + heuristic ranking | M16 | idea generation | opportunities traceable to evidence |
-| **M18 AI grounded interpretation** | labeled AI | `AI_INTERPRETATION` over structured evidence with provider/basis recorded | M16 | unlabeled generation | Section 16 checks pass |
-| **M19 Ideas** | idea generation | evidence-backed ideas (AI-labeled) | M17, M18 | publishing | ideas trace to opportunities |
-| **M20 Briefs** | deliverable | content brief with provenance chain | M19 | distribution | brief → … → URL chain intact |
-| **M21 Reports** | summary output | report/workspace export | M20 | — | — |
-| **M22 Additional sources/signals** | broaden | second legitimate source per capability model | M14 | — | capabilities truthful |
-| **M23 Competitor/watchlists** | tracking | creator/repo watchlists + tracked signals (can use M10 forecast) | M22 | — | — |
-| **M24 Alerts / recurring research** | automation | recurring runs + alerts | M22/M23 | — | — |
-
-`OPEN:` exact milestone ordering beyond M15 is provisional and will be re-derived from build progress. Milestone numbers here are proposals, not commitments.
-
----
-
-## 23. Open Decisions
-
-| Decision | Impact | Class |
-| --- | --- | --- |
-| Exact Instagram API access available to Trendora | scope of a future Instagram source | **BLOCKING LATER** |
-| TikTok legitimate commercial/public research path | TikTok capability claim | **BLOCKING LATER** |
-| Google Trends API access | complementary market-interest signal | **BLOCKING LATER** |
-| Final UI framework (Streamlit vs web frontend on Vercel) | M15 surface | **BLOCKING LATER** |
-| Async job infrastructure (worker/queue) | multi-source/long runs | **BLOCKING LATER** |
-| Authentication provider | any non-local deployment (already OPEN in [09](09_API_SPEC.md)) | **BLOCKING LATER** |
-| Team/workspace model | reports/workspace | **BLOCKING LATER** |
-| AI provider | M18 interpretation | **BLOCKING LATER** |
-| Persistence model for AI output | briefs/ideas storage | **BLOCKING LATER** |
-| Ranking methodology for research results | sort/ranking in ResearchQuery | **NON-BLOCKING** for M13/M14 |
-| Policy approval for derived metrics on YouTube data | signals over YouTube fields (already OPEN from M8/M9) | **BLOCKING LATER** |
-| Exact research/evidence/pattern/opportunity/idea/brief table design | schema milestone | **NON-BLOCKING** for M13 |
-
-Nothing here is **BLOCKING NOW** for M13 (Research Core is contracts + minimal code, no external access required).
-
----
-
-## 24. Next Implementation Slice
-
-`DECISION:` the next implementation milestone is **M13 — Research Core**.
-
-- **Goal:** establish the capability and query contracts so every later research slice has a truthful foundation.
-- **Concrete deliverable:** `ResearchQuery` contract; platform capability vocabulary + per-source resolution (truthful `available/degraded/unavailable/not_configured`); research-run lifecycle scaffolding (synchronous, single source); unit tests proving capabilities cannot be overclaimed.
-- **Dependencies:** M12 (this document). No new connectors, no UI, no AI, no schema, no new dependencies.
-- **Out of scope:** retrieval against live sources, media analysis, patterns/opportunities, UI, AI, persistence tables.
-- **Readiness criterion:** a ResearchQuery for a YouTube topic resolves capabilities truthfully and produces a valid (empty or seeded) run result, with tests proving unsupported capability claims are impossible.
-
-`RATIONALE:` M13 is the smallest slice that makes M14 (YouTube-first retrieval) safe, because retrieval must not run before capability truth is encoded. It reuses the established thin-service pattern (M10/M11) and requires no external access or policy sign-off.
-
-`OPEN:` if the product owner prefers a working first retrieval over contracts first, M14 could be pulled ahead of M13 — but that risks building retrieval before capability truth exists; M13-first is recommended.
-
----
-
-## Non-goals (unchanged by re-baseline)
-
-M12 creates no migrations, schema, connectors, API routes, frontend, Streamlit/Next.js/React, deployment, queues/workers, LLM integration, embeddings, vector DB, ideation, reports, auth, caching, scheduling, publishing, scraping, or advanced forecasting. No dependencies were added. No test changed.
+Stop for owner review. Application implementation and mock verification do not establish production readiness.

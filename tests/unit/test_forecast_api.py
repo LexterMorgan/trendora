@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from trendora.analytics.models import MetricObservation, SubjectKind
 from trendora.analytics.repository import InMemoryAnalyticsRepository
 from trendora.analytics.service import AnalyticsService
-from trendora.api import create_app
+from tests.support.app import create_test_app
 from trendora.api.app import get_github_forecast_product
 from trendora.diagnostics.models import CadenceClass
 from trendora.forecasting.models import ForecastModel, ForecastPoint
@@ -52,7 +52,7 @@ def _regular_stars() -> tuple[MetricObservation, ...]:
 
 def _make_app(*observations: MetricObservation) -> tuple[TestClient, GitHubForecastProduct]:
     product = GitHubForecastProduct(AnalyticsService(InMemoryAnalyticsRepository(observations)))
-    app = create_app()
+    app = create_test_app()
     app.dependency_overrides[get_github_forecast_product] = lambda: product
     return TestClient(app), product
 
@@ -241,7 +241,7 @@ def test_no_post_endpoint() -> None:
 def test_api_is_pure_adapter_over_m10() -> None:
     result = _stub_result()
     recording = _RecordingProduct(result)
-    app = create_app()
+    app = create_test_app()
     app.dependency_overrides[get_github_forecast_product] = lambda: recording
     client = TestClient(app)
     response = client.get(f"{PATH}/{REPO}", params={"metric": "stargazer_count"})

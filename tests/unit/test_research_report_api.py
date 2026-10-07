@@ -8,7 +8,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from trendora.api import create_app
+from tests.support.app import create_test_app
 from trendora.api.app import (
     get_research_application_service,
     get_research_report_service,
@@ -49,7 +49,7 @@ def _empty_handler(request: httpx.Request) -> httpx.Response:
 
 
 def _app_with_report_service(service) -> TestClient:
-    app = create_app()
+    app = create_test_app()
     app.dependency_overrides[get_research_report_service] = lambda: service
     return TestClient(app)
 
@@ -62,7 +62,46 @@ def _research_app_service(handler) -> ResearchApplicationService:
     )
 
 
+@pytest.fixture(autouse=True)
+def _mock_report_persistence(monkeypatch) -> list:
+    """Endpoint tests do not persist; tests/unit/test_research_report_persistence.py covers persistence."""
+    import trendora.api.app as app_module
+
+    calls: list = []
+    monkeypatch.setattr(
+        app_module,
+        "_persist_research_report",
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+    return calls
+
+
 class TestReportEndpoint:
+    def test_research_only_request_is_saved_without_optional_calls(self, _mock_report_persistence):
+        events = []
+        payload = {**_payload(), "include_content_tools": False}
+        response = _app_with_report_service(_report_service(events)).post(PATH, json=payload)
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == "research_completed"
+        assert body["interpretation"]["interpretations"]
+        assert body["strategy"] is body["ideation"] is None
+        assert events == ["interpretation"]
+        assert len(_mock_report_persistence) == 1
+
+    def test_optional_provider_failure_still_returns_and_saves_findings(self, _mock_report_persistence):
+        events = []
+        service = _report_service(events)
+        service._strategy = None
+        response = _app_with_report_service(service).post(PATH, json={**_payload(), "include_content_tools": True})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == "content_unavailable"
+        assert body["interpretation"]["interpretations"]
+        assert body["strategy"] is body["ideation"] is None
+        assert events == ["interpretation"]
+        assert len(_mock_report_persistence) == 1
+
     def test_completed_report_serialization(self) -> None:
         service = _report_service([])
         client = _app_with_report_service(service)
@@ -240,7 +279,7 @@ class TestReportErrors:
 
 class TestExistingResearchEndpoint:
     def test_research_endpoint_unchanged(self) -> None:
-        app = create_app()
+        app = create_test_app()
         app.dependency_overrides[get_research_application_service] = lambda: _research_app_service(
             _youtube_handler
         )
@@ -253,7 +292,7 @@ class TestExistingResearchEndpoint:
         assert response.json()["status"] == "completed"
 
     def test_openapi_has_all_routes(self) -> None:
-        app = create_app()
+        app = create_test_app()
         paths = app.openapi()["paths"]
         assert "post" in paths[PATH]
         assert "post" in paths["/api/v1/research"]
