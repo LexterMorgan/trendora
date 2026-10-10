@@ -14,6 +14,8 @@ from datetime import date
 from enum import StrEnum
 from typing import TypeVar
 
+import httpx
+
 from trendora.connectors.facebook.client import FacebookPublicClient
 from trendora.connectors.youtube.client import YouTubeClient
 from trendora.research.ai_execution import GroundedInterpretationService
@@ -25,11 +27,13 @@ from trendora.research.application import (
     ResearchApplicationService,
     build_research_application_service,
 )
+from trendora.research.deadline import AIPhaseDeadline, call_with_deadline
 from trendora.research.evidence import EvidenceField, analyze_references, reference_id
 from trendora.research.exceptions import (
     ResearchAIResponseError,
     ResearchAIProviderError,
     ResearchAIProviderNotConfiguredError,
+    ResearchAITimeoutError,
     ResearchInterpretationError,
     ResearchNoCoverageError,
 )
@@ -254,23 +258,49 @@ class ResearchReportService:
         interpretation: GroundedInterpretationService | None = None,
         strategy: GroundedStrategyService | None = None,
         ideation: GroundedIdeationService | None = None,
+        ai_phase_budget_seconds: float | None = None,
     ) -> None:
         self._research = research
         self._interpretation = interpretation
         self._strategy = strategy
         self._ideation = ideation
+        # Shared monotonic budget for the whole AI phase (interpretation +
+        # retry + optional strategy/ideation). ``None`` preserves prior
+        # behavior (no shared deadline) for callers that do not set it.
+        self._ai_phase_budget_seconds = ai_phase_budget_seconds
 
-    def _run_ai_stage(self, stage: str, call: Callable[[], _T]) -> _T:
+    def _ai_deadline(self) -> "AIPhaseDeadline | None":
+        if self._ai_phase_budget_seconds is None:
+            return None
+        return AIPhaseDeadline(self._ai_phase_budget_seconds)
+
+    def _run_ai_stage(
+        self,
+        stage: str,
+        call: Callable[[], _T],
+        deadline: "AIPhaseDeadline | None" = None,
+    ) -> _T:
         """Run one AI stage; retry at most once on malformed provider output.
 
         Only ``ResearchAIResponseError`` (strict parse/validation failure of
         the model response) is retried, for a maximum of two attempts. All
         other errors propagate unchanged. Logs carry only the stage name and
         exception class — never response bodies, evidence, or credentials.
+
+        The retry shares the caller's ``deadline``: it never restarts the
+        budget. If the budget is already exhausted, no retry is attempted and
+        the original malformed-output error is re-raised so the caller's
+        labeled fallback still applies.
         """
         try:
             return call()
         except ResearchAIResponseError as exc:
+            if deadline is not None and deadline.expired():
+                logger.warning(
+                    "research.report.ai_retry_skipped stage=%s reason=budget_exhausted",
+                    stage,
+                )
+                raise
             logger.warning(
                 "research.report.ai_retry stage=%s error=%s", stage, type(exc).__name__
             )
@@ -326,6 +356,10 @@ class ResearchReportService:
         )
 
         if include_content_tools is not None:
+            # One shared budget for the whole AI phase: interpretation + its
+            # malformed-output retry + optional strategy/ideation. Collection
+            # and persistence have already run and are outside this budget.
+            deadline = self._ai_deadline()
             interpretation_result = source_summaries(pack)
             strategic_result = None
             ideation_result = None
@@ -337,7 +371,11 @@ class ResearchReportService:
                     if self._interpretation is None:
                         raise ResearchAIProviderNotConfiguredError("interpretation provider is unavailable")
                     synthesis = self._run_ai_stage(
-                        "interpretation", lambda: self._interpretation.interpret(pack)
+                        "interpretation",
+                        lambda: call_with_deadline(
+                            self._interpretation.interpret, pack, deadline
+                        ),
+                        deadline,
                     )
                     validate_interpretations(pack, synthesis)
                     _require_provenance(synthesis.model_provenance, "interpretation")
@@ -348,20 +386,33 @@ class ResearchReportService:
                     ResearchAIProviderError, ResearchAIProviderNotConfiguredError,
                     ResearchAIResponseError, ResearchInterpretationError,
                 ) as exc:
+                    # Log the exact class so a timeout is distinguishable from a
+                    # connection/non-2xx failure without exposing provider text.
                     logger.warning("research.report.interpretation_unavailable error=%s", type(exc).__name__)
             if interpretation_result.interpretations and include_content_tools:
                 try:
                     if self._strategy is None or self._ideation is None:
                         raise ResearchAIProviderNotConfiguredError("content provider is unavailable")
+                    # Optional stages share the same remaining budget.
+                    if deadline is not None and deadline.expired():
+                        raise ResearchAITimeoutError("AI phase budget exhausted before content tools")
                     context = StrategicContext(pack, interpretation_result)
                     strategic_result = self._run_ai_stage(
-                        "strategy", lambda: self._strategy.generate(context)
+                        "strategy",
+                        lambda: call_with_deadline(
+                            self._strategy.generate, context, deadline
+                        ),
+                        deadline,
                     )
                     # Validate before passing any provider output to another stage.
                     validate_strategic_result(context, strategic_result)
                     ideation_context = IdeationContext(context, strategic_result)
                     ideation_result = self._run_ai_stage(
-                        "ideation", lambda: self._ideation.generate(ideation_context)
+                        "ideation",
+                        lambda: call_with_deadline(
+                            self._ideation.generate, ideation_context, deadline
+                        ),
+                        deadline,
                     )
                     validate_ideation_result(ideation_context, ideation_result)
                 except (
@@ -379,22 +430,30 @@ class ResearchReportService:
 
         if self._interpretation is None or self._strategy is None or self._ideation is None:
             raise ResearchAIProviderNotConfiguredError("legacy report provider is unavailable")
+        # Legacy three-stage pipeline shares one AI-phase budget too.
+        deadline = self._ai_deadline()
         interpretation_result = self._run_ai_stage(
-            "interpretation", lambda: self._interpretation.interpret(pack)
+            "interpretation",
+            lambda: call_with_deadline(self._interpretation.interpret, pack, deadline),
+            deadline,
         )
         strategic_context = StrategicContext(
             evidence_pack=pack,
             interpretation_result=interpretation_result,
         )
         strategic_result = self._run_ai_stage(
-            "strategy", lambda: self._strategy.generate(strategic_context)
+            "strategy",
+            lambda: call_with_deadline(self._strategy.generate, strategic_context, deadline),
+            deadline,
         )
         ideation_context = IdeationContext(
             strategic_context=strategic_context,
             strategic_result=strategic_result,
         )
         ideation_result = self._run_ai_stage(
-            "ideation", lambda: self._ideation.generate(ideation_context)
+            "ideation",
+            lambda: call_with_deadline(self._ideation.generate, ideation_context, deadline),
+            deadline,
         )
 
         report = ResearchReport(
@@ -413,10 +472,14 @@ def build_research_report_service(
     youtube_client: YouTubeClient | None,
     facebook_client: FacebookPublicClient | None = None,
     serp_gateway=None,
-    http_client,
+    transport: httpx.AsyncBaseTransport | None = None,
     config: AIProviderConfig | None,
 ) -> ResearchReportService:
-    """Wire the report service from our clients + one shared HTTP client."""
+    """Wire the report service from our clients.
+
+    ``transport`` is an optional async transport injected by tests; production
+    passes ``None`` and each request builds a fresh ``AsyncClient``.
+    """
     research = build_research_application_service(
         youtube_client=youtube_client,
         facebook_client=facebook_client,
@@ -425,12 +488,21 @@ def build_research_report_service(
     if config is None:
         return ResearchReportService(research)
     interpretation = GroundedInterpretationService(
-        OpenAICompatibleInterpretationProvider(config, http_client=http_client)
+        OpenAICompatibleInterpretationProvider(config, transport=transport)
     )
     strategy = GroundedStrategyService(
-        OpenAICompatibleStrategyProvider(config, http_client=http_client)
+        OpenAICompatibleStrategyProvider(config, transport=transport)
     )
     ideation = GroundedIdeationService(
-        OpenAICompatibleIdeationProvider(config, http_client=http_client)
+        OpenAICompatibleIdeationProvider(config, transport=transport)
     )
-    return ResearchReportService(research, interpretation, strategy, ideation)
+    # The configured AI timeout becomes the shared total AI-phase budget:
+    # interpretation + its retry + optional strategy/ideation together must
+    # finish within it; the in-flight request is cancelled at expiry.
+    return ResearchReportService(
+        research,
+        interpretation,
+        strategy,
+        ideation,
+        ai_phase_budget_seconds=config.timeout_seconds,
+    )

@@ -158,3 +158,23 @@ def test_recovery_signing_key_requires_32_utf8_bytes_and_is_not_in_repr(monkeypa
     settings = Settings(_env_file=None)
     assert settings.report_recovery_signing_key == key
     assert key not in repr(settings)
+
+
+def test_ai_timeout_defaults_to_30_seconds(monkeypatch):
+    _database_env(monkeypatch)
+    settings = Settings(_env_file=None)
+    assert settings.ai_timeout_seconds == 30.0
+
+
+def test_ai_timeout_is_configurable(monkeypatch):
+    _database_env(monkeypatch)
+    monkeypatch.setenv("TRENDORA_AI_TIMEOUT_SECONDS", "90")
+    settings = Settings(_env_file=None)
+    assert settings.ai_timeout_seconds == 90.0
+
+
+def test_ai_timeout_must_be_positive(monkeypatch):
+    _database_env(monkeypatch)
+    monkeypatch.setenv("TRENDORA_AI_TIMEOUT_SECONDS", "0")
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None)

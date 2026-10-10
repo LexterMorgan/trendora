@@ -124,6 +124,9 @@ class _Result:
     def all(self):
         return list(self.rows)
 
+    def scalars(self):
+        return self
+
     def scalar_one_or_none(self):
         assert len(self.rows) <= 1
         return self.rows[0] if self.rows else None
@@ -158,8 +161,19 @@ class _Session:
         self.builder = Query([model])
         return self
 
+    def get(self, model, pk):
+        return next((row for row in self.rows if isinstance(row, model) and row.id == pk), None)
+
     def filter(self, *clauses):
         self.builder = self.builder.filter(*clauses)
+        return self
+
+    def with_for_update(self, **kwargs):
+        self.builder = self.builder.with_for_update(**kwargs)
+        return self
+
+    def execution_options(self, **kwargs):
+        self.builder = self.builder.execution_options(**kwargs)
         return self
 
     def first(self):
@@ -309,6 +323,116 @@ def test_fresh_source_material_is_preserved():
     assert all(value == 0 for value in expire_source_data(session, now=NOW, apply=True).values())
     assert [_fields(row) for row in rows] == before
     assert not session.deletions
+
+
+@pytest.mark.parametrize("provenance,collected,deadline", [
+    ("server_generated", BOUNDARY, None),
+    ("client_supplied", NOW - timedelta(days=1), NOW),
+    ("client_supplied", NOW, None),
+    ("legacy_unclassified", NOW, None),
+    ("server_generated", None, None),
+])
+def test_unswept_expired_report_blocks_detail_and_new_import_without_mutation(
+    monkeypatch, provenance, collected, deadline,
+):
+    from fastapi.testclient import TestClient
+    from tests.support.app import ADMIN_MEMBER, create_test_app
+    from trendora.api.app import get_session, get_utc_now
+    import trendora.api.planner as planner_api
+    from tests.unit.test_research_reporting import _query, _report_service
+    from trendora.api.research_report_models import to_report_response
+    from trendora.api.app import _snapshot_projection
+
+    snapshot = _snapshot_projection(to_report_response(_report_service([]).build_report(**_query())))
+    for reference in snapshot["research"]["references"]:
+        reference["collected_at"] = collected.isoformat() if collected else None
+    report = _report(snapshot, provenance=provenance)
+    report.source_expires_at = deadline
+    post = _post(report)
+    activity = PlannerPostActivity(id=uuid4(), post_id=post.id, actor_id=ACTOR,
+                                   event_type="updated", details={"version": 4}, created_at=NOW)
+    session = _session(report, post, activity)
+    before = [_fields(row) for row in (report, post, activity)]
+    app = create_test_app(ADMIN_MEMBER)
+    app.dependency_overrides[get_session] = lambda: session
+    app.dependency_overrides[get_utc_now] = lambda: NOW
+    monkeypatch.setattr(planner_api, "find_import_replay", lambda *a, **k: None)
+    monkeypatch.setattr(planner_api, "import_post", lambda *a, **k: pytest.fail("Expired content must not import"))
+    client = TestClient(app)
+    detail = client.get(f"/api/v1/research/reports/{report.id}")
+    assert detail.status_code == 410
+    assert detail.json()["error"]["code"] == "report_expired"
+    assert "removed" not in detail.json()["error"]["message"]
+    imported = client.post("/api/v1/planner/posts/import", json={
+        "request_id": str(uuid4()), "report_id": str(report.id),
+        "item_kind": "idea", "item_index": 0,
+    })
+    assert imported.status_code == 404
+    assert imported.json()["error"]["code"] == "planner_report_not_found"
+    assert [_fields(row) for row in (report, post, activity)] == before
+    assert not session.deletions and session.commits == 0
+
+
+@pytest.mark.parametrize("provenance,deadline", [
+    ("server_generated", None),  # Legacy nullable expiry still uses original dates.
+    ("client_supplied", NOW + timedelta(seconds=1)),
+])
+def test_unswept_fresh_report_remains_readable_until_original_bound(provenance, deadline):
+    from trendora.research.repository import get_report_record_by_id
+    report = _report(_snapshot((BOUNDARY + timedelta(seconds=1)).isoformat()), provenance=provenance)
+    report.source_expires_at = deadline
+    session = _session(report)
+    before = _fields(report)
+    assert get_report_record_by_id(session, str(report.id), now=NOW)["report"] == report.report
+    expired = get_report_record_by_id(session, str(report.id), now=NOW + timedelta(seconds=1))
+    assert expired["report"] == {"status": EXPIRED_STATUS}
+    assert _fields(report) == before and not session.deletions and session.commits == 0
+
+
+def test_unswept_expired_replays_return_identity_without_extending_deadline():
+    report = _report(provenance="client_supplied")
+    report.source_expires_at = NOW
+    post = _post(report)
+    session = _session(report, post)
+    before = [_fields(row) for row in (report, post)]
+    replay, created = save_report_snapshot(
+        session, actor_id=ACTOR, request_id=report.save_request_id,
+        snapshot=report.report, fingerprint=report.payload_hash,
+        topic=report.topic, markets=report.markets, source_codes=report.source_codes,
+        date_from=report.date_from, date_to=report.date_to, status="completed", origin="client_supplied",
+    )
+    assert replay.id == report.id and not created
+    assert find_import_replay(session, actor_id=ACTOR, request_id=post.create_request_id,
+                              selector=_selector(report)) == post.id
+    assert [_fields(row) for row in (report, post)] == before
+    assert not session.deletions and session.commits == 0
+
+
+@pytest.mark.parametrize("hidden", [False, True])
+def test_origin_read_enforces_report_bound_even_when_history_or_a_fresh_sidecar_cannot(hidden, monkeypatch):
+    from fastapi.testclient import TestClient
+    from tests.support.app import create_test_app
+    from trendora.api.app import get_session, get_utc_now
+    import trendora.research.repository as repository
+
+    report = _report()
+    post = _post(report)
+    source = _origin_source(post, collected=NOW, expires=NOW + timedelta(days=30))
+    session = _session(report, post, source)
+    before = [_fields(row) for row in (report, post, source)]
+    read = repository.get_report_record_by_id
+    def history_read(*args, **kwargs):
+        return None if hidden and kwargs.get("visible_from") is not None else read(*args, **kwargs)
+    monkeypatch.setattr(repository, "get_report_record_by_id", history_read)
+    app = create_test_app()
+    app.dependency_overrides[get_session] = lambda: session
+    app.dependency_overrides[get_utc_now] = lambda: NOW
+    response = TestClient(app).get(f"/api/v1/planner/posts/{post.id}/origin")
+    assert response.status_code == 200
+    assert response.json()["context"] == {}
+    assert response.json()["sources"][0]["url"] is None
+    assert [_fields(row) for row in (report, post, source)] == before
+    assert not session.deletions and session.commits == 0
 
 
 def test_fresh_generated_report_recovered_after_failed_save_survives_same_time_cleanup(monkeypatch):

@@ -1,6 +1,6 @@
 "use client";
 
-import { depthWording, type ResearchFormValues } from "@/components/ResearchForm";
+import { type ResearchFormValues } from "@/components/ResearchForm";
 import type { ResearchReportResponse } from "@/lib/report-api";
 import { ErrorState } from "@/components/ErrorState";
 import { ReportView } from "@/components/ReportView";
@@ -22,21 +22,17 @@ interface TurnViewProps {
 }
 
 export function userMessage(request: ResearchFormValues): string {
-  const isFacebook = request.sources[0] === "facebook";
-  const sourceSummary = isFacebook
-    ? request.facebook_page_id
-      ? `Facebook · Page ${request.facebook_page_id}`
-      : "Facebook"
-    : request.sources.map(sourceLabel).join(", ");
+  const scope = request.markets.length ? request.markets.join(", ") : "Global";
+  const sourceSummary = request.sources.map(sourceLabel).join(", ");
   const dateSummary =
     request.date_from && request.date_to
       ? `${request.date_from} → ${request.date_to}`
       : "Last 30 days";
   return [
     request.topic,
-    request.markets.join(", "),
+    scope,
     dateSummary,
-    depthWording(request.result_limit),
+    `${request.result_limit} references`,
     sourceSummary,
     request.include_content_tools ? "Content ideas and briefs included" : "Research only",
   ]

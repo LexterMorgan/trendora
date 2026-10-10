@@ -268,7 +268,7 @@ export function ReportView({ report }: ReportViewProps) {
   }
 
   return (
-    <div className="report">
+    <div className="report rise-in">
       <ReportPersistencePanel report={report} onResolved={setReportId} />
       <section className="report-primary-section" aria-labelledby="findings-title">
         <h3 className="section-title" id="findings-title">Research findings</h3>
@@ -437,6 +437,7 @@ function ReportScope({ report }: { report: ResearchReportResponse }) {
       <h3 className="section-title">Research scope</h3>
       <ul className="provenance-list">
         <li>Topic: {query?.topic || "Unavailable"}</li>
+        <li>Scope: {query?.markets?.length ? query.markets.join(", ") : "Global (no country restriction)"}</li>
         <li>Requested timeframe: {query?.date_from || "Unknown"} to {query?.date_to || "Unknown"}</li>
         <li>Requested sources: {query?.sources?.map(sourceLabel).join(", ") || "Unavailable"}</li>
         <li>Sources searched: {research.executed_sources?.map(sourceLabel).join(", ") || (research.executed_sources ? "None" : "Unavailable")}</li>
@@ -451,7 +452,7 @@ function ReportScope({ report }: { report: ResearchReportResponse }) {
         collection dates do not establish when a development happened.
       </p>
       {hasPublicWeb && (
-        <p className="section-note">Public-web results were not verified against the requested timeframe.</p>
+        <p className="section-note">Public web search did not enforce the requested timeframe. Publication dates are unverified; undated results are context.</p>
       )}
       <CoveragePanel coverage={research.coverage} executedSources={research.executed_sources} />
       <MarketCaveat markets={query?.markets ?? []} executedSources={research.executed_sources ?? []} />

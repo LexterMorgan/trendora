@@ -452,23 +452,35 @@ class TestSuccess:
 
 
 class TestExecutionTruth:
-    def test_available_but_unconfigured_source_fails_closed(self) -> None:
-        # stack_exchange statically supports public_search but has no
-        # retriever. M26B execution truth: an available source without a
-        # configured retriever fails the request before any network call —
-        # never a silent partial success.
+    def test_available_but_unconfigured_source_runs_configured_source(self) -> None:
+        # stack_exchange statically supports public_search but has no retriever.
+        # The configured source still runs; the missing one is reported as
+        # unavailable coverage, never a hard failure.
         client, _ = _make_app(_youtube_handler)
         response = client.post(
             PATH, json=_valid_payload(sources=["stack_exchange", "youtube"])
         )
-        assert response.status_code == 503
-        assert response.json()["error"]["code"] == "research_source_not_configured"
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == "completed"
+        assert body["executed_sources"] == ["youtube"]
+        by_source = {item["source_code"]: item for item in body["coverage"]["sources"]}
+        assert by_source["youtube"]["status"] == "available"
+        assert by_source["stack_exchange"]["status"] == "available"
 
-    def test_available_but_unconfigured_source_in_any_position_fails_closed(self) -> None:
+    def test_unconfigured_source_in_any_position_still_runs_configured(self) -> None:
         client, _ = _make_app(_youtube_handler)
         response = client.post(
             PATH, json=_valid_payload(sources=["youtube", "stack_exchange"])
         )
+        assert response.status_code == 200
+        assert response.json()["executed_sources"] == ["youtube"]
+
+    def test_no_configured_source_returns_clear_error(self) -> None:
+        # No retriever registered at all: the plan is empty and the request
+        # fails with the existing sanitized 503.
+        client = _make_app_no_config()
+        response = client.post(PATH, json=_valid_payload())
         assert response.status_code == 503
         assert response.json()["error"]["code"] == "research_source_not_configured"
 
@@ -638,16 +650,15 @@ class TestFacebook:
         assert response.status_code == 422
         assert response.json()["error"]["code"] == "invalid_research_request"
 
-    def test_mixed_sources_without_youtube_retriever_fails_closed(self) -> None:
-        # Mixed youtube+facebook is now a valid query; but with only the
-        # facebook retriever configured, the available-but-unconfigured
-        # youtube source fails the request closed before any call.
+    def test_mixed_sources_without_youtube_retriever_runs_facebook(self) -> None:
+        # Mixed youtube+facebook is valid; with only the facebook retriever
+        # configured, facebook still runs and youtube is simply not executed.
         client, _ = _make_facebook_app(_facebook_handler([]))
         response = client.post(
             PATH, json=_facebook_payload(sources=["facebook", "youtube"])
         )
-        assert response.status_code == 503
-        assert response.json()["error"]["code"] == "research_source_not_configured"
+        assert response.status_code == 200
+        assert response.json()["executed_sources"] == ["facebook"]
 
     def test_facebook_without_retriever_returns_503(self) -> None:
         client, _ = _make_app(_youtube_handler)  # only youtube configured

@@ -48,11 +48,19 @@ class Settings(BaseSettings):
     ai_model: str | None = Field(default=None, alias="TRENDORA_AI_MODEL")
     ai_endpoint_url: str | None = Field(default=None, alias="TRENDORA_AI_ENDPOINT_URL")
     ai_api_key: str | None = Field(default=None, alias="TRENDORA_AI_API_KEY")
+    # Per-operation AI HTTP timeout. Default matches the adapter default (30s).
+    # Raise only for a demonstrably slower provider; no blanket increases.
+    ai_timeout_seconds: float = Field(default=30.0, gt=0, alias="TRENDORA_AI_TIMEOUT_SECONDS")
     report_recovery_signing_key: str | None = Field(
         default=None, alias="TRENDORA_REPORT_RECOVERY_SIGNING_KEY", repr=False,
     )
     serper_api_key: str | None = Field(default=None, alias="SERPER_API_KEY")
     web_search_enabled: bool = Field(default=True, alias="TRENDORA_WEB_SEARCH_ENABLED")
+    # Explicit public-web backend selection. "auto" prefers self-hosted SearXNG
+    # when configured, then Serper; a named backend never silently falls back to
+    # a different (paid) provider.
+    web_search_backend: str = Field(default="auto", alias="TRENDORA_WEB_SEARCH_BACKEND")
+    searxng_url: str | None = Field(default=None, alias="SEARXNG_URL")
 
     @field_validator("database_url")
     @classmethod
@@ -80,6 +88,7 @@ class Settings(BaseSettings):
         "ai_endpoint_url",
         "ai_api_key",
         "serper_api_key",
+        "searxng_url",
         "supabase_url",
         "report_recovery_signing_key",
         mode="before",
@@ -90,6 +99,16 @@ class Settings(BaseSettings):
             return None
         text = str(value).strip()
         return text or None
+
+    @field_validator("web_search_backend", mode="before")
+    @classmethod
+    def normalize_web_search_backend(cls, value: object) -> str:
+        text = str(value).strip().lower() if value is not None else "auto"
+        if text not in ("auto", "serper", "searxng", "none"):
+            raise ValueError(
+                "TRENDORA_WEB_SEARCH_BACKEND must be one of: auto, serper, searxng, none"
+            )
+        return text or "auto"
 
     @field_validator("report_recovery_signing_key", mode="after")
     @classmethod

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import json
 from datetime import date, datetime, timezone
 
 import httpx
@@ -486,6 +487,21 @@ class TestCapabilities:
 
 
 class TestProviderNeutralSource:
+    def test_requested_window_does_not_invent_search_filters_or_publication_dates(self):
+        captured = []
+        def handler(request):
+            captured.append(json.loads(request.content))
+            return httpx.Response(200, json={"organic": [{
+                "title": "Fictional dated search snippet", "link": "https://example.test/source",
+                "snippet": "Fictional context", "date": "2026-08-15",
+            }]})
+        retriever = _retriever(handler)
+        refs = retriever.normalize(retriever.collect(_query(), collected_at=T0))
+        assert captured == [{"q": "AI education", "num": 5}]
+        assert refs[0].published_at is None
+        assert refs[0].collected_at == T0 and T0.date() > _query().date_to
+        assert refs[0].market_contexts == ()
+
     def test_source_code_is_public_web(self):
         assert WEB_SEARCH_SOURCE_CODE == "public_web"
         retriever = _retriever(_ok_handler(_organic("https://a.com/1")))
@@ -650,6 +666,63 @@ class TestApiExecution:
         codes = [r["source_code"] for r in body["references"]]
         assert "public_web" in codes
         assert body["references"][-1]["source_code"] == "public_web"
+
+    def test_global_request_runs_both_sources_within_budget(self):
+        import tests.unit.test_research_api as api_tests
+        from trendora.research import YouTubeResearchRetriever
+
+        # Global: no markets, both sources, fixed budget.
+        payload = {"topic": "t", "markets": [], "sources": ["youtube", "public_web"], "result_limit": 6}
+        yt_client = api_tests.YouTubeClient(
+            api_tests.TEST_KEY,
+            http_client=httpx.Client(transport=httpx.MockTransport(api_tests._youtube_handler)),  # noqa: SLF001
+        )
+        service = ResearchApplicationService(
+            ResearchCapabilityResolver(),
+            {
+                "youtube": YouTubeResearchRetriever(yt_client),
+                "public_web": WebSearchResearchRetriever(
+                    _gateway(_ok_handler(_organic("https://a.com/1")))
+                ),
+            },
+        )
+        app = create_test_app()
+        app.dependency_overrides[get_research_application_service] = lambda: service
+        body = TestClient(app).post(PATH, json=payload).json()
+        assert body["status"] == "completed"
+        assert body["executed_sources"] == ["youtube", "public_web"]
+        assert body["query"]["markets"] == []
+        assert body["query"]["market"] is None
+        # Budget split across the two targets (divmod(6, 2) = 3 each).
+        assert len(body["references"]) <= 6
+        codes = {r["source_code"] for r in body["references"]}
+        assert codes == {"youtube", "public_web"}
+
+    def test_global_request_without_web_config_runs_youtube_only(self):
+        import tests.unit.test_research_api as api_tests
+        from trendora.research import YouTubeResearchRetriever
+
+        # Web requested but not configured: YouTube still runs; no error.
+        payload = {"topic": "t", "markets": [], "sources": ["youtube", "public_web"], "result_limit": 4}
+        yt_client = api_tests.YouTubeClient(
+            api_tests.TEST_KEY,
+            http_client=httpx.Client(transport=httpx.MockTransport(api_tests._youtube_handler)),  # noqa: SLF001
+        )
+        service = ResearchApplicationService(
+            ResearchCapabilityResolver(),
+            {"youtube": YouTubeResearchRetriever(yt_client)},
+        )
+        app = create_test_app()
+        app.dependency_overrides[get_research_application_service] = lambda: service
+        response = TestClient(app).post(PATH, json=payload)
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == "completed"
+        assert body["executed_sources"] == ["youtube"]
+        # Coverage still reports public_web as a requested (available) source;
+        # it was simply not executed. Honest partial execution, not a failure.
+        by_source = {item["source_code"]: item for item in body["coverage"]["sources"]}
+        assert by_source["public_web"]["status"] == "available"
 
 
 class TestReportPipeline:

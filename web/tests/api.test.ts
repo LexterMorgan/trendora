@@ -277,6 +277,21 @@ test("422 keeps the backend message", async () => {
   );
 });
 
+test("unconfigured research source has an actionable error without exposing server details", async () => {
+  await withFetch(
+    () => jsonResponse(503, { error: { code: "research_source_not_configured", message: "fictional-private-configuration" } }),
+    async (fetchCap) => {
+      const err = await settled(requestJson("/api/research/report", { method: "POST", runtime: runtime(capture()) }));
+      assert.ok(err instanceof ResearchApiError);
+      assert.equal(err.kind, "unavailable");
+      assert.equal(err.code, "research_source_not_configured");
+      assert.match(err.message, /isn't configured.*Choose another source/);
+      assert.equal(err.message.includes("fictional-private-configuration"), false);
+      assert.equal(fetchCap.calls, 1);
+    },
+  );
+});
+
 test("network failure becomes a retryable network error", async () => {
   const original = globalThis.fetch;
   globalThis.fetch = (async () => {

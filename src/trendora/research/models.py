@@ -108,12 +108,14 @@ class ResearchQuery:
     """A validated, structured research request (docs/14 section 7).
 
     ``markets`` is the canonical ordered, normalized, deduplicated market list
-    (M26C). ``market`` is the legacy singular field: the sole market for
-    single-market requests, ``None`` otherwise. ``facebook_page_id`` is the
-    explicit single Facebook Page target (M25C); ``topic`` and ``markets``
-    remain part of the shared contract but do not filter or alter Facebook
-    collection. Values are normalized at construction and validated so an
-    invalid query cannot be constructed.
+    (M26C). An **empty** ``markets`` tuple is a valid **global** request: no
+    explicit country restriction, not comprehensive worldwide coverage.
+    ``market`` is the legacy singular field: the sole market for single-market
+    requests, ``None`` otherwise (and ``None`` for global). ``facebook_page_id``
+    is the explicit single Facebook Page target (M25C); ``topic`` and
+    ``markets`` remain part of the shared contract but do not filter or alter
+    Facebook collection. Values are normalized at construction and validated so
+    an invalid query cannot be constructed.
     """
 
     topic: str
@@ -158,11 +160,15 @@ def _normalize_facebook_page_id(value: str | None) -> str | None:
 
 
 def validate_research_query(query: ResearchQuery) -> None:
-    """Deterministic ResearchQuery validation. Raises ResearchValidationError."""
+    """Deterministic ResearchQuery validation. Raises ResearchValidationError.
+
+    An empty ``markets`` tuple is valid and means a **global** request: no
+    explicit country restriction. It is not a claim of comprehensive
+    worldwide coverage. When markets are supplied they are validated exactly
+    as before, so explicit regional requests are unchanged.
+    """
     if not query.topic:
         raise ResearchValidationError("topic must not be blank")
-    if not query.markets:
-        raise ResearchValidationError("at least one market is required")
     for market in query.markets:
         if market not in MARKET_CODES:
             raise ResearchValidationError(
@@ -491,6 +497,8 @@ class ResearchRun:
     def execute_sources(
         self,
         entries: "tuple[tuple[str, ResearchQuery, ResearchRetriever], ...]",
+        *,
+        tolerate_failures: bool = False,
     ) -> None:
         """Execute a multi-target retrieval plan on a READY run.
 
@@ -512,9 +520,17 @@ class ResearchRun:
 
         ``executed_sources`` records unique source codes actually attempted, in
         first-attempt order, including a failing source. An empty plan is
-        rejected before any state change. On any collection or normalization
-        failure the run is marked FAILED and the original error is re-raised —
-        never a silent partial success.
+        rejected before any state change.
+
+        Default (``tolerate_failures=False``): any collection or normalization
+        failure marks the run FAILED and re-raises the original error — never a
+        silent partial success.
+
+        ``tolerate_failures=True``: a target whose collection fails is skipped
+        so the remaining targets still run and the run completes with the
+        surviving references (an honestly partial result, surfaced through
+        ``executed_sources``). If *every* target fails, the first error is
+        re-raised and the run is FAILED — never an empty success.
         """
         if not entries:
             from trendora.research.exceptions import ResearchStateError
@@ -523,14 +539,26 @@ class ResearchRun:
         self._transition(ResearchRunStatus.COLLECTING)
         executed: list[str] = []
         collected_batches: list[tuple[ResearchRetriever, ResearchQuery, object]] = []
+        first_error: Exception | None = None
         try:
             # Collection phase: every target's collect runs while COLLECTING.
             for source_code, source_query, retriever in entries:
                 if source_code not in executed:
                     executed.append(source_code)
                 self._executed_sources = tuple(executed)
-                collected_batches.append(
-                    (retriever, source_query, retriever.collect(source_query))
+                try:
+                    collected_batches.append(
+                        (retriever, source_query, retriever.collect(source_query))
+                    )
+                except Exception as exc:  # noqa: BLE001 - classified below
+                    if not tolerate_failures:
+                        raise
+                    if first_error is None:
+                        first_error = exc
+            if tolerate_failures and not collected_batches:
+                # Every target failed: fail closed rather than report empty.
+                raise first_error if first_error is not None else ResearchStateError(
+                    "no retrieval target produced a result"
                 )
             self._transition(ResearchRunStatus.NORMALIZING)
             references: list[ResearchReference] = _merge_targets(collected_batches)

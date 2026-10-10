@@ -170,10 +170,10 @@ export function plannerWorkspaceRegressions(f) {
       await saved();
       assert.equal(f.calls.filter((c) => c.method === "PUT").at(-1).body.expected_version, 2);
     }],
-    ["360px Home breadcrumb has a 44px target and visible keyboard focus", async () => {
+    ["360px home link has a 44px target and visible keyboard focus", async () => {
       await f.page.setViewportSize({ width: 360, height: 800 });
       await f.newPost();
-      const home = f.page.locator(".breadcrumb-home");
+      const home = f.page.locator(".brand-link");
       await f.page.keyboard.press("Tab");
       await home.focus();
       await f.snapshot("home-360");
@@ -208,7 +208,7 @@ export function plannerWorkspaceRegressions(f) {
       assert.equal(await f.page.evaluate(() => document.activeElement.id), "planner-asset_links");
       await f.metrics("validation-360");
     }],
-    ["planner reflows without clipped controls at 360, 768, 1440 and zoom equivalent", async () => {
+    ["planner reflows without clipped controls at 360, 768, 1440 and narrow-viewport widths", async () => {
       await create();
       for (const width of [360, 768, 1440, 720]) {
         await f.page.setViewportSize({ width, height: width === 720 ? 500 : 900 });
@@ -216,7 +216,7 @@ export function plannerWorkspaceRegressions(f) {
         await f.snapshot(`workspace-${width}`);
       }
       const columns = await f.page.locator(".planner-form").evaluate((e) => getComputedStyle(e).gridTemplateColumns);
-      assert.equal(columns.split(" ").length, 1, "1440px / 200% equivalent must use one form column");
+      assert.equal(columns.split(" ").length, 1, "the narrow 720px viewport must use one form column");
     }],
     ["account remount clears A recovery snapshot and unsaved text", async () => {
       const id = await create();
@@ -414,7 +414,7 @@ export function plannerWorkspaceRegressions(f) {
       assert.match(await outside.innerText(), /Published[^\n]*Jul 31, 2026/);
       for (const card of [inWindow, outside, undated]) assert.match(await card.innerText(), /Collected[^\n]*Oct 1, 2026/);
       assert.equal(await undated.getByText("Publication date unknown", { exact: true }).isVisible(), true);
-      assert.equal(await f.page.getByText("Public-web results were not verified against the requested timeframe.", { exact: true }).isVisible(), true);
+      assert.equal(await f.page.getByText("Public web search did not enforce the requested timeframe. Publication dates are unverified; undated results are context.", { exact: true }).isVisible(), true);
       assert.equal(await f.page.getByText("Timeframe coverage is unverified.", { exact: false }).first().isVisible(), true);
       assert.equal(await inWindow.locator(".metric").filter({ hasText: "Views" }).locator("dd").innerText(), "0");
       assert.equal(await inWindow.locator(".metric").filter({ hasText: "Likes" }).locator("dd").innerText(), "Unknown");
@@ -461,7 +461,7 @@ export function plannerWorkspaceRegressions(f) {
         await f.snapshot(noEvidence ? "research-no-evidence" : "research-legacy");
       }
     }],
-    ["P4 report disclosures work by keyboard and reflow at mobile and zoom-equivalent widths", async () => {
+    ["P4 report disclosures work by keyboard and reflow at mobile and narrow-viewport widths", async () => {
       await f.seedSavedReport({ researchFirst: true }); await f.openResearch();
       await f.page.setViewportSize({ width: 360, height: 800 });
       const summary = contentTools();
@@ -485,7 +485,7 @@ export function plannerWorkspaceRegressions(f) {
     }],
     ["Final research-only default preserves sourced findings and invokes no optional stages", async () => {
       await f.openResearch();
-      const optIn = f.page.getByRole("checkbox", { name: "Include content ideas and briefs", exact: true });
+      const optIn = f.page.getByRole("checkbox", { name: "Generate content ideas and briefs", exact: true });
       assert.equal(await optIn.isChecked(), false);
       await f.submitResearch("Fictional independent research", { researchOnly: true, researchFirst: true });
       const generated = f.calls.find((call) => call.path === "/api/v1/research/report");
@@ -587,12 +587,12 @@ export function plannerWorkspaceRegressions(f) {
       await f.openResearch();
       f.fault({ action: "generate", mode: "delay-after" });
       await f.page.getByLabel("Topic", { exact: true }).fill("A research");
-      await f.page.getByRole("checkbox", { name: "Include content ideas and briefs", exact: true }).check();
+      await f.page.getByRole("checkbox", { name: "Generate content ideas and briefs", exact: true }).check();
       await button("Generate research report").click(); await f.stalled();
       await f.switchAccount(f.B);
       await button("Generate research report").waitFor();
       await f.page.getByLabel("Topic", { exact: true }).fill("B unsaved research");
-      assert.equal(await f.page.getByRole("checkbox", { name: "Include content ideas and briefs", exact: true }).isChecked(), false);
+      assert.equal(await f.page.getByRole("checkbox", { name: "Generate content ideas and briefs", exact: true }).isChecked(), false);
       await f.release();
       await f.page.waitForTimeout(100);
       assert.equal(await f.page.locator(".report").count(), 0);
@@ -601,7 +601,7 @@ export function plannerWorkspaceRegressions(f) {
     }],
     ["Final research-only and opt-in controls remain keyboard accessible at mobile width", async () => {
       await f.openResearch(); await f.page.setViewportSize({ width: 360, height: 800 });
-      const optIn = f.page.getByRole("checkbox", { name: "Include content ideas and briefs", exact: true });
+      const optIn = f.page.getByRole("checkbox", { name: "Generate content ideas and briefs", exact: true });
       await optIn.focus(); await f.page.keyboard.press("Space"); assert.equal(await optIn.isChecked(), true);
       await f.page.keyboard.press("Space"); assert.equal(await optIn.isChecked(), false);
       await f.metrics("research-request-360");
@@ -611,6 +611,356 @@ export function plannerWorkspaceRegressions(f) {
       assert.equal(await contentTools().evaluate((element) => element.parentElement.open), true);
       assert.equal(plannerMutations().length, 0);
       await f.snapshot("final-research-360");
+    }],
+    ["Simplified form has no country/source/depth controls and submits global YouTube + public web", async () => {
+      await f.page.goto(`${f.origin}/test-fixtures/SimpleForm`);
+      const submitted = async () => JSON.parse(await f.page.locator("#submitted-json").innerText());
+      // Removed controls are genuinely gone.
+      assert.equal(await f.page.getByRole("button", { name: "Advanced options", exact: true }).count(), 0);
+      assert.equal(await f.page.locator('input[name="source"]').count(), 0);
+      assert.equal(await f.page.locator('input[name="markets"]').count(), 0);
+      assert.equal(await f.page.locator("#simple-depth, #research-depth").count(), 0);
+      assert.equal(await f.page.getByLabel("Facebook Page ID", { exact: true }).count(), 0);
+      // Global coverage note is present; timeframe stays visible.
+      assert.match(await f.page.locator(".source-coverage-note").innerText(), /no country restriction/);
+      assert.equal(await f.page.getByLabel("From", { exact: true }).isVisible(), true);
+      assert.equal(await f.page.getByLabel("To", { exact: true }).isVisible(), true);
+      // Content tools are optional and unchecked by default.
+      const optIn = f.page.getByRole("checkbox", { name: "Generate content ideas and briefs", exact: true });
+      assert.equal(await optIn.isChecked(), false);
+      // Submit: global request with both sources and no markets.
+      await button("Generate research report").click();
+      await f.waitFor(async () => (await f.page.locator("#submitted-json").innerText()).length > 0);
+      const body = await submitted();
+      assert.deepEqual(body.sources, ["youtube", "public_web"]);
+      assert.deepEqual(body.markets, []);
+      assert.equal(body.result_limit, 50);
+      assert.equal(body.include_content_tools, false);
+      // Keyboard: the optional-content checkbox is reachable and operable.
+      await optIn.focus(); await f.page.keyboard.press("Space");
+      assert.equal(await optIn.isChecked(), true);
+      for (const width of [360, 768, 1440, 720]) {
+        await f.page.setViewportSize({ width, height: 900 });
+        await f.metrics(`simple-form-${width}`); await f.snapshot(`simple-form-${width}`);
+      }
+      assert.equal(plannerMutations().length, 0);
+    }],
+    ["History list, empty state, and status badges render without overflow", async () => {
+      // Empty state first.
+      await f.page.goto(f.origin + "/past-reports");
+      await f.page.getByRole("heading", { name: "No reports yet", exact: true }).waitFor();
+      const emptyLink = f.page.getByRole("link", { name: "Generate research report", exact: true });
+      assert.equal(await emptyLink.isVisible(), true);
+      // Anchor-styled primary buttons must reach the 44px target like the
+      // <button> variant (display:inline would collapse min-height).
+      const emptyRect = await emptyLink.boundingBox();
+      assert(emptyRect.height >= 44, `primary link target ${emptyRect.width}×${emptyRect.height}`);
+      await f.metrics("history-empty-1440");
+      // Populated list: seed two saved reports, reload.
+      await f.seedSavedReport({ topic: "Fictional history one", researchFirst: true });
+      await f.seedSavedReport({ topic: "Fictional history two", noEvidence: true });
+      await f.page.reload();
+      await f.page.locator(".history-row").first().waitFor();
+      assert.equal(await f.page.locator(".history-row").count(), 2);
+      assert.equal(await f.page.locator(".status-badge").count(), 2);
+      await f.page.locator(".history-row").first().click();
+      await f.page.locator(".report").waitFor();
+      assert.equal(await f.page.getByRole("heading", { name: "Research findings", exact: true }).isVisible(), true);
+      await f.page.setViewportSize({ width: 360, height: 800 });
+      await f.page.goto(f.origin + "/past-reports");
+      await f.page.locator(".history-row").first().waitFor();
+      await f.metrics("history-list-360");
+      await f.snapshot("history-list-360");
+    }],
+    ["Auth screens render and reject an invalid callback link", async () => {
+      // Sign out first so /login is not bounced by the active session.
+      await f.page.goto(f.origin + "/");
+      await f.page.getByRole("button", { name: "Sign out", exact: true }).click();
+      await f.page.waitForURL(f.origin + "/login");
+      await f.page.getByLabel("Email", { exact: true }).waitFor();
+      await f.page.getByRole("button", { name: "Forgot your password?", exact: true }).click();
+      await f.page.getByRole("button", { name: "Send recovery link", exact: true }).waitFor();
+      await f.metrics("auth-login-1440");
+      await f.page.setViewportSize({ width: 360, height: 800 });
+      await f.metrics("auth-login-360");
+      await f.snapshot("auth-login-360");
+      // A callback page with no valid token lands on the invalid panel.
+      await f.page.goto(f.origin + "/accept-invite");
+      await f.page.getByText(/invalid, expired, or already used/, { exact: false }).waitFor({ timeout: 10000 });
+      await f.metrics("auth-invite-invalid-360");
+      await f.snapshot("auth-invite-invalid-360");
+      await f.page.goto(f.origin + "/reset-password");
+      await f.page.getByText(/invalid, expired, or already used/, { exact: false }).waitFor({ timeout: 10000 });
+      await f.metrics("auth-reset-invalid-360");
+    }],
+    ["Viewport/device-density emulation (720 CSS px, DPR 2) keeps content readable with no page overflow", async () => {
+      await f.seedSavedReport({ researchFirst: true }); await f.openResearch();
+      // This is CDP viewport/device-density emulation, NOT the browser's actual
+      // zoom setting. It halves the CSS viewport while doubling devicePixelRatio,
+      // matching the layout a 1440px window produces at 200% zoom, but it does
+      // not prove the browser zoom control was exercised. Actual 200% browser
+      // zoom on report reading was performed separately by the independent
+      // review (see /private/tmp/trendora-ui-review.RCUuTx/REPORT.md).
+      const cdp = await f.page.context().newCDPSession(f.page);
+      await cdp.send("Emulation.setDeviceMetricsOverride", { width: 720, height: 900, deviceScaleFactor: 2, mobile: false, screenWidth: 720, screenHeight: 900 });
+      assert.equal(await f.page.evaluate(() => window.devicePixelRatio), 2);
+      const data = await f.metrics("viewport-density-emulation");
+      assert.equal(data.viewport, 720);
+      // Content stays reachable and readable.
+      assert.equal(await f.page.getByRole("heading", { name: "Research findings", exact: true }).isVisible(), true);
+      assert.equal(await f.page.locator(".reference-card").first().isVisible(), true);
+      await f.snapshot("viewport-density-emulation");
+      await cdp.send("Emulation.clearDeviceMetricsOverride");
+    }],
+    ["Reduced motion removes entrance animation while content stays readable and interactive", async () => {
+      await f.page.emulateMedia({ reducedMotion: "reduce" });
+      await f.seedSavedReport({ researchFirst: true }); await f.openResearch();
+      const report = f.page.locator(".report");
+      await report.waitFor();
+      // Content is present and fully opaque immediately; no reliance on motion.
+      assert.equal(await report.isVisible(), true);
+      const duration = await report.evaluate((element) => getComputedStyle(element).animationDuration);
+      assert.match(duration, /^(0\.001ms|1e-06s)$/);
+      // The single entrance animation is neutralized, not merely faster.
+      assert.equal(await f.page.getByRole("heading", { name: "Research findings", exact: true }).isVisible(), true);
+      assert.equal(await f.page.locator(".reference-card").first().isVisible(), true);
+      await f.metrics("reduced-motion-1440");
+      await f.page.setViewportSize({ width: 360, height: 800 });
+      await f.metrics("reduced-motion-360");
+      await f.snapshot("reduced-motion-360");
+      await f.page.emulateMedia({ reducedMotion: "no-preference" });
+    }],
+    ["Header nav marks the current destination and the mobile menu is labelled and keyboard operable", async () => {
+      // Desktop: primary destinations are visible with an aria-current marker.
+      await f.page.setViewportSize({ width: 1440, height: 900 });
+      await f.openResearch();
+      const nav = f.page.getByRole("navigation", { name: "Primary", exact: true });
+      await nav.waitFor();
+      assert.equal(await nav.getByRole("link", { name: "Research", exact: true }).getAttribute("aria-current"), "page");
+      assert.equal(await f.page.locator(".menu-toggle").isVisible(), false);
+      await f.metrics("shell-desktop");
+
+      // Narrow: the row collapses into a labelled Menu control, not a bare icon.
+      await f.page.setViewportSize({ width: 360, height: 800 });
+      assert.equal(await nav.isVisible(), false);
+      const menu = f.page.locator(".menu-toggle");
+      await menu.waitFor();
+      assert.equal(await menu.getAttribute("aria-expanded"), "false");
+      assert.match(await menu.innerText(), /Menu/);
+      await menu.focus();
+      await f.page.keyboard.press("Enter");
+      assert.equal(await menu.getAttribute("aria-expanded"), "true");
+      const mobileNav = f.page.getByRole("navigation", { name: "Primary mobile", exact: true });
+      await mobileNav.waitFor();
+      assert.equal(await mobileNav.getByRole("link", { name: "Reports", exact: true }).isVisible(), true);
+      await f.metrics("shell-mobile");
+      await mobileNav.getByRole("link", { name: "Reports", exact: true }).focus();
+      await f.page.keyboard.press("Enter");
+      await f.page.waitForURL(f.origin + "/past-reports");
+      assert.equal(await f.page.locator(".menu-toggle").getAttribute("aria-expanded"), "false", "menu must close after navigation");
+    }],
+    ["Research control boundaries meet 3:1 in default and hover states", async () => {
+      await f.page.setViewportSize({ width: 1440, height: 900 });
+      await f.openResearch();
+      // Contrast helper mirrors the WCAG 2.x relative-luminance formula.
+      const result = await f.page.evaluate(() => {
+        const parse = (value) => value.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number);
+        const luminance = ([r, g, b]) => {
+          const lin = [r, g, b].map((c) => { const v = c / 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+          return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+        };
+        const ratio = (fg, bg) => { const a = luminance(fg), b = luminance(bg); const [hi, lo] = a > b ? [a, b] : [b, a]; return (hi + 0.05) / (lo + 0.05); };
+        const boundary = (element) => { const style = getComputedStyle(element); return ratio(parse(style.borderTopColor), parse(style.backgroundColor)); };
+        const topic = document.getElementById("topic");
+        const sourceOption = document.querySelector(".research-form .source-option");
+        const advance = (element) => { const s = getComputedStyle(element); return ratio(parse(s.borderTopColor), parse(s.backgroundColor)); };
+        return {
+          topicDefault: boundary(topic),
+          sourceOptionDefault: advance(sourceOption),
+          topicBorder: getComputedStyle(topic).borderTopColor,
+        };
+      });
+      assert(result.topicDefault >= 3, `topic default boundary ${result.topicDefault.toFixed(2)}:1`);
+      assert(result.sourceOptionDefault >= 3, `source option default boundary ${result.sourceOptionDefault.toFixed(2)}:1`);
+      // Hover states must also meet 3:1.
+      await f.page.locator("#topic").hover();
+      const hoverRatio = await f.page.evaluate(() => {
+        const parse = (value) => value.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number);
+        const luminance = ([r, g, b]) => { const lin = [r, g, b].map((c) => { const v = c / 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]; };
+        const ratio = (fg, bg) => { const a = luminance(fg), b = luminance(bg); const [hi, lo] = a > b ? [a, b] : [b, a]; return (hi + 0.05) / (lo + 0.05); };
+        const style = getComputedStyle(document.getElementById("topic"));
+        return ratio(parse(style.borderTopColor), parse(style.backgroundColor));
+      });
+      assert(hoverRatio >= 3, `topic hover boundary ${hoverRatio.toFixed(2)}:1`);
+    }],
+    ["An open mobile menu cannot disrupt the header across the desktop breakpoint", async () => {
+      await f.page.setViewportSize({ width: 360, height: 800 });
+      await f.openResearch();
+      const menu = f.page.locator(".menu-toggle");
+      await menu.click();
+      assert.equal(await menu.getAttribute("aria-expanded"), "true");
+      const mobileNav = f.page.getByRole("navigation", { name: "Primary mobile", exact: true });
+      await mobileNav.waitFor();
+      // Cross to desktop with the menu still open.
+      await f.page.setViewportSize({ width: 1440, height: 900 });
+      assert.equal(await mobileNav.isVisible(), false, "mobile menu must be hidden on desktop");
+      assert.equal(await f.page.locator(".header-nav").isVisible(), true);
+      assert.equal(await menu.isVisible(), false);
+      const desktop = await f.metrics("menu-open-desktop");
+      // No overlapping controls: every visible control stays within the viewport
+      // and the header controls do not intersect each other.
+      const headerControls = await f.page.locator(".unified-header a, .unified-header button").evaluateAll((elements) =>
+        elements.filter((e) => e.getClientRects().length).map((e) => { const r = e.getBoundingClientRect(); return { text: e.textContent, left: r.left, right: r.right, top: r.top, bottom: r.bottom }; }));
+      for (let i = 0; i < headerControls.length; i += 1) {
+        for (let j = i + 1; j < headerControls.length; j += 1) {
+          const a = headerControls[i], b = headerControls[j];
+          const overlap = a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+          assert.equal(overlap, false, `header controls overlap: ${a.text} / ${b.text}`);
+        }
+      }
+      assert(desktop.viewport === 1440);
+      // Return to mobile: the disclosure is still usable.
+      await f.page.setViewportSize({ width: 360, height: 800 });
+      assert.equal(await menu.isVisible(), true);
+      assert.equal(await menu.getAttribute("aria-expanded"), "true");
+      assert.equal(await mobileNav.isVisible(), true);
+      await f.metrics("menu-open-mobile-again");
+      await f.snapshot("menu-breakpoint-return");
+    }],
+    ["A saved report keeps Reports active in the navigation", async () => {
+      const id = await f.seedSavedReport({ topic: "Fictional saved nav", researchFirst: true });
+      await f.page.goto(`${f.origin}/report/${id}`);
+      await f.page.locator(".report").waitFor();
+      const desktopNav = f.page.getByRole("navigation", { name: "Primary", exact: true });
+      const active = desktopNav.getByRole("link", { name: "Reports", exact: true });
+      assert.equal(await active.getAttribute("aria-current"), "page");
+      assert.equal(await desktopNav.getByRole("link", { name: "Research", exact: true }).getAttribute("aria-current"), null);
+      assert.equal(await desktopNav.getByRole("link", { name: "Planner", exact: true }).getAttribute("aria-current"), null);
+      // Mobile: the same destination is marked.
+      await f.page.setViewportSize({ width: 360, height: 800 });
+      await f.page.locator(".menu-toggle").click();
+      const mobileNav = f.page.getByRole("navigation", { name: "Primary mobile", exact: true });
+      await mobileNav.waitFor();
+      assert.equal(await mobileNav.getByRole("link", { name: "Reports", exact: true }).getAttribute("aria-current"), "page");
+      assert.equal(await mobileNav.locator('[aria-current="page"]').count(), 1);
+      await f.snapshot("saved-report-nav-360");
+    }],
+    ["Citation drawer contains Tab and Shift+Tab, closes on Escape, and restores focus to the trigger", async () => {
+      await f.seedSavedReport({ researchFirst: true }); await f.openResearch();
+      const trigger = button("Trace 1 citation").first();
+      await trigger.focus();
+      await f.page.keyboard.press("Enter");
+      const drawer = f.page.getByRole("dialog", { name: "Citation trace", exact: true });
+      await drawer.waitFor();
+      assert.equal(await drawer.evaluate((element) => element.contains(document.activeElement)), true);
+      // Focus must stay inside across several forward and backward tabs.
+      const inside = async () => drawer.evaluate((element) => element.contains(document.activeElement));
+      for (let step = 0; step < 8; step += 1) {
+        await f.page.keyboard.press("Tab");
+        assert.equal(await inside(), true, `Tab #${step + 1} escaped the drawer`);
+      }
+      for (let step = 0; step < 8; step += 1) {
+        await f.page.keyboard.press("Shift+Tab");
+        assert.equal(await inside(), true, `Shift+Tab #${step + 1} escaped the drawer`);
+      }
+      // Background content is inert while the modal is open: a background
+      // control cannot receive focus.
+      const backgroundFocusable = await f.page.evaluate(() => {
+        const button = [...document.querySelectorAll("button")].find((element) => element.textContent === "Download report JSON");
+        button?.focus();
+        return document.activeElement === button;
+      });
+      assert.equal(backgroundFocusable, false, "background control must be inert while the modal is open");
+      // Backdrop click closes and restores focus. The dialog is right-anchored,
+      // so click the scrim to its left.
+      const box = await f.page.locator(".drawer-dialog").boundingBox();
+      await f.page.mouse.click(Math.max(10, box.x - 40), box.y + box.height / 2);
+      assert.equal(await drawer.count(), 0);
+      assert.equal(await trigger.evaluate((element) => element === document.activeElement), true, "backdrop close restores focus");
+      // Reopen and close with Escape.
+      await trigger.focus();
+      await f.page.keyboard.press("Enter");
+      await f.page.getByRole("dialog", { name: "Citation trace", exact: true }).waitFor();
+      await f.page.keyboard.press("Escape");
+      assert.equal(await drawer.count(), 0);
+      assert.equal(await trigger.evaluate((element) => element === document.activeElement), true, "Escape close restores focus");
+    }],
+    ["Global request retry, recovered save and planner import preserve the source set", async () => {
+      await f.openResearch();
+      await f.page.getByLabel("Topic", { exact: true }).fill("Fictional global topic");
+      await f.page.getByLabel("From", { exact: true }).fill("2026-08-01");
+      await f.page.getByLabel("To", { exact: true }).fill("2026-08-31");
+      await f.page.getByRole("checkbox", { name: "Generate content ideas and briefs", exact: true }).check();
+      f.fault({ action: "generate", mode: "reject", status: 503, code: "research_source_not_configured" });
+      await button("Generate research report").click(); await button("Retry").waitFor();
+      assert.equal(await f.page.getByText(/selected research source isn't configured/).isVisible(), true);
+      await button("Retry").click(); await f.page.locator(".report").waitFor();
+      const requests = f.calls.filter((c) => c.path === "/api/v1/research/report");
+      assert.equal(requests.length, 2); assert.deepEqual(requests[0].body, requests[1].body);
+      assert.deepEqual(requests[1].body.sources, ["youtube", "public_web"]);
+      assert.deepEqual(requests[1].body.markets, []);
+      assert.equal("facebook_page_id" in requests[1].body, false);
+      f.fault({ action: "save", mode: "drop-after" });
+      await button("Save report").click(); await button("Retry saving report").waitFor();
+      await button("Retry saving report").click(); await f.page.getByText("Saved to history.", { exact: true }).waitFor();
+      const saves = f.calls.filter((c) => c.path === "/api/v1/research/reports/save");
+      assert.equal(saves.length, 2); assert.deepEqual(saves[0].body, saves[1].body);
+      assert.deepEqual(saves[0].body.snapshot.research.query.sources, ["youtube", "public_web"]);
+      assert.deepEqual(saves[0].body.snapshot.research.query.markets, []);
+      const [reportId] = f.reports.keys();
+      await f.page.goto(`${f.origin}/report/${reportId}`); await f.page.locator(".report").waitFor();
+      assert.equal(plannerMutations().length, 0);
+      await openContentTools(); await button("Save to Planner").first().click(); await button("Open post").waitFor();
+      const imported = f.calls.find((c) => c.path === "/api/v1/planner/posts/import");
+      assert.equal(imported.body.report_id, reportId); assert.equal(f.records.size, 1);
+      await f.snapshot("global-recovered-import");
+    }],
+    ["Signed-out protected route redirects to sign in and shows no workspace", async () => {
+      // Start authenticated, then sign out; a protected route must bounce to /login
+      // and must not render workspace content from the prior session.
+      await f.page.goto(f.origin + "/");
+      await f.page.getByRole("button", { name: "Sign out", exact: true }).click();
+      await f.page.waitForURL(f.origin + "/login");
+      await f.page.getByLabel("Email", { exact: true }).waitFor();
+      // Direct navigation to a protected route while signed out.
+      await f.page.goto(f.origin + "/past-reports");
+      await f.page.waitForURL(f.origin + "/login");
+      assert.equal(await f.page.getByLabel("Email", { exact: true }).isVisible(), true);
+      assert.equal(await f.page.locator(".history-row").count(), 0);
+      assert.equal(await f.page.locator(".workspace").count(), 0);
+      await f.page.goto(f.origin + "/planner");
+      await f.page.waitForURL(f.origin + "/login");
+      assert.equal(await f.page.locator(".planner-list").count(), 0);
+    }],
+    ["Planner archive hides from active list and restore returns it", async () => {
+      const id = await create();
+      // Back to the inbox: the post is active.
+      await f.page.goto(f.origin + "/planner");
+      await f.page.locator(".planner-row").first().waitFor();
+      assert.equal(await f.page.locator(".planner-row").count(), 1);
+      // Open it and archive.
+      await f.page.goto(`${f.origin}/planner/${id}`);
+      await saved();
+      await button("Archive").click();
+      await f.page.locator(".planner-status-line").filter({ hasText: "Saved" }).waitFor();
+      assert.equal(f.records.get(id).archived_at !== null, true);
+      // Active view is empty; archived view shows it.
+      await f.page.goto(f.origin + "/planner");
+      await f.page.getByRole("heading", { name: "No active posts yet", exact: true }).waitFor();
+      await f.page.getByRole("button", { name: "Archived", exact: true }).click();
+      await f.page.locator(".planner-row").first().waitFor();
+      assert.equal(await f.page.locator(".planner-row").count(), 1);
+      // Restore from the archived post.
+      await f.page.goto(`${f.origin}/planner/${id}`);
+      await button("Restore").waitFor();
+      assert.equal(await title().getAttribute("readonly"), "");
+      await button("Restore").click();
+      await f.page.locator(".planner-status-line").filter({ hasText: "Saved" }).waitFor();
+      assert.equal(f.records.get(id).archived_at, null);
+      await f.page.goto(f.origin + "/planner");
+      await f.page.locator(".planner-row").first().waitFor();
+      assert.equal(await f.page.locator(".planner-row").count(), 1);
+      await f.snapshot("planner-archive-restore");
     }],
   ];
 }

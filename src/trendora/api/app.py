@@ -22,7 +22,6 @@ from contextlib import ExitStack
 from datetime import datetime
 from uuid import UUID, uuid4
 
-import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -30,6 +29,8 @@ from sqlalchemy.orm import Session
 from trendora.analytics.service import AnalyticsService
 from trendora.config import get_settings
 from trendora.connectors.facebook.client import FacebookPublicClient
+from trendora.connectors.web_search import WebSearchRetriever
+from trendora.connectors.web_search.searxng_gateway import SearxngGateway
 from trendora.connectors.web_search.serper_gateway import SerperGateway
 from trendora.connectors.youtube.client import YouTubeClient
 from trendora.db.session import get_session_factory
@@ -178,12 +179,37 @@ def _snapshot_projection(response: ResearchReportResponse) -> dict:
     return {field: dumped.get(field) for field in SNAPSHOT_FIELDS}
 
 
-def _build_serp_gateway(settings) -> SerperGateway | None:
-    """Build the web-search gateway when enabled and configured, else ``None``."""
-    enabled = getattr(settings, "web_search_enabled", True)
-    api_key = getattr(settings, "serper_api_key", None)
-    if enabled and api_key:
-        return SerperGateway(api_key)
+def build_web_search_gateway(settings) -> WebSearchRetriever | None:
+    """Build the configured public-web search gateway, or ``None``.
+
+    Backend selection is explicit (``TRENDORA_WEB_SEARCH_BACKEND``):
+
+    - ``none``    — public web is disabled; no gateway.
+    - ``serper``  — Serper only; unconfigured key yields ``None`` (no fallback).
+    - ``searxng`` — self-hosted SearXNG only; unconfigured URL yields ``None``.
+    - ``auto``    — prefer self-hosted SearXNG when configured, else Serper,
+                    else ``None``.
+
+    A named backend never silently falls back to a different (possibly paid)
+    provider. ``TRENDORA_WEB_SEARCH_ENABLED=false`` disables public web entirely.
+    """
+    if not getattr(settings, "web_search_enabled", True):
+        return None
+    backend = getattr(settings, "web_search_backend", "auto") or "auto"
+    serper_key = getattr(settings, "serper_api_key", None)
+    searxng_url = getattr(settings, "searxng_url", None)
+
+    if backend == "none":
+        return None
+    if backend == "serper":
+        return SerperGateway(serper_key) if serper_key else None
+    if backend == "searxng":
+        return SearxngGateway(searxng_url) if searxng_url else None
+    # auto
+    if searxng_url:
+        return SearxngGateway(searxng_url)
+    if serper_key:
+        return SerperGateway(serper_key)
     return None
 
 
@@ -230,7 +256,7 @@ def get_research_application_service() -> Generator[ResearchApplicationService, 
         )
         if facebook_client is not None:
             stack.callback(facebook_client.close)
-        serp_gateway = _build_serp_gateway(settings)
+        serp_gateway = build_web_search_gateway(settings)
         if serp_gateway is not None:
             stack.callback(serp_gateway.close)
         service = build_research_application_service(
@@ -255,6 +281,7 @@ def get_research_report_service(
             model=settings.ai_model,
             endpoint_url=settings.ai_endpoint_url,
             api_key=settings.ai_api_key,
+            timeout_seconds=getattr(settings, "ai_timeout_seconds", None),
         )
     except ResearchAIProviderNotConfiguredError:
         if content_tools is None:
@@ -274,18 +301,13 @@ def get_research_report_service(
         )
         if facebook_client is not None:
             stack.callback(facebook_client.close)
-        serp_gateway = _build_serp_gateway(settings)
+        serp_gateway = build_web_search_gateway(settings)
         if serp_gateway is not None:
             stack.callback(serp_gateway.close)
-        http = None
-        if config is not None:
-            http = httpx.Client(timeout=config.timeout_seconds)
-            stack.callback(http.close)
         service = build_research_report_service(
             youtube_client=youtube_client,
             facebook_client=facebook_client,
             serp_gateway=serp_gateway,
-            http_client=http,
             config=config,
         )
         yield service
@@ -459,6 +481,7 @@ def create_app() -> FastAPI:
             limit=limit,
             offset=offset,
             visible_from=report_visible_from(member, now),
+            now=now,
         )
         return [ReportSummaryResponse(**summary) for summary in summaries]
 
@@ -485,13 +508,14 @@ def create_app() -> FastAPI:
             session,
             report_id,
             visible_from=report_visible_from(member, now),
+            now=now,
         )
         if full_report is None:
             raise HTTPException(status_code=404, detail="Report not found")
         if full_report.get("status") == "source_data_expired" or (
             full_report["report"].get("status") == "source_data_expired"
         ):
-            raise ReportExpiredError("This report's source data has expired and was removed.")
+            raise ReportExpiredError("This report's source data has expired.")
         response = ResearchReportResponse(**full_report["report"])
         response.persistence = PersistenceOutcomeResponse(
             status="saved",

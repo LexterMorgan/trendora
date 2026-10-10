@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 interface AuthShellProps {
@@ -17,7 +18,12 @@ export function AuthShell({ title, lede, children }: AuthShellProps) {
   return (
     <main className="auth-shell">
       <section className="auth-card" aria-labelledby="auth-title">
-        <p className="brand">Trendora</p>
+        <Link href="/" className="auth-brand" aria-label="Trendora home">
+          <span className="brand-icon" aria-hidden="true">
+            T
+          </span>
+          <span className="brand-name">Trendora</span>
+        </Link>
         <h1 className="auth-title" id="auth-title">
           {title}
         </h1>

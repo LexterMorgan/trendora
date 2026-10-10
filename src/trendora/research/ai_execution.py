@@ -9,6 +9,7 @@ existing valid ``EvidencePack``.
 from __future__ import annotations
 
 from trendora.research.ai_provider import AIInterpretationProvider
+from trendora.research.deadline import AIPhaseDeadline, call_with_deadline
 from trendora.research.interpretation import (
     EvidencePack,
     InterpretationResult,
@@ -22,7 +23,13 @@ class GroundedInterpretationService:
     def __init__(self, provider: AIInterpretationProvider) -> None:
         self._provider = provider
 
-    def interpret(self, pack: EvidencePack) -> InterpretationResult:
-        """Provider output, then mandatory grounding validation."""
-        result = self._provider.interpret(pack)
+    def interpret(
+        self, pack: EvidencePack, *, deadline: AIPhaseDeadline | None = None
+    ) -> InterpretationResult:
+        """Provider output, then mandatory grounding validation.
+
+        ``deadline`` bounds the in-flight provider request; validation itself
+        is deterministic and local, so it needs no bound.
+        """
+        result = call_with_deadline(self._provider.interpret, pack, deadline)
         return validate_interpretations(pack, result)

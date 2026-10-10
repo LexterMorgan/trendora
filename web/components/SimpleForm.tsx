@@ -4,10 +4,9 @@ import { useState } from "react";
 
 import {
   DATE_PRESETS,
+  DEFAULT_RESULT_LIMIT,
   EXAMPLE_QUERIES,
-  MARKETS,
-  RESEARCH_DEPTHS,
-  SOURCE_OPTIONS,
+  GLOBAL_COVERAGE_NOTE,
   presetRange,
   todayISODate,
   toISODate,
@@ -21,23 +20,15 @@ interface SimpleFormProps {
   showExamples?: boolean;
 }
 
+/**
+ * Simplified research request: topic + timeframe, run globally across the
+ * configured topic-search sources. No country, source, or depth selection.
+ * Content ideas and briefs stay an explicit, unchecked-by-default opt-in.
+ */
 export function SimpleForm({ onSubmit, disabled, initialValues, showExamples }: SimpleFormProps) {
   const [topic, setTopic] = useState(initialValues?.topic ?? "");
-  const [expanded, setExpanded] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [includeContentTools, setIncludeContentTools] = useState(initialValues?.include_content_tools ?? false);
-
-  const [markets, setMarkets] = useState<string[]>(() =>
-    initialValues?.markets?.length ? [...initialValues.markets] : ["SG"],
-  );
-  const [source, setSource] = useState<string>(() =>
-    initialValues?.sources?.[0] === "facebook" ? "facebook" : "youtube",
-  );
-  const [resultLimit, setResultLimit] = useState<number>(() => {
-    const value = initialValues?.result_limit;
-    return value !== undefined && RESEARCH_DEPTHS.some((d) => d.value === value) ? value : 50;
-  });
-  const [facebookPageId, setFacebookPageId] = useState(initialValues?.facebook_page_id ?? "");
 
   const [preset, setPreset] = useState<string>("custom");
   const [dateFrom, setDateFrom] = useState<string>(initialValues?.date_from ?? "");
@@ -70,16 +61,6 @@ export function SimpleForm({ onSubmit, disabled, initialValues, showExamples }: 
     }
   }
 
-  function toggleMarket(code: string) {
-    setMarkets((current) =>
-      current.includes(code) ? current.filter((m) => m !== code) : [...current, code],
-    );
-  }
-
-  function orderedMarkets(): string[] {
-    return MARKETS.map((entry) => entry.code).filter((code) => markets.includes(code));
-  }
-
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!topic.trim()) {
@@ -99,27 +80,20 @@ export function SimpleForm({ onSubmit, disabled, initialValues, showExamples }: 
       setLocalError("Dates must not be in the future.");
       return;
     }
-    if (markets.length === 0) {
-      setLocalError("Select at least one market.");
-      return;
-    }
-    if (source === "facebook" && !facebookPageId.trim()) {
-      setLocalError("Enter the Facebook Page ID to research.");
-      return;
-    }
     setLocalError(null);
 
+    // Global request: no markets, both configured topic-search sources, a
+    // fixed result budget. An empty markets list is the global signal.
     const values: ResearchFormValues = {
       topic: topic.trim(),
-      markets: orderedMarkets(),
-      sources: source === "facebook" ? ["facebook"] : ["youtube"],
-      result_limit: resultLimit,
-      facebook_page_id: source === "facebook" ? facebookPageId.trim() : undefined,
+      markets: [],
+      sources: ["youtube", "public_web"],
+      result_limit: DEFAULT_RESULT_LIMIT,
       include_content_tools: includeContentTools,
     };
     // Only send an explicit window when the user actually set one; otherwise
-    // omit the fields so the M35A adapter applies its default last-30-days
-    // window. Sending empty strings would fail date parsing.
+    // omit the fields so the adapter applies its default last-30-days window.
+    // Sending empty strings would fail date parsing.
     if (dateFrom && dateTo) {
       values.date_from = dateFrom;
       values.date_to = dateTo;
@@ -162,9 +136,60 @@ export function SimpleForm({ onSubmit, disabled, initialValues, showExamples }: 
         </div>
       )}
 
+      <fieldset className="date-fieldset">
+        <legend>Timeframe</legend>
+        <div className="form-field">
+          <label htmlFor="simple-date-preset">Preset</label>
+          <select
+            id="simple-date-preset"
+            value={preset}
+            onChange={(event) => handlePresetChange(event.target.value)}
+            disabled={disabled}
+          >
+            {DATE_PRESETS.map((entry) => (
+              <option key={entry.value} value={entry.value}>
+                {entry.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <p className="date-help">
+          Presets update both dates. Editing either date switches to Custom.
+          Leave blank to use the default last-30-days window.
+        </p>
+        <div className="form-row">
+          <div className="form-field">
+            <label htmlFor="simple-date-from">From</label>
+            <input
+              id="simple-date-from"
+              type="date"
+              value={dateFrom}
+              max={maxDate}
+              onFocus={refreshMaxDate}
+              onChange={(event) => handleDateFromChange(event.target.value)}
+              disabled={disabled}
+            />
+          </div>
+          <div className="form-field">
+            <label htmlFor="simple-date-to">To</label>
+            <input
+              id="simple-date-to"
+              type="date"
+              value={dateTo}
+              max={maxDate}
+              onFocus={refreshMaxDate}
+              onChange={(event) => handleDateToChange(event.target.value)}
+              disabled={disabled}
+            />
+          </div>
+        </div>
+      </fieldset>
+
+      <p className="date-help source-coverage-note">{GLOBAL_COVERAGE_NOTE}</p>
+
       <label className="source-option">
         <input type="checkbox" checked={includeContentTools} onChange={(event) => setIncludeContentTools(event.target.checked)} disabled={disabled} />
-        <span className="source-name">Include content ideas and briefs</span>
+        <span className="source-name">Generate content ideas and briefs</span>
       </label>
 
       <button type="submit" className="primary-button" disabled={disabled}>
@@ -176,165 +201,6 @@ export function SimpleForm({ onSubmit, disabled, initialValues, showExamples }: 
           {localError}
         </p>
       )}
-
-      <div className="advanced-options">
-        <button
-          type="button"
-          className="advanced-toggle"
-          onClick={() => setExpanded((current) => !current)}
-          disabled={disabled}
-          aria-expanded={expanded}
-        >
-          Advanced options
-          <span className="toggle-icon" aria-hidden="true">
-            {expanded ? "▲" : "▼"}
-          </span>
-        </button>
-
-        {expanded && (
-          <div className="advanced-content">
-            <div className="form-row">
-              <fieldset className="form-field source-fieldset market-fieldset">
-                <legend>Markets</legend>
-                <div className="source-options market-options">
-                  {MARKETS.map((entry) => (
-                    <label
-                      key={entry.code}
-                      className={[
-                        "source-option",
-                        markets.includes(entry.code) ? "is-selected" : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                    >
-                      <input
-                        type="checkbox"
-                        name="markets"
-                        value={entry.code}
-                        checked={markets.includes(entry.code)}
-                        onChange={() => toggleMarket(entry.code)}
-                        disabled={disabled}
-                      />
-                      <span className="source-name">{entry.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-              <div className="form-field">
-                <label htmlFor="simple-depth">Research depth</label>
-                <select
-                  id="simple-depth"
-                  value={resultLimit}
-                  onChange={(event) => setResultLimit(Number(event.target.value))}
-                  disabled={disabled}
-                >
-                  {RESEARCH_DEPTHS.map((depth) => (
-                    <option key={depth.value} value={depth.value}>
-                      {depth.label} — {depth.value} references
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <fieldset className="date-fieldset">
-              <legend>Date range</legend>
-              <div className="form-field">
-                <label htmlFor="simple-date-preset">Preset</label>
-                <select
-                  id="simple-date-preset"
-                  value={preset}
-                  onChange={(event) => handlePresetChange(event.target.value)}
-                  disabled={disabled}
-                >
-                  {DATE_PRESETS.map((entry) => (
-                    <option key={entry.value} value={entry.value}>
-                      {entry.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <p className="date-help">
-                Presets update both dates. Editing either date switches to Custom.
-                Leave blank to use the default last-30-days window.
-              </p>
-              <div className="form-row">
-                <div className="form-field">
-                  <label htmlFor="simple-date-from">From</label>
-                  <input
-                    id="simple-date-from"
-                    type="date"
-                    value={dateFrom}
-                    max={maxDate}
-                    onFocus={refreshMaxDate}
-                    onChange={(event) => handleDateFromChange(event.target.value)}
-                    disabled={disabled}
-                  />
-                </div>
-                <div className="form-field">
-                  <label htmlFor="simple-date-to">To</label>
-                  <input
-                    id="simple-date-to"
-                    type="date"
-                    value={dateTo}
-                    max={maxDate}
-                    onFocus={refreshMaxDate}
-                    onChange={(event) => handleDateToChange(event.target.value)}
-                    disabled={disabled}
-                  />
-                </div>
-              </div>
-            </fieldset>
-
-            <fieldset className="source-fieldset">
-              <legend>Source</legend>
-              <div className="source-options">
-                {SOURCE_OPTIONS.map((option) => (
-                  <label
-                    key={option.code}
-                    className={[
-                      "source-option",
-                      source === option.code ? "is-selected" : "",
-                      option.disabled ? "is-disabled" : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                  >
-                    <input
-                      type="radio"
-                      name="source"
-                      value={option.code}
-                      checked={source === option.code}
-                      onChange={(event) => setSource(event.target.value)}
-                      disabled={option.disabled || disabled}
-                    />
-                    <span className="source-name">{option.name}</span>
-                    {option.note && <span className="source-note">{option.note}</span>}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-
-            {source === "facebook" && (
-              <div className="form-field page-id-field">
-                <label htmlFor="simple-facebook-page-id">Facebook Page ID</label>
-                <input
-                  id="simple-facebook-page-id"
-                  type="text"
-                  value={facebookPageId}
-                  onChange={(event) => setFacebookPageId(event.target.value)}
-                  placeholder="123456789"
-                  disabled={disabled}
-                />
-                <p className="date-help">
-                  Enter a public Facebook Page ID. Trendora’s server must have
-                  approved Meta access configured.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
     </form>
   );
 }

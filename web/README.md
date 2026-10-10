@@ -22,7 +22,7 @@ Backend (Terminal 1, repository root):
 Frontend (Terminal 2, this directory):
 
 ```bash
-npm run dev -- --hostname 127.0.0.1 --port 3000
+npm run dev -- --webpack --hostname 127.0.0.1 --port 3000
 ```
 
 Use the already installed dependencies and preserve existing private
@@ -30,6 +30,14 @@ environment files. [Local startup and variable requirements](../docs/DEPLOYMENT.
 cover the backend, source configuration and save-recovery signing key.
 Starting either server does not migrate or clean a database. The frontend is
 available at `http://127.0.0.1:3000`.
+
+Webpack supports the installed WASM compiler when native SWC is unavailable.
+The research form takes a topic and a timeframe and searches globally across
+the configured sources (YouTube and the public web), with no country, source,
+or depth selection. Public web requires backend `SERPER_API_KEY`; it uses
+indexed titles/snippets without verified publication dates or an enforced
+search timeframe. Undated results remain context even when the request
+includes dates.
 
 Required environment variable (`web/.env.local`):
 
@@ -116,8 +124,8 @@ upstream and respond with `Cache-Control: private, no-store`.
 ```bash
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint
-npm run build       # production build
-npm run dev         # local dev server
+npm run build -- --webpack # production build with installed WASM support
+npm run dev -- --webpack   # local dev server
 npm test            # node --test (auth, API, proxy unit tests)
 npm run test:browser # execute rendered browser regressions (needs a driver)
 npm run test:browser:contract # check the browser module contract only
@@ -184,6 +192,10 @@ readiness for real private drafts. P3 adds explicit import of saved research
 ideas/briefs with immutable origin, frozen retry keys, and visible save recovery.
 Reading research does not require creating a planner post. Approval, comments,
 activity feeds, board/calendar views, and publishing remain deferred.
+
+The current read-only Supabase assessment is in the local guide. Project
+health and matching URL settings do not establish a usable application
+schema, active memberships or verified auth callbacks.
 
 ## Vercel
 

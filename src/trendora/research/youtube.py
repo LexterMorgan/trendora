@@ -18,12 +18,15 @@ quota optimization, but M14 keeps enrichment on the established videos.list
 path to avoid introducing an untested endpoint shape. This is a documented
 engineering choice, not a claim that batchGetStats does not exist.
 
-Market semantics: each YouTube retrieval target collects for a single market
-(``ResearchQuery.markets[0]``), which becomes YouTube ``regionCode``.
-The reference preserves ``market_contexts`` (the market collected for) and
-``market_basis`` (``youtube_region_availability``). regionCode is regional
-availability/viewability only; no creator/publisher/content-origin country
-and no language is ever inferred from it.
+Market semantics: a target collects for at most one market
+(``ResearchQuery.markets[0]``), which becomes YouTube ``regionCode``. A
+**global** target (empty ``markets``) omits ``regionCode`` entirely — it does
+not substitute Singapore or any other country. The reference preserves
+``market_contexts`` (the market collected for; empty for global) and
+``market_basis`` (``youtube_region_availability``, only when a market was
+used). regionCode is regional availability/viewability only; no
+creator/publisher/content-origin country and no language is ever inferred
+from it.
 """
 
 from __future__ import annotations
@@ -58,7 +61,7 @@ class _CollectedVideo:
     channel_title: str | None
     published_at: datetime | None
     source_rank: int
-    market_context: str
+    market_context: str | None
     statistics: ResearchMetrics
     collected_at: datetime
 
@@ -87,7 +90,7 @@ class YouTubeResearchRetriever:
         at = collected_at if collected_at is not None else datetime.now(timezone.utc)
         if at.tzinfo is None:
             raise ValueError("collected_at must be timezone-aware")
-        market = _single_market(query)
+        market = _target_market(query)
         search_results = self._client.search_videos(
             query=query.topic,
             region_code=market,
@@ -120,7 +123,12 @@ class YouTubeResearchRetriever:
         self,
         collected: Sequence[_CollectedVideo],
     ) -> tuple[ResearchReference, ...]:
-        """Map raw collected videos to normalized research references."""
+        """Map raw collected videos to normalized research references.
+
+        A global target (``market_context is None``) keeps empty
+        ``market_contexts`` and no ``market_basis``: no country was used, so no
+        regional-availability claim is made.
+        """
         return tuple(
             ResearchReference(
                 source_code=YOUTUBE_SOURCE_CODE,
@@ -132,9 +140,13 @@ class YouTubeResearchRetriever:
                 published_at=item.published_at,
                 channel_external_id=item.channel_external_id,
                 channel_title=item.channel_title,
-                market_contexts=(item.market_context,),
+                market_contexts=(item.market_context,) if item.market_context else (),
                 market_context=item.market_context,
-                market_basis=MarketBasis.YOUTUBE_REGION_AVAILABILITY,
+                market_basis=(
+                    MarketBasis.YOUTUBE_REGION_AVAILABILITY
+                    if item.market_context
+                    else None
+                ),
                 source_rank=item.source_rank,
                 metrics=item.statistics,
             )
@@ -142,10 +154,14 @@ class YouTubeResearchRetriever:
         )
 
 
-def _single_market(query: ResearchQuery) -> str:
-    """The single region this YouTube target collects for."""
+def _target_market(query: ResearchQuery) -> str | None:
+    """The region this YouTube target collects for, or ``None`` for global.
+
+    An empty ``markets`` tuple is a global request: the YouTube search omits
+    ``regionCode`` rather than substituting any country.
+    """
     if not query.markets:
-        raise ValueError("youtube research requires at least one market")
+        return None
     return query.markets[0]
 
 
@@ -155,7 +171,7 @@ def _build_collected(
     *,
     collected_at: datetime,
     source_rank: int,
-    market_context: str,
+    market_context: str | None,
 ) -> _CollectedVideo:
     video_id = result.video_id
     if video_id is None:

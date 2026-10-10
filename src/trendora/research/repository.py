@@ -18,6 +18,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from trendora.models.research import ResearchReportRecord
+from trendora.retention import EXPIRED_STATUS, report_sources_expired
 
 
 class ReportSaveConflictError(Exception):
@@ -176,12 +177,22 @@ def save_report_snapshot(
     return record, True
 
 
+def _read_status(record: ResearchReportRecord, now: datetime) -> str:
+    if record.status == EXPIRED_STATUS or report_sources_expired(
+        record.report, provenance=record.snapshot_origin, now=now,
+        source_expires_at=getattr(record, "source_expires_at", None),
+    ):
+        return EXPIRED_STATUS
+    return record.status
+
+
 def get_report_records(
     session: Session,
     *,
     limit: int = 50,
     offset: int = 0,
     visible_from: datetime | None = None,
+    now: datetime | None = None,
 ) -> tuple[list[dict[str, Any]], int]:
     """List persisted report records with metadata only.
 
@@ -193,6 +204,7 @@ def get_report_records(
     Ordered by ``created_at`` DESC (newest first), ``id`` DESC as the
     tiebreak for identical timestamps.
     """
+    now = now if now is not None else datetime.now(timezone.utc)
     query = session.query(ResearchReportRecord)
     if visible_from is not None:
         query = query.filter(ResearchReportRecord.created_at >= visible_from)
@@ -209,7 +221,7 @@ def get_report_records(
         {
             "id": str(record.id),
             "created_at": record.created_at.isoformat(),
-            "status": record.status,
+            "status": _read_status(record, now),
             "topic": record.topic,
             "markets": record.markets,
             "source_codes": record.source_codes,
@@ -228,13 +240,15 @@ def get_report_record_by_id(
     *,
     visible_from: datetime | None = None,
     lock_for_import: bool = False,
+    now: datetime | None = None,
 ) -> dict[str, Any] | None:
     """Fetch a full report snapshot by UUID string; ``None`` when absent,
     invalid, or outside the caller's visibility window.
 
     Imports hold a shared row lock until their existing transaction commits,
     so expiry cannot scrub a report and then have an import restore its old
-    source material. Ordinary reads keep their existing behavior.
+    source material. Expired content returns an identity-only view without
+    mutating the stored row; physical cleanup remains a separate operation.
     """
     try:
         uuid_id = UUID(report_id)
@@ -252,10 +266,11 @@ def get_report_record_by_id(
     if record is None:
         return None
 
+    status = _read_status(record, now if now is not None else datetime.now(timezone.utc))
     return {
         "id": str(record.id),
         "created_at": record.created_at.isoformat(),
-        "status": record.status,
+        "status": status,
         "topic": record.topic,
         "markets": record.markets,
         "source_codes": record.source_codes,
@@ -263,5 +278,5 @@ def get_report_record_by_id(
         "date_to": record.date_to.isoformat(),
         "snapshot_origin": record.snapshot_origin,
         "source_expires_at": getattr(record, "source_expires_at", None),
-        "report": record.report,
+        "report": {"status": EXPIRED_STATUS} if status == EXPIRED_STATUS else record.report,
     }

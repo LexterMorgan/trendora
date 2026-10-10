@@ -1,0 +1,36 @@
+# Minimal SearXNG configuration for Trendora local public-web discovery.
+#
+# Uses the official image's defaults and only overrides what Trendora needs:
+# JSON output enabled (required by the gateway) and a limiter suited to a
+# single local caller. Mounted read-only at /etc/searxng/settings.yml.
+#
+# Start (see deploy/searxng/README.md for the full command):
+#   docker run --rm -d --name trendora-searxng \
+#     -p 127.0.0.1:8888:8080 \
+#     -v "$PWD/deploy/searxng:/etc/searxng:ro" \
+#     -e SEARXNG_SECRET="$(openssl rand -hex 32)" \
+#     docker.io/searxng/searxng:latest
+use_default_settings: true
+
+general:
+  instance_name: "Trendora local"
+  # Local, single-caller instance: no public exposure, no metrics.
+  enable_metrics: false
+
+server:
+  # Inside the container bind all interfaces; the host maps only 127.0.0.1.
+  bind_address: "0.0.0.0"
+  port: 8080
+  # The official image substitutes SEARXNG_SECRET when this placeholder is left.
+  secret_key: "ultrasecretkey"
+  limiter: false
+  public_instance: false
+  image_proxy: false
+
+search:
+  # JSON is required by the Trendora SearXNG gateway.
+  formats:
+    - html
+    - json
+  safe_search: 0
+  autocomplete: ""

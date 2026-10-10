@@ -223,12 +223,19 @@ class TestCombinedExecution:
         # Global cap respected: merged total never exceeds the original limit.
         assert len(refs) <= 4
 
-    def test_missing_retriever_fails_before_any_call(self) -> None:
-        yt = RecordingRetriever(())
-        service = _service(yt, None)  # facebook requested but unconfigured
+    def test_missing_retriever_skipped_configured_source_runs(self) -> None:
+        # facebook requested but unconfigured: youtube still runs; no error.
+        yt = RecordingRetriever((_reference("youtube", "v1", 1, view_count=1),))
+        service = _service(yt, None)
+        run = service.execute(**_query())
+        assert run.status is ResearchRunStatus.COMPLETED
+        assert run.executed_sources == ("youtube",)
+        assert len(yt.calls) == 1
+
+    def test_no_retriever_at_all_still_errors(self) -> None:
+        service = _service(None, None)
         with pytest.raises(ResearchSourceNotConfiguredError):
             service.execute(**_query())
-        assert yt.calls == []  # zero retrieval calls
 
     def test_second_source_failure_marks_failed_and_records_attempts(self) -> None:
         from trendora.research import ResearchQuery
@@ -258,12 +265,21 @@ class TestCombinedExecution:
         # Execution truth: both sources were attempted, in attempt order.
         assert run.executed_sources == ("youtube", "facebook")
 
-    def test_first_source_failure_stops_before_later_sources(self) -> None:
+    def test_first_source_failure_degrades_to_partial_report(self) -> None:
+        # Runtime tolerance: a configured source that fails at request time is
+        # skipped; the other source still runs (honest partial result).
         yt = RecordingRetriever((), error=RuntimeError("youtube boom"))
         fb = RecordingRetriever((_reference("facebook", "p1", 1, reaction_count=1),))
+        run = _service(yt, fb).execute(**_query())
+        assert run.status is ResearchRunStatus.COMPLETED
+        assert run.executed_sources == ("youtube", "facebook")
+        assert [r.source_code for r in run.references] == ["facebook"]
+
+    def test_all_sources_failing_still_fails_closed(self) -> None:
+        yt = RecordingRetriever((), error=RuntimeError("youtube boom"))
+        fb = RecordingRetriever((), error=RuntimeError("facebook boom"))
         with pytest.raises(RuntimeError, match="youtube boom"):
             _service(yt, fb).execute(**_query())
-        assert len(fb.calls) == 0
 
     def test_all_sources_empty_completes_with_zero_references(self) -> None:
         run = _service(RecordingRetriever(()), RecordingRetriever(())).execute(**_query())

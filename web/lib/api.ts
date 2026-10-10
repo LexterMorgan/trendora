@@ -80,6 +80,9 @@ export function friendlyApiMessage(
       }
       return "You don't have access to this action.";
     case "unavailable":
+      if (code === "research_source_not_configured") {
+        return "The selected research source isn't configured on Trendora's server. Choose another source or ask the person running Trendora to configure it.";
+      }
       return "Trendora is temporarily unavailable. Try again in a moment.";
     case "network":
       return "Trendora could not be reached. Check your connection and try again.";

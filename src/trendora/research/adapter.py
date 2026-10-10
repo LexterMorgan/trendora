@@ -20,7 +20,11 @@ from trendora.research.models import (
     ResearchValidationError,
 )
 
-DEFAULT_MARKETS: tuple[str, ...] = ("SG",)
+# Simplified (topic-first) requests are global by default: no explicit country
+# restriction, not comprehensive worldwide coverage. They also run global
+# discovery across the two configured topic-search sources.
+DEFAULT_MARKETS: tuple[str, ...] = ()
+DEFAULT_SIMPLIFIED_SOURCES: tuple[str, ...] = ("youtube", "public_web")
 DEFAULT_DATE_WINDOW_DAYS = 30
 
 
@@ -51,33 +55,29 @@ def adapt_research_request(request: dict[str, Any]) -> ResearchQuery:
     date_from = request.get("date_from")
     date_to = request.get("date_to")
 
-    # Preserve the M26C contract for full/partial requests: exactly one of
-    # ``market`` / ``markets`` must be supplied when a date window is given.
-    # Simplified mode is a topic-first request with no explicit market *and* no
-    # explicit date fields, which is completed from defaults below.
-    market_supplied = markets is not None or market is not None
-    dates_supplied = date_from is not None or date_to is not None
-    simplified = not market_supplied and not dates_supplied
-
     if market is not None and markets is not None:
         raise ResearchValidationError("provide either 'market' or 'markets', not both")
 
+    # An explicit market (singular or plural) is a regional request. No market
+    # supplied — omitted or an empty list — is a **global** request: no country
+    # restriction. Regional requests keep their existing behavior and default
+    # sources; global requests default to the two configured topic-search
+    # sources.
+    regional = market is not None or bool(markets)
+
     default_from, default_to = _default_date_window()
-    if simplified:
+    if markets is None and market is not None:
+        markets = [market]
+    if not regional:
         markets = list(DEFAULT_MARKETS)
+    if date_from is None:
         date_from = default_from
+    if date_to is None:
         date_to = default_to
-    else:
-        if markets is None and market is not None:
-            markets = [market]
-        if date_from is None:
-            date_from = default_from
-        if date_to is None:
-            date_to = default_to
 
     sources = request.get("sources")
     if sources is None:
-        sources = DEFAULT_SOURCE_CODES
+        sources = DEFAULT_SOURCE_CODES if regional else DEFAULT_SIMPLIFIED_SOURCES
 
     result_limit = request.get("result_limit")
     if result_limit is None:

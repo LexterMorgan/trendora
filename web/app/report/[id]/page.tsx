@@ -68,12 +68,12 @@ function ReportContent({ id }: { id: string }) {
     <main className="workspace report-viewer">
       <Header
         section={section}
-        actionLink={{ href: "/past-reports", label: "← Past reports" }}
+        actionLink={{ href: "/past-reports", label: "Past reports" }}
       />
 
       <nav className="report-viewer-actions" aria-label="Report actions">
         <Link className="secondary-button" href="/">
-          + New research
+          New research
         </Link>
       </nav>
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi.testclient import TestClient
@@ -98,6 +98,18 @@ def _app_with_session(session) -> TestClient:
 
 
 class TestListReports:
+    def test_unswept_expiry_is_visible_in_summary_without_scrubbing_the_row(self):
+        from copy import deepcopy
+        from trendora.research.repository import get_report_records
+        now = datetime(2026, 10, 7, tzinfo=timezone.utc)
+        snapshot = deepcopy(FULL_SNAPSHOT)
+        snapshot["research"]["references"] = [{"source_code": "youtube", "collected_at": (now - timedelta(days=30)).isoformat()}]
+        record = FakeRecord(report=snapshot)
+        summary, total = get_report_records(FakeSession([record]), now=now)
+        assert total == 1 and summary[0]["status"] == "source_data_expired"
+        assert record.report == snapshot and record.status == "completed"
+        assert "report" not in summary[0]
+
     def test_list_returns_metadata_summary(self):
         client = _app_with_session(FakeSession([FakeRecord()]))
         response = client.get("/api/v1/research/reports")

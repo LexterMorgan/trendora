@@ -276,6 +276,7 @@ def import_planner_post(
         str(payload.report_id),
         visible_from=report_visible_from(member, now),
         lock_for_import=True,
+        now=now,
     )
     if record is None or record.get("status") == "source_data_expired" or (
         record.get("report", {}).get("status") == "source_data_expired"
@@ -343,15 +344,19 @@ def read_planner_origin(
     row = session.get(PlannerPost, post_id)
     report_id = (row.origin or {}).get("report_id") if row and row.origin else None
     can_read_report = False
+    report_expired = False
     if report_id:
-        can_read_report = (
-            get_report_record_by_id(
-                session, report_id, visible_from=report_visible_from(member, now)
-            )
-            is not None
+        record = get_report_record_by_id(
+            session, report_id, visible_from=report_visible_from(member, now), now=now,
         )
+        can_read_report = record is not None and record["status"] != "source_data_expired"
+        # Expiry still applies to origin context when history hides the report.
+        # This internal read never grants report access or returns its body.
+        expiry_record = record or get_report_record_by_id(session, report_id, now=now)
+        report_expired = expiry_record is None or expiry_record["status"] == "source_data_expired"
     origin = read_origin(
-        session, post_id=post_id, now=now, can_read_report=can_read_report
+        session, post_id=post_id, now=now, can_read_report=can_read_report,
+        report_expired=report_expired,
     )
     if origin is None:
         raise HTTPException(status_code=404, detail="Post origin not found")

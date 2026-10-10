@@ -281,11 +281,15 @@ def resolve_selection(
 
 
 def source_state(
-    *, collected_at: datetime | None, expires_at: datetime, now: datetime
+    *, collected_at: datetime | None, expires_at: datetime, now: datetime,
+    source_code: str = "",
 ) -> str:
-    if collected_at is None:
+    from trendora.retention import _bounded_expiry, _timestamp
+
+    collected = _timestamp(collected_at)
+    if collected is None or collected > now or _timestamp(expires_at) is None:
         return "unresolved"
-    if now >= expires_at:
+    if _bounded_expiry(source=source_code, collected_at=collected, expires_at=expires_at, now=now):
         return "expired"
     return "available"
 
@@ -296,12 +300,14 @@ def read_origin(
     post_id: UUID,
     now: datetime,
     can_read_report: bool,
+    report_expired: bool = False,
 ) -> dict[str, Any] | None:
     """Resolve the stored origin with per-source state.
 
     ``can_read_report`` reflects the caller's current history access. When it
     is false, source identities are restricted rather than shown; the authored
-    post and generated context remain.
+    post remains. Generated context is hidden once its trusted source bound
+    elapses, including when cleanup has not run.
     """
     post = session.get(PlannerPost, post_id)
     if post is None or post.origin is None:
@@ -312,16 +318,18 @@ def read_origin(
             PlannerPostOriginSource.post_id == post_id
         )
     ).scalars().all()
+    states = [source_state(collected_at=source.collected_at, expires_at=source.expires_at,
+                           source_code=source.source_code, now=now) for source in sources]
+    expired = (report_expired or origin.get("source_state") == "expired"
+               or origin.get("provenance") not in {"server_generated", "client_supplied"}
+               or (origin.get("provenance") == "client_supplied" and not sources)
+               or any(state != "available" for state in states))
     resolved_sources = []
-    for source in sources:
+    for source, state in zip(sources, states):
         if not can_read_report:
             state = "restricted"
-        else:
-            state = source_state(
-                collected_at=source.collected_at,
-                expires_at=source.expires_at,
-                now=now,
-            )
+        elif expired and state == "available":
+            state = "expired"
         if state == "available":
             resolved_sources.append(
                 {
@@ -348,7 +356,7 @@ def read_origin(
         "item_index": origin.get("item_index"),
         "parent_idea_index": origin.get("parent_idea_index"),
         "provenance": origin.get("provenance", "legacy_unclassified"),
-        "context": origin.get("context", {}),
+        "context": {} if expired else origin.get("context", {}),
         "sources": resolved_sources,
     }
 

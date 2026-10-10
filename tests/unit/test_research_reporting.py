@@ -124,7 +124,7 @@ class RecordingInterpretationProvider:
         self.calls = 0
         self.last_pack = None
 
-    def interpret(self, pack: EvidencePack) -> InterpretationResult:
+    def interpret(self, pack: EvidencePack, *, deadline=None) -> InterpretationResult:
         self.calls += 1
         self.events.append("interpretation")
         self.last_pack = pack
@@ -137,7 +137,7 @@ class RecordingStrategyProvider:
         self.calls = 0
         self.last_context = None
 
-    def generate(self, context: StrategicContext) -> StrategicResult:
+    def generate(self, context: StrategicContext, *, deadline=None) -> StrategicResult:
         self.calls += 1
         self.events.append("strategy")
         self.last_context = context
@@ -150,7 +150,7 @@ class RecordingIdeationProvider:
         self.calls = 0
         self.last_context = None
 
-    def generate(self, context) -> IdeationResult:
+    def generate(self, context, *, deadline=None) -> IdeationResult:
         self.calls += 1
         self.events.append("ideation")
         self.last_context = context

@@ -297,6 +297,7 @@ class TestOriginRead:
         )
         assert origin["sources"][0]["state"] == "expired"
         assert origin["sources"][0]["url"] is None
+        assert origin["context"] == {}
 
     def test_unresolved_source_is_not_available(self) -> None:
         origin = read_origin(
@@ -307,16 +308,38 @@ class TestOriginRead:
         )
         assert origin["sources"][0]["state"] == "unresolved"
         assert origin["sources"][0]["url"] is None
+        assert origin["context"] == {}
 
-    def test_restricted_keeps_authored_context_even_with_expired_source(self) -> None:
+    def test_restricted_expired_origin_hides_generated_context_without_mutating_post(self) -> None:
+        post = _Post()
         origin = read_origin(
-            _ReadSession(_Post(), [_Source(state="expired")]),
+            _ReadSession(post, [_Source(state="expired")]),
             post_id=uuid4(),
             now=NOW,
             can_read_report=False,
         )
-        assert origin["context"]["title"] == "T"
+        assert origin["context"] == {}
+        assert post.origin["context"]["title"] == "T"
         assert origin["sources"][0]["state"] == "restricted"
+
+    def test_extended_sidecar_deadline_cannot_override_original_collection_bound(self) -> None:
+        origin = read_origin(
+            _ReadSession(_Post(), [_Source(collected_at=NOW - timedelta(days=30),
+                                          expires_at=NOW + timedelta(days=30))]),
+            post_id=uuid4(), now=NOW, can_read_report=True,
+        )
+        assert origin["context"] == {}
+        assert origin["sources"][0]["state"] == "expired"
+        assert origin["sources"][0]["url"] is None
+
+    def test_original_report_expiry_suppresses_even_a_fresh_sidecar(self) -> None:
+        origin = read_origin(
+            _ReadSession(_Post(), [_Source()]), post_id=uuid4(), now=NOW,
+            can_read_report=True, report_expired=True,
+        )
+        assert origin["context"] == {}
+        assert origin["sources"][0]["state"] == "expired"
+        assert origin["sources"][0]["url"] is None
 
 
 class TestPurge:

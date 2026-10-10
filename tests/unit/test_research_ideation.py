@@ -120,8 +120,7 @@ def _config(**overrides) -> AIProviderConfig:
 
 
 def _provider(handler) -> OpenAICompatibleIdeationProvider:
-    client = httpx.Client(transport=httpx.MockTransport(handler))
-    return OpenAICompatibleIdeationProvider(_config(), http_client=client)
+    return OpenAICompatibleIdeationProvider(_config(), transport=httpx.MockTransport(handler))
 
 
 def _envelope(model_json: str) -> dict:
@@ -385,9 +384,8 @@ class TestProvider:
             captured["body"] = json.loads(request.content)
             return httpx.Response(200, json=_envelope(_model_output([], [])))
 
-        client = httpx.Client(transport=httpx.MockTransport(handler))
         OpenAICompatibleIdeationProvider(
-            _config(provider="openrouter"), http_client=client
+            _config(provider="openrouter"), transport=httpx.MockTransport(handler)
         ).generate(_ideation_context())
         body = captured["body"]
         schema_block = body["response_format"]
@@ -495,7 +493,7 @@ class TestEndToEnd:
             return httpx.Response(200, json=_envelope(_model_output([_idea()], [_brief()])))
 
         provider = OpenAICompatibleIdeationProvider(
-            _config(), http_client=httpx.Client(transport=httpx.MockTransport(handler))
+            _config(), transport=httpx.MockTransport(handler)
         )
         result = GroundedIdeationService(provider).generate(context)
         assert len(result.content_ideas) == 1

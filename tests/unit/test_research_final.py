@@ -18,7 +18,7 @@ from trendora.api.research_report_models import ResearchReportRequest, to_report
 from trendora.research.evidence import EvidenceField, analyze_references
 from trendora.research.exceptions import (
     ResearchAIProviderError, ResearchAIProviderNotConfiguredError,
-    ResearchAIResponseError, ResearchInterpretationError,
+    ResearchAIResponseError, ResearchAITimeoutError, ResearchInterpretationError,
 )
 from trendora.research.ai_execution import GroundedInterpretationService
 from trendora.research.ai_provider import AIProviderConfig, OpenAICompatibleInterpretationProvider
@@ -90,9 +90,10 @@ def test_research_synthesis_uses_existing_http_adapter_with_topic_timeframe_and_
         }]}
         return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps(content)}}]})
     config = AIProviderConfig("fictional", "fictional-model", "https://fictional.invalid/chat", "fictional-test-key")
-    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
-        service._interpretation = GroundedInterpretationService(OpenAICompatibleInterpretationProvider(config, http_client=client))
-        report = service.build_report(**_query(), include_content_tools=False)
+    service._interpretation = GroundedInterpretationService(
+        OpenAICompatibleInterpretationProvider(config, transport=httpx.MockTransport(respond))
+    )
+    report = service.build_report(**_query(), include_content_tools=False)
     assert len(requests) == 1
     messages = requests[0]["messages"]
     context = json.loads(messages[1]["content"].split("\n\n", 1)[1])["research_context"]
@@ -108,7 +109,7 @@ def test_research_synthesis_uses_existing_http_adapter_with_topic_timeframe_and_
     assert snapshot_fingerprint(snapshot) == snapshot_fingerprint(ReportSnapshot.model_validate(snapshot).model_dump(mode="json"))
 
 
-@pytest.mark.parametrize("error", [ResearchAIProviderError, ResearchAIProviderNotConfiguredError, ResearchAIResponseError, ResearchInterpretationError])
+@pytest.mark.parametrize("error", [ResearchAIProviderError, ResearchAIProviderNotConfiguredError, ResearchAIResponseError, ResearchInterpretationError, ResearchAITimeoutError])
 def test_failed_synthesis_preserves_exact_excerpts_and_evidence_with_bounded_retry(error):
     service = _report_service([])
     attempts = []
@@ -122,6 +123,20 @@ def test_failed_synthesis_preserves_exact_excerpts_and_evidence_with_bounded_ret
     assert report.interpretation_result == source_summaries(report.evidence_pack)
     assert report.strategic_result is report.ideation_result is None
     ReportSnapshot.model_validate(_snapshot(report))
+
+
+def test_interpretation_timeout_is_logged_distinctly(caplog):
+    import logging
+
+    service = _report_service([])
+    def fail(pack):
+        raise ResearchAITimeoutError("AI provider timed out after 30s (9router)")
+    service._interpretation.interpret = fail
+    with caplog.at_level(logging.WARNING, logger="trendora.research.reporting"):
+        service.build_report(**_query(), include_content_tools=False)
+    # The distinct class is logged; no provider text leaks.
+    assert "ResearchAITimeoutError" in caplog.text
+    assert "timed out" not in caplog.text
 
 
 def test_unresolvable_synthesis_and_empty_synthesis_fall_back_to_cited_excerpts():
@@ -260,7 +275,7 @@ def test_unconfigured_research_dependency_attempts_interpretation_but_opens_no_a
     settings = SimpleNamespace(youtube_api_key=None, meta_access_token=None, meta_graph_api_version=None)
     settings.ai_provider = settings.ai_model = settings.ai_endpoint_url = settings.ai_api_key = None
     monkeypatch.setattr(app, "get_settings", lambda: settings)
-    monkeypatch.setattr(app, "_build_serp_gateway", lambda settings: None)
+    monkeypatch.setattr(app, "build_web_search_gateway", lambda settings: None)
     calls = []
     original = app.build_ai_provider_config
     def missing_config(**kwargs):
@@ -269,7 +284,8 @@ def test_unconfigured_research_dependency_attempts_interpretation_but_opens_no_a
     def forbidden(*args, **kwargs):
         pytest.fail("unconfigured interpretation opened an AI client")
     monkeypatch.setattr(app, "build_ai_provider_config", missing_config)
-    monkeypatch.setattr(app.httpx, "Client", forbidden)
+    # The AI transport is only built per request; forbid it entirely.
+    monkeypatch.setattr("trendora.research.ai_provider.httpx.AsyncClient", forbidden)
     generator = app.get_research_report_service(ResearchReportRequest(topic="fictional", include_content_tools=False))
     assert next(generator)._interpretation is None
     assert len(calls) == 1

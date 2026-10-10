@@ -25,6 +25,7 @@ from trendora.research import (
     ResearchAIProviderError,
     ResearchAIProviderNotConfiguredError,
     ResearchAIResponseError,
+    ResearchAITimeoutError,
     ResearchInterpretationError,
     ResearchMetrics,
     ResearchReference,
@@ -86,8 +87,9 @@ def _config(**overrides) -> AIProviderConfig:
 
 
 def _provider(handler, **overrides) -> OpenAICompatibleInterpretationProvider:
-    client = httpx.Client(transport=httpx.MockTransport(handler))
-    return OpenAICompatibleInterpretationProvider(_config(**overrides), http_client=client)
+    return OpenAICompatibleInterpretationProvider(
+        _config(**overrides), transport=httpx.MockTransport(handler)
+    )
 
 
 def _envelope(model_json: str) -> dict:
@@ -420,6 +422,39 @@ class TestHttpTransport:
         with pytest.raises(ResearchAIProviderError):
             provider.interpret(_pack())
 
+    def test_timeout_raises_distinct_diagnosable_error(self) -> None:
+        # A timeout must be distinguishable from a connection/non-2xx failure
+        # so a slow provider is diagnosable rather than masked as generic.
+        def handler(request: httpx.Request) -> httpx.Response:
+            raise httpx.ReadTimeout("slow")
+
+        provider = _provider(handler)
+        with pytest.raises(ResearchAITimeoutError) as excinfo:
+            provider.interpret(_pack())
+        # Still a provider error, so existing fallback handling is unchanged.
+        assert isinstance(excinfo.value, ResearchAIProviderError)
+        message = str(excinfo.value).lower()
+        assert "timed out" in message
+        assert "30" in str(excinfo.value)  # includes the configured seconds
+        assert FAKE_KEY not in str(excinfo.value)
+
+    def test_connect_timeout_is_also_a_timeout(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectTimeout("slow connect")
+
+        provider = _provider(handler)
+        with pytest.raises(ResearchAITimeoutError):
+            provider.interpret(_pack())
+
+    def test_connect_error_is_not_a_timeout(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError("refused")
+
+        provider = _provider(handler)
+        with pytest.raises(ResearchAIProviderError) as excinfo:
+            provider.interpret(_pack())
+        assert not isinstance(excinfo.value, ResearchAITimeoutError)
+
     def test_non_json_2xx_body_is_response_error(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(200, content=b"not json")
@@ -538,6 +573,26 @@ class TestAuthHeader:
 
 
 class TestRequestBody:
+    @pytest.mark.parametrize("status", [200, 429])
+    def test_9router_combo_passes_through_with_bounded_json_and_no_adapter_fallback(self, status):
+        calls = []
+        def handler(request):
+            calls.append(request)
+            return httpx.Response(status, json=_envelope(_model_output([])))
+        provider = _provider(handler, provider="9router", model="fictional-free-combo")
+        if status == 200:
+            GroundedInterpretationService(provider).interpret(_pack())
+        else:
+            with pytest.raises(ResearchAIProviderError):
+                GroundedInterpretationService(provider).interpret(_pack())
+        assert len(calls) == 1
+        body = json.loads(calls[0].content)
+        assert str(calls[0].url) == ENDPOINT
+        assert body["model"] == "fictional-free-combo"
+        assert body["response_format"] == {"type": "json_object"}
+        assert body["max_tokens"] == 4096 and body["stream"] is False
+        assert "provider" not in body and "reasoning" not in body and "tools" not in body
+
     def test_request_body_shape(self) -> None:
         captured = {}
 
@@ -601,9 +656,8 @@ class TestOpenRouterStructuredOutputs:
             captured["body"] = json.loads(request.content)
             return httpx.Response(200, json=_envelope(_model_output([])))
 
-        client = httpx.Client(transport=httpx.MockTransport(handler))
         OpenAICompatibleInterpretationProvider(
-            _config(provider=provider_name), http_client=client
+            _config(provider=provider_name), transport=httpx.MockTransport(handler)
         ).interpret(_pack())
         return captured["body"]
 

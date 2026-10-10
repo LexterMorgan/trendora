@@ -27,8 +27,8 @@ def _client(monkeypatch, member=None) -> TestClient:
 def _patch_list(monkeypatch) -> dict:
     captured: dict = {}
 
-    def fake(session, *, limit=50, offset=0, visible_from=None):
-        captured.update(limit=limit, offset=offset, visible_from=visible_from)
+    def fake(session, *, limit=50, offset=0, visible_from=None, now=None):
+        captured.update(limit=limit, offset=offset, visible_from=visible_from, now=now)
         return [], 0
 
     monkeypatch.setattr("trendora.research.repository.get_report_records", fake)
@@ -38,8 +38,8 @@ def _patch_list(monkeypatch) -> dict:
 def _patch_direct(monkeypatch) -> dict:
     captured: dict = {}
 
-    def fake(session, report_id, *, visible_from=None):
-        captured.update(report_id=report_id, visible_from=visible_from)
+    def fake(session, report_id, *, visible_from=None, now=None):
+        captured.update(report_id=report_id, visible_from=visible_from, now=now)
         return None
 
     monkeypatch.setattr(
@@ -65,7 +65,7 @@ class TestListRouteWiring:
         captured = _patch_list(monkeypatch)
         response = _client(monkeypatch).get(f"{REPORT_PATH}?limit=5&offset=3")
         assert response.status_code == 200
-        assert captured == {"limit": 5, "offset": 3, "visible_from": CUTOFF}
+        assert captured == {"limit": 5, "offset": 3, "visible_from": CUTOFF, "now": FROZEN}
 
     def test_admin_list_passes_none(self, monkeypatch) -> None:
         captured = _patch_list(monkeypatch)
@@ -78,6 +78,7 @@ class TestListRouteWiring:
         response = _client(monkeypatch).get(f"{REPORT_PATH}/{uuid4()}")
         assert response.status_code == 404
         assert captured["visible_from"] == CUTOFF
+        assert captured["now"] == FROZEN
 
     def test_admin_direct_report_passes_none(self, monkeypatch) -> None:
         captured = _patch_direct(monkeypatch)

@@ -8,6 +8,7 @@ import pytest
 
 from trendora.research.adapter import (
     DEFAULT_MARKETS,
+    DEFAULT_SIMPLIFIED_SOURCES,
     adapt_research_request,
 )
 from trendora.research.exceptions import ResearchValidationError
@@ -16,17 +17,22 @@ TODAY = date.today()
 
 
 class TestSimplifiedContract:
-    def test_only_topic_uses_all_defaults(self):
+    def test_only_topic_is_global_across_both_sources(self):
         query = adapt_research_request({"topic": "AI education"})
         assert query.topic == "AI education"
-        assert query.markets == ("SG",)
-        assert query.source_codes == ("youtube",)
+        # Global: no explicit country restriction.
+        assert query.markets == ()
+        assert query.market is None
+        assert query.source_codes == ("youtube", "public_web")
         assert query.result_limit == 50
         assert query.date_to == TODAY
         assert query.date_from == TODAY - timedelta(days=29)
 
-    def test_default_markets_constant(self):
-        assert DEFAULT_MARKETS == ("SG",)
+    def test_default_markets_constant_is_empty_global(self):
+        assert DEFAULT_MARKETS == ()
+
+    def test_default_simplified_sources_constant(self):
+        assert DEFAULT_SIMPLIFIED_SOURCES == ("youtube", "public_web")
 
     def test_topic_is_stripped(self):
         query = adapt_research_request({"topic": "  spaced  "})
@@ -67,13 +73,21 @@ class TestPartialContract:
     def test_provided_and_default_fields_mix(self):
         query = adapt_research_request({"topic": "t", "result_limit": 10})
         assert query.result_limit == 10
-        assert query.markets == ("SG",)
+        # No market supplied → global, still both sources.
+        assert query.markets == ()
         assert query.date_to == TODAY
 
-    def test_explicit_markets_with_default_dates(self):
+    def test_explicit_markets_with_default_dates_is_regional(self):
         query = adapt_research_request({"topic": "t", "markets": ["SG", "ID"]})
         assert query.markets == ("SG", "ID")
+        assert query.market is None
         assert query.date_to == TODAY
+
+    def test_explicit_market_keeps_regional_default_source(self):
+        query = adapt_research_request({"topic": "t", "market": "TH"})
+        assert query.markets == ("TH",)
+        assert query.market == "TH"
+        assert query.source_codes == ("youtube",)
 
     def test_sources_override(self):
         query = adapt_research_request(
@@ -101,16 +115,20 @@ class TestValidationPreserved:
                 {"topic": "t", "market": "SG", "markets": ["SG", "ID"]}
             )
 
-    def test_no_market_with_explicit_dates_rejected(self):
-        # Full-shaped request missing a market keeps the M26C contract.
-        with pytest.raises(ResearchValidationError, match="market"):
-            adapt_research_request(
-                {
-                    "topic": "t",
-                    "date_from": date(2026, 8, 1),
-                    "date_to": date(2026, 8, 31),
-                }
-            )
+    def test_no_market_with_explicit_dates_is_global(self):
+        # Explicit dates without a market are a valid global request now.
+        query = adapt_research_request(
+            {
+                "topic": "t",
+                "date_from": date(2026, 8, 1),
+                "date_to": date(2026, 8, 31),
+            }
+        )
+        assert query.markets == ()
+        assert query.market is None
+        assert query.date_from == date(2026, 8, 1)
+        assert query.date_to == date(2026, 8, 31)
+        assert query.source_codes == ("youtube", "public_web")
 
     def test_invalid_result_limit_rejected(self):
         with pytest.raises(ResearchValidationError):

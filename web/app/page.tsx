@@ -1,13 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 
 import { type ResearchFormValues } from "@/components/ResearchForm";
 import { SimpleForm } from "@/components/SimpleForm";
 import { Header } from "@/components/Header";
 import { Protected } from "@/components/Protected";
-import { SignOutButton } from "@/components/SignOutButton";
 import { TurnView, userMessage, type SessionTurn } from "@/components/TurnView";
 import { submitReport } from "@/lib/report-api";
 import { ResearchApiError } from "@/lib/trendora-api";
@@ -71,71 +69,58 @@ function Workspace() {
   }
 
   return (
-    <main className={emptySession ? "workspace canvas-mode" : "workspace"}>
-      {emptySession ? (
-        <div className="session-canvas">
-          <div className="canvas-content">
-            <header className="canvas-masthead">
-              <p className="brand">TRENDORA</p>
-              <h1 className="canvas-headline">
-                Understand what’s happening in your topics.
-              </h1>
-              <p className="canvas-subtitle">
-                Explore sourced findings, publication dates, and coverage limits.
-                Content ideas and briefs are optional.
-              </p>
-              <div className="canvas-actions">
-                <Link className="secondary-button history-link" href="/planner">
-                  Planner
-                </Link>
-                <Link className="secondary-button history-link" href="/past-reports">
-                  Past reports
-                </Link>
-                <SignOutButton className="canvas-signout" />
-              </div>
-            </header>
+    <main className="workspace">
+      <Header
+        section="Research Workspace"
+        actionLink={{ href: "/past-reports", label: "Past reports" }}
+      />
 
-            <section className="composer-panel" aria-label="Research request">
-              <SimpleForm
-                key={composerKey}
-                onSubmit={handleSubmit}
-                disabled={busy}
-                initialValues={editValues}
-                showExamples
-              />
-            </section>
-          </div>
+      {emptySession ? (
+        <div className="start-sheet">
+          <header className="start-masthead">
+            <h1 className="start-headline">
+              Understand what’s happening in your topics.
+            </h1>
+            <p className="start-subtitle">
+              Search available sources, read sourced findings with their
+              publication dates, and see where coverage is thin. Content ideas
+              and briefs stay optional.
+            </p>
+          </header>
+
+          <section className="panel start-composer" aria-label="Research request">
+            <SimpleForm
+              key={composerKey}
+              onSubmit={handleSubmit}
+              disabled={busy}
+              initialValues={editValues}
+              showExamples
+            />
+          </section>
         </div>
       ) : (
-        <>
-          <Header
-            section="Research Workspace"
-            actionLink={{ href: "/past-reports", label: "Past reports" }}
-          />
+        <div className="chat-layout">
+          <section className="panel form-panel" aria-label="Research request">
+            <h2 className="section-title">New research</h2>
+            <SimpleForm
+              key={composerKey}
+              onSubmit={handleSubmit}
+              disabled={busy}
+              initialValues={editValues}
+            />
+          </section>
 
-          <div className="chat-layout">
-            <section className="panel form-panel" aria-label="Research request">
-              <h2 className="section-title">Research</h2>
-              <SimpleForm
-                key={composerKey}
-                onSubmit={handleSubmit}
-                disabled={busy}
-                initialValues={editValues}
+          <section className="chat-session" aria-live="polite">
+            {turns.map((turn) => (
+              <TurnView
+                key={turn.id}
+                turn={turn}
+                onEdit={handleEdit}
+                onRetry={handleSubmit}
               />
-            </section>
-
-            <section className="chat-session" aria-live="polite">
-              {turns.map((turn) => (
-                <TurnView
-                  key={turn.id}
-                  turn={turn}
-                  onEdit={handleEdit}
-                  onRetry={handleSubmit}
-                />
-              ))}
-            </section>
-          </div>
-        </>
+            ))}
+          </section>
+        </div>
       )}
     </main>
   );

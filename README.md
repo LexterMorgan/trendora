@@ -83,11 +83,11 @@ Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 
 { "topic": "AI education" }
 ```
 
-Omitted fields are completed by the adapter (`src/trendora/research/adapter.py`) with defaults — `markets=["SG"]`, last 30 days (ending today), `sources=["youtube"]`, `result_limit=50`. Any explicitly provided value overrides its default (e.g. `{"topic": "...", "result_limit": 10}` keeps the default market/date window).
+A request with no market (omitted, or an empty `markets` list) is **global**: no country restriction, not comprehensive worldwide coverage. Global YouTube search omits `regionCode` rather than substituting a country. Omitted fields are completed by the adapter (`src/trendora/research/adapter.py`): a topic-first request defaults to `markets=[]` (global), last 30 days (ending today), `sources=["youtube", "public_web"]`, `result_limit=50`; a request that supplies an explicit `market`/`markets` stays regional and defaults to `sources=["youtube"]`. Any explicitly provided value overrides its default. If a requested source has no configured runtime retriever, the configured sources still run and the missing one is reported as partial/unavailable coverage; only when none are configured does the request fail (`research_source_not_configured`).
 
 For `/api/v1/research/report` only, `include_content_tools=false` requests research synthesis through the existing grounded interpretation adapter and skips strategy/ideation; `true` also requests those optional content stages. Unavailable, malformed, or structurally ungrounded synthesis falls back to exact, labeled source excerpts without discarding evidence. Omission preserves the legacy three-stage report pipeline. This flag is outside the unchanged six-field saved snapshot and its canonical hash. Resolvable citations do not establish factual correctness; undated and outside-window material remains context.
 
-The adapter runs **before** the service executes anything and does not weaken validation: the resulting `ResearchQuery` is still fully validated (market validity, date order, source normalization, result limits), and all downstream evidence/citation grounding is unaffected. The M26C rule is preserved for full/partial requests: supplying an explicit date window requires exactly one of `market`/`markets`, and supplying both is rejected.
+The adapter runs **before** the service executes anything and does not weaken validation: the resulting `ResearchQuery` is still fully validated (market validity when a market is supplied, date order, source normalization, result limits), and all downstream evidence/citation grounding is unaffected. Supplying both `market` and `markets` is still rejected; supplying neither is a valid global request. Explicit regional requests keep their existing behavior and provenance.
 
 ## Technology direction
 
@@ -98,7 +98,7 @@ The adapter runs **before** the service executes anything and does not weaken va
 | V1 development DB | Supabase PostgreSQL integration | Application connectivity and current schema remain unverified. Disposable verification is separate. |
 | HTTP | httpx (YouTube Data API v3 client) | Installed |
 | Connectors | YouTube watchlist + mostPopular; Hacker News stories; Stack Exchange questions; GitHub repositories; Facebook public Page posts + normalization + research wiring (M25A–M25D, mocked, opt-in) | M2A + M2B + M3A + M3B + M4 + M25A + M25B + M25C + M25D |
-| Research UI | Next.js research workspace; single-source selector incl. Facebook Page mode (M25E, mocked) | M16 + M24 + M25E |
+| Research UI | Next.js research workspace; simplified global form (topic + timeframe, optional content tools) | M16 + M24 + M25E |
 | Analytics | Read-only observation/query layer over `metric_snapshots` | M5 |
 | Forecasting | In-memory naive / moving average / SES over M5 series; naive-vs-challenger MAE; series diagnostics; V1 GitHub forecast product | M6A + M6C + M7 + M10 |
 | API | FastAPI read model: GitHub forecast product + research/report endpoints | M11B + M15 + M23A |
@@ -124,7 +124,7 @@ Start the frontend in Terminal 2, also from the repository root:
 
 ```bash
 cd web
-npm run dev -- --hostname 127.0.0.1 --port 3000
+npm run dev -- --webpack --hostname 127.0.0.1 --port 3000
 ```
 
 Open `http://127.0.0.1:3000`. Keep configured private environment files intact.
@@ -135,10 +135,11 @@ live Supabase, research-provider and 9router behavior.
 
 ### Environment variables
 
-Copy the template and fill in secrets locally. Never commit `.env`.
+Create the local file only if it is missing, then fill in secrets privately.
+The command preserves an existing `.env`. Never commit it.
 
 ```bash
-cp .env.example .env
+cp -n .env.example .env
 ```
 
 Separate reference templates exist for each side: `.env.example.backend` (FastAPI: `DATABASE_URL`, `YOUTUBE_API_KEY`, `META_*`, `TRENDORA_AI_*`) and `.env.example.frontend` (Next.js: `TRENDORA_API_BASE_URL`). See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
@@ -161,11 +162,15 @@ backend signing key documented in the local guide.
 | `GITHUB_TOKEN` | Optional. GitHub token for a higher REST API quota. M4 works without it for public repositories. |
 | `GITHUB_REPOSITORIES` | Optional. Comma-separated `owner/repository` identifiers. Required for a default GitHub run; `--repos` can override. |
 
-Supabase Auth and PostgreSQL are integrated in source. Read-only account
-metadata on 2026-10-07 lists the project named `trendora` as inactive; the
-local application's project binding and live connectivity were not checked.
-Confirm the intended project separately before using it. Do not put passwords
-in source, tests or docs, or reactivate a project as part of local acceptance.
+Supabase Auth and PostgreSQL are integrated in source. Read-only checks on
+2026-10-07 found `trendora` (`ymzloduyggkcmapmiics`) ACTIVE_HEALTHY and matching
+local frontend/backend/database project settings. Its database is still at
+`0002_research_reports`, with no membership or planner tables; report RLS is
+disabled and public API roles have SELECT access. This is not a verified
+application setup. Migration and access changes need exact target approval.
+The [local guide](docs/DEPLOYMENT.md#a-local-startup-with-installed-tools)
+records the remaining auth, recovery and provider checks. Never put passwords
+in source, tests or docs.
 
 The same models work against a later local PostgreSQL URL. Do not hard-code Supabase APIs into the domain layer.
 

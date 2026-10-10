@@ -124,10 +124,15 @@ class ResearchApplicationService:
         """Build and execute the multi-target plan for a READY run.
 
         The plan contains one retrieval target per selected market for every
-        available YouTube source, plus exactly one Facebook target regardless
-        of market count, in normalized request order. Before any network call,
-        every planned source must have a configured retriever — one missing
-        retriever fails the whole request with the sanitized
+        available YouTube source (a single global target when no market is
+        selected), plus exactly one Facebook target and one public-web target
+        regardless of market count, in normalized request order.
+
+        A requested source that is available but has **no** configured runtime
+        retriever is skipped, not fatal: the configured sources still run and
+        the missing one surfaces as partial/unavailable coverage. Only when no
+        requested available source has a retriever — i.e. the plan would be
+        empty — does the request fail with the sanitized
         ``ResearchSourceNotConfiguredError`` and zero retrieval calls. The
         global ``result_limit`` is split deterministically across targets
         (``divmod``; earlier targets take any remainder), and each retriever
@@ -143,14 +148,17 @@ class ResearchApplicationService:
                 continue
             retriever = self._retrievers.get(source_code)
             if retriever is None:
-                raise ResearchSourceNotConfiguredError(
-                    "no requested available source has a configured runtime retriever"
-                )
+                # Configured sources still run; the unconfigured one is
+                # reported as partial coverage rather than failing the request.
+                continue
             if source_code == "facebook":
                 targets.append((source_code, retriever, None))
             elif source_code == "public_web":
                 # Web search is not market-filtered: one target regardless of
                 # market count, with the selected markets as report context.
+                targets.append((source_code, retriever, None))
+            elif not query.markets:
+                # Global YouTube: one target with no regionCode.
                 targets.append((source_code, retriever, None))
             else:
                 for market in query.markets:
@@ -168,7 +176,11 @@ class ResearchApplicationService:
             (source_code, _target_query(query, source_code, market, limit), retriever)
             for (source_code, retriever, market), limit in zip(targets, limits, strict=True)
         )
-        run.execute_sources(entries)
+        # Runtime tolerance: a source that is *configured* but unavailable at
+        # request time (e.g. SearXNG down) is skipped so the other configured
+        # sources still produce an honestly partial report. If every target
+        # fails, the run still fails closed (clear sanitized error).
+        run.execute_sources(entries, tolerate_failures=True)
 
 
 def _source_coverage(coverage: ResearchCoverage, source_code: str) -> SourceCoverage | None:

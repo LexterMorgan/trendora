@@ -32,6 +32,7 @@ from trendora.research.ai_provider import (
     evidence_pack_to_payload,
     request_controls,
 )
+from trendora.research.deadline import AIPhaseDeadline
 from trendora.research.evidence import ClaimType
 from trendora.research.exceptions import (
     ResearchAIResponseError,
@@ -292,23 +293,28 @@ class OpenAICompatibleStrategyProvider:
         self,
         config: AIProviderConfig,
         *,
-        http_client: httpx.Client | None = None,
+        transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._config = config
-        self._owns_http = http_client is None
-        self._http = http_client or httpx.Client(timeout=config.timeout_seconds)
+        self._transport = transport
 
     def close(self) -> None:
-        if self._owns_http:
-            self._http.close()
+        """No persistent client is owned; kept for interface compatibility."""
 
     @property
     def config(self) -> AIProviderConfig:
         return self._config
 
-    def generate(self, context: StrategicContext) -> StrategicResult:
+    def generate(
+        self, context: StrategicContext, *, deadline: AIPhaseDeadline | None = None
+    ) -> StrategicResult:
         request = build_grounded_strategy_request(self._config, context)
-        payload = _post_chat_request(self._config, self._http, request)
+        payload = _post_chat_request(
+            self._config,
+            self._transport,
+            request,
+            deadline=deadline,
+        )
         content = _parse_envelope_content(payload)
         response = _parse_strategy_output(content)
         return StrategicResult(
@@ -374,6 +380,10 @@ class GroundedStrategyService:
     def __init__(self, provider: AIStrategyProvider) -> None:
         self._provider = provider
 
-    def generate(self, context: StrategicContext) -> StrategicResult:
-        result = self._provider.generate(context)
+    def generate(
+        self, context: StrategicContext, *, deadline: AIPhaseDeadline | None = None
+    ) -> StrategicResult:
+        from trendora.research.deadline import call_with_deadline
+
+        result = call_with_deadline(self._provider.generate, context, deadline)
         return validate_strategic_result(context, result)

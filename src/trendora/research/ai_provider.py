@@ -13,6 +13,7 @@ claim_type / provider / model / analysis_basis / confidence / score.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import dataclass
 from datetime import datetime
@@ -21,6 +22,7 @@ from typing import Annotated, Any, Literal, Protocol, Union
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from trendora.research.deadline import AIPhaseDeadline
 from trendora.research.evidence import (
     AnalysisBasis,
     ClaimType,
@@ -33,6 +35,7 @@ from trendora.research.exceptions import (
     ResearchAIProviderError,
     ResearchAIProviderNotConfiguredError,
     ResearchAIResponseError,
+    ResearchAITimeoutError,
 )
 from trendora.research.interpretation import (
     AIInterpretation,
@@ -162,13 +165,22 @@ def build_ai_provider_config(
     model: str | None,
     endpoint_url: str | None,
     api_key: str | None,
+    timeout_seconds: float | None = None,
 ) -> AIProviderConfig:
-    """Build provider config from settings values; missing values raise."""
+    """Build provider config from settings values; missing values raise.
+
+    ``timeout_seconds`` is optional; when omitted the adapter default (30s)
+    applies, preserving existing behavior.
+    """
+    kwargs: dict[str, Any] = {}
+    if timeout_seconds is not None:
+        kwargs["timeout_seconds"] = timeout_seconds
     return AIProviderConfig(
         provider=provider or "",
         model=model or "",
         endpoint_url=endpoint_url or "",
         api_key=api_key or "",
+        **kwargs,
     )
 
 
@@ -327,23 +339,26 @@ class OpenAICompatibleInterpretationProvider:
         self,
         config: AIProviderConfig,
         *,
-        http_client: httpx.Client | None = None,
+        transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._config = config
-        self._owns_http = http_client is None
-        self._http = http_client or httpx.Client(timeout=config.timeout_seconds)
+        # An async transport is only supplied by tests. Production uses a fresh
+        # AsyncClient per request so the in-flight I/O can be cancelled by the
+        # shared wall-clock deadline without sharing an event loop.
+        self._transport = transport
 
     def close(self) -> None:
-        if self._owns_http:
-            self._http.close()
+        """No persistent client is owned; kept for interface compatibility."""
 
     @property
     def config(self) -> AIProviderConfig:
         return self._config
 
-    def interpret(self, pack: EvidencePack) -> InterpretationResult:
+    def interpret(
+        self, pack: EvidencePack, *, deadline: "AIPhaseDeadline | None" = None
+    ) -> InterpretationResult:
         request = build_grounded_request(self._config, pack)
-        response = self._send(request)
+        response = self._send(request, deadline=deadline)
         content = _parse_envelope_content(response)
         item_list = _parse_model_output(content)
         interpretations = tuple(_to_domain_interpretation(item) for item in item_list)
@@ -355,35 +370,106 @@ class OpenAICompatibleInterpretationProvider:
             interpretations=interpretations,
         )
 
-    def _send(self, request: dict[str, Any]) -> dict[str, Any]:
-        return _post_chat_request(self._config, self._http, request)
+    def _send(
+        self, request: dict[str, Any], *, deadline: "AIPhaseDeadline | None" = None
+    ) -> dict[str, Any]:
+        return _post_chat_request(
+            self._config,
+            self._transport,
+            request,
+            deadline=deadline,
+        )
+
+
+def _request_headers(config: AIProviderConfig) -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {config.api_key}",
+        "content-type": "application/json",
+    }
+
+
+async def _apost_and_read(
+    transport: httpx.AsyncBaseTransport | None,
+    config: AIProviderConfig,
+    request: dict[str, Any],
+) -> tuple[int, bytes]:
+    """Send one request and read the FULL body inside the caller's timeout.
+
+    The whole exchange (connect + headers + body) runs in one coroutine so a
+    wall-clock ``asyncio.wait_for`` can cancel it mid-stream — including while
+    the body is still arriving. ``read_timeout`` bounds only a single stalled
+    read; the outer ``wait_for`` is what enforces the total.
+    """
+    kwargs: dict[str, Any] = {}
+    if transport is not None:
+        kwargs["transport"] = transport
+    async with httpx.AsyncClient(
+        timeout=httpx.Timeout(config.timeout_seconds),
+        **kwargs,
+    ) as client:
+        response = await client.post(
+            config.endpoint_url, headers=_request_headers(config), json=request
+        )
+        body = await response.aread()
+        return response.status_code, body
 
 
 def _post_chat_request(
     config: AIProviderConfig,
-    http: httpx.Client,
+    transport: httpx.AsyncBaseTransport | None,
     request: dict[str, Any],
+    *,
+    deadline: "AIPhaseDeadline | None" = None,
 ) -> dict[str, Any]:
-    """Shared OpenAI-compatible Chat Completions request execution (M20/M21)."""
+    """Bounded OpenAI-compatible Chat Completions request (M20/M21).
+
+    When a shared ``deadline`` is supplied, the request is bounded by the
+    *remaining* wall-clock budget via ``asyncio.wait_for``; expiry cancels the
+    in-flight I/O (the connection is closed by the async client's context
+    manager) and raises ``ResearchAITimeoutError``. When no deadline is given,
+    the client's own ``timeout_seconds`` still applies per operation.
+    """
+    if deadline is not None:
+        remaining = deadline.remaining()
+        if remaining <= 0:
+            raise ResearchAITimeoutError(
+                f"AI phase budget exhausted ({config.provider})"
+            )
+        wait_seconds: float | None = remaining
+    else:
+        wait_seconds = None
+
+    async def _run() -> tuple[int, bytes]:
+        return await _apost_and_read(transport, config, request)
+
     try:
-        response = http.post(
-            config.endpoint_url,
-            headers={
-                "Authorization": f"Bearer {config.api_key}",
-                "content-type": "application/json",
-            },
-            json=request,
-        )
+        if wait_seconds is None:
+            status_code, body = asyncio.run(_run())
+        else:
+            status_code, body = asyncio.run(
+                asyncio.wait_for(_run(), timeout=wait_seconds)
+            )
+    except (asyncio.TimeoutError, TimeoutError) as exc:
+        raise ResearchAITimeoutError(
+            f"AI provider exceeded the AI-phase budget ({config.provider})"
+        ) from exc
+    except httpx.TimeoutException as exc:
+        # A per-operation stall (no bytes within timeout_seconds) with no
+        # shared deadline active.
+        raise ResearchAITimeoutError(
+            f"AI provider timed out after {config.timeout_seconds:g}s ({config.provider})"
+        ) from exc
     except httpx.HTTPError as exc:
         raise ResearchAIProviderError(
             f"AI provider request failed ({config.provider})"
         ) from exc
-    if response.status_code < 200 or response.status_code >= 300:
+
+    if status_code < 200 or status_code >= 300:
         raise ResearchAIProviderError(
-            f"AI provider returned HTTP {response.status_code} ({config.provider})"
+            f"AI provider returned HTTP {status_code} ({config.provider})"
         )
     try:
-        payload = response.json()
+        payload = json.loads(body)
     except ValueError as exc:
         raise ResearchAIResponseError("AI provider returned non-JSON HTTP body") from exc
     if not isinstance(payload, dict):

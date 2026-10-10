@@ -300,21 +300,14 @@ class TestExistingResearchEndpoint:
 
 
 class TestRuntimeClients:
-    def test_owned_clients_close_once(self, monkeypatch) -> None:
+    def test_owned_youtube_client_closes_once(self, monkeypatch) -> None:
         import trendora.api.app as app_module
 
-        closed = {"youtube": 0, "http": 0}
+        closed = {"youtube": 0}
 
         class FakeYT:
             def close(self):
                 closed["youtube"] += 1
-
-        class FakeHTTP:
-            def __init__(self, timeout=None):
-                pass
-
-            def close(self):
-                closed["http"] += 1
 
         class FakeSettings:
             ai_provider = "p"
@@ -327,31 +320,50 @@ class TestRuntimeClients:
 
         monkeypatch.setattr(app_module, "get_settings", lambda: FakeSettings())
         monkeypatch.setattr(app_module, "YouTubeClient", lambda key: FakeYT())
-        monkeypatch.setattr(app_module.httpx, "Client", FakeHTTP)
 
         generator = app_module.get_research_report_service()
         service = next(generator)
         assert service is not None
         generator.close()
-        assert closed == {"youtube": 1, "http": 1}
+        assert closed == {"youtube": 1}
+
+    def test_configured_ai_timeout_becomes_shared_phase_budget(
+        self, monkeypatch
+    ) -> None:
+        import trendora.api.app as app_module
+
+        class FakeSettings:
+            ai_provider = "p"
+            ai_model = "m"
+            ai_endpoint_url = "https://provider.test/v1/chat/completions"
+            ai_api_key = FAKE_KEY
+            ai_timeout_seconds = 90.0
+            youtube_api_key = None
+            meta_access_token = None
+            meta_graph_api_version = None
+
+        monkeypatch.setattr(app_module, "get_settings", lambda: FakeSettings())
+
+        generator = app_module.get_research_report_service()
+        service = next(generator)
+        try:
+            # The configured timeout is the shared AI-phase budget and the
+            # provider's per-request ceiling used by every AI stage.
+            assert service._ai_phase_budget_seconds == 90.0  # noqa: SLF001
+            assert service._interpretation._provider.config.timeout_seconds == 90.0  # noqa: SLF001
+        finally:
+            generator.close()
 
     def test_later_client_construction_failure_closes_earlier_clients_once(
         self, monkeypatch
     ) -> None:
         import trendora.api.app as app_module
 
-        closed = {"youtube": 0, "http": 0}
+        closed = {"youtube": 0}
 
         class FakeYT:
             def close(self):
                 closed["youtube"] += 1
-
-        class FakeHTTP:
-            def __init__(self, timeout=None):
-                pass
-
-            def close(self):
-                closed["http"] += 1
 
         class FailingFacebook:
             def __init__(self, token, version):
@@ -369,31 +381,23 @@ class TestRuntimeClients:
         monkeypatch.setattr(app_module, "get_settings", lambda: FakeSettings())
         monkeypatch.setattr(app_module, "YouTubeClient", lambda key: FakeYT())
         monkeypatch.setattr(app_module, "FacebookPublicClient", FailingFacebook)
-        monkeypatch.setattr(app_module.httpx, "Client", FakeHTTP)
 
         generator = app_module.get_research_report_service()
         with pytest.raises(RuntimeError, match="facebook construction failed"):
             next(generator)
-        # http was never created; the already-created youtube client closed once.
-        assert closed == {"youtube": 1, "http": 0}
+        # The already-created youtube client closed once.
+        assert closed == {"youtube": 1}
 
     def test_service_build_failure_closes_all_created_clients_once(
         self, monkeypatch
     ) -> None:
         import trendora.api.app as app_module
 
-        closed = {"youtube": 0, "http": 0}
+        closed = {"youtube": 0}
 
         class FakeYT:
             def close(self):
                 closed["youtube"] += 1
-
-        class FakeHTTP:
-            def __init__(self, timeout=None):
-                pass
-
-            def close(self):
-                closed["http"] += 1
 
         class FakeSettings:
             ai_provider = "p"
@@ -409,13 +413,12 @@ class TestRuntimeClients:
 
         monkeypatch.setattr(app_module, "get_settings", lambda: FakeSettings())
         monkeypatch.setattr(app_module, "YouTubeClient", lambda key: FakeYT())
-        monkeypatch.setattr(app_module.httpx, "Client", FakeHTTP)
         monkeypatch.setattr(app_module, "build_research_report_service", fail_build)
 
         generator = app_module.get_research_report_service()
         with pytest.raises(RuntimeError, match="service build failed"):
             next(generator)
-        assert closed == {"youtube": 1, "http": 1}
+        assert closed == {"youtube": 1}
 
     def test_report_dependency_teardown_closes_facebook_exactly_once(
         self, monkeypatch
@@ -439,7 +442,6 @@ class TestRuntimeClients:
 
         monkeypatch.setattr(app_module, "get_settings", lambda: FakeSettings())
         monkeypatch.setattr(app_module, "FacebookPublicClient", lambda t, v: FakeFB())
-        monkeypatch.setattr(app_module.httpx, "Client", lambda **_: type("C", (), {"close": lambda self: None})())
 
         generator = app_module.get_research_report_service()
         assert next(generator) is not None
@@ -451,7 +453,7 @@ class TestRuntimeClients:
     ) -> None:
         import trendora.api.app as app_module
 
-        closed = {"youtube": 0, "facebook": 0, "http": 0}
+        closed = {"youtube": 0, "facebook": 0}
 
         class FakeYT:
             def close(self):
@@ -460,13 +462,6 @@ class TestRuntimeClients:
         class FakeFB:
             def close(self):
                 closed["facebook"] += 1
-
-        class FakeHTTP:
-            def __init__(self, timeout=None):
-                pass
-
-            def close(self):
-                closed["http"] += 1
 
         class FakeSettings:
             ai_provider = "p"
@@ -483,13 +478,12 @@ class TestRuntimeClients:
         monkeypatch.setattr(app_module, "get_settings", lambda: FakeSettings())
         monkeypatch.setattr(app_module, "YouTubeClient", lambda key: FakeYT())
         monkeypatch.setattr(app_module, "FacebookPublicClient", lambda t, v: FakeFB())
-        monkeypatch.setattr(app_module.httpx, "Client", FakeHTTP)
         monkeypatch.setattr(app_module, "build_research_report_service", fail_build)
 
         generator = app_module.get_research_report_service()
         with pytest.raises(RuntimeError, match="service build failed"):
             next(generator)
-        assert closed == {"youtube": 1, "facebook": 1, "http": 1}
+        assert closed == {"youtube": 1, "facebook": 1}
 
     def test_application_dependency_teardown_closes_facebook_exactly_once(
         self, monkeypatch

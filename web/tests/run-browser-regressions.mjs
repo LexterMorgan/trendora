@@ -129,6 +129,22 @@ try {
   const modules = path.join(source, "node_modules");
   assert(fs.statSync(modules).isDirectory(), "Installed frontend dependencies are missing");
   fs.symlinkSync(fs.realpathSync(modules), path.join(root, "web", "node_modules"), "dir");
+  // This page exists only in the owned test copy; the real simplified form is
+  // rendered so its submitted payload can be asserted.
+  {
+    const route = path.join(root, "web", "app", "test-fixtures", "SimpleForm");
+    fs.mkdirSync(route, { recursive: true });
+    fs.writeFileSync(path.join(route, "page.tsx"), `"use client";
+import { useState } from "react";
+import { SimpleForm } from "@/components/SimpleForm";
+import type { ResearchFormValues } from "@/components/ResearchForm";
+export default function FormFixture() {
+  const [values, setValues] = useState<ResearchFormValues | null>(null);
+  return <main className="workspace"><SimpleForm disabled={false} onSubmit={setValues}
+    initialValues={{ topic: "Fictional form research", sources: ["youtube", "public_web"], markets: [], date_from: "2026-08-01", date_to: "2026-08-31" }} />
+    <output id="submitted-json" style={{display: "block", overflowWrap: "anywhere"}}>{values && JSON.stringify(values)}</output></main>;
+}`, { mode: 0o600 });
+  }
   for (const name of ["home", "runtime"]) fs.mkdirSync(path.join(root, name), { mode: 0o700 });
 
   const fontMock = path.join(root, "font-mock.cjs");

@@ -112,11 +112,12 @@ class TestQueryMarkets:
                 date_to=date(2026, 8, 31),
             )
 
-    def test_empty_markets_rejected(self):
-        with pytest.raises(ResearchValidationError, match="market"):
-            ResearchQuery(
-                topic="t", date_from=date(2026, 8, 1), date_to=date(2026, 8, 31)
-            )
+    def test_empty_markets_is_global(self):
+        query = ResearchQuery(
+            topic="t", markets=(), date_from=date(2026, 8, 1), date_to=date(2026, 8, 31)
+        )
+        assert query.markets == ()
+        assert query.market is None
 
 
 class TestTargetAllocation:
@@ -376,13 +377,15 @@ class TestMultimarketAPI:
         assert response.status_code == 422
         assert response.json()["error"]["code"] == "invalid_research_request"
 
-    def test_neither_market_rejected(self):
+    def test_neither_market_is_global(self):
         client = self._client(self._youtube_handler)
         payload = self._plural_payload()
         del payload["markets"]
         response = client.post("/api/v1/research", json=payload)
-        assert response.status_code == 422
-        assert response.json()["error"]["code"] == "invalid_research_request"
+        assert response.status_code == 200
+        body = response.json()
+        assert body["query"]["markets"] == []
+        assert body["query"]["market"] is None
 
     def test_unsupported_market_in_plural_rejected(self):
         client = self._client(self._youtube_handler)

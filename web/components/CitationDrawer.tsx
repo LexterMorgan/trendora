@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import type { ResolvedCitation, ChainLink } from "@/lib/report-provenance";
 
@@ -21,26 +21,74 @@ export function CitationDrawer({
   chain,
   onClose,
 }: CitationDrawerProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  // Native <dialog>.showModal() makes the rest of the page inert and moves
+  // focus to the first focusable control (Close). Escape is intercepted via
+  // onCancel so React state stays the source of truth; closing restores focus
+  // to the control that opened the drawer. A keydown handler cycles Tab and
+  // Shift+Tab among the drawer's focusable controls, so focus cannot leave the
+  // modal even where the browser's own dialog wrapping is unreliable.
   useEffect(() => {
-    if (!open) return;
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+    const dialog = dialogRef.current;
+    if (!open || !dialog || dialog.open) return;
+    const returnFocus = document.activeElement as HTMLElement | null;
+    dialog.showModal();
+
+    function focusable(): HTMLElement[] {
+      return Array.from(
+        dialog!.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => element.getClientRects().length > 0);
     }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose]);
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Tab") return;
+      const items = focusable();
+      if (items.length === 0) {
+        event.preventDefault();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      if (event.shiftKey) {
+        if (active === first || !active || !dialog!.contains(active)) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else if (active === last || !active || !dialog!.contains(active)) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    dialog.addEventListener("keydown", onKeyDown);
+    return () => {
+      dialog.removeEventListener("keydown", onKeyDown);
+      if (dialog.open) dialog.close();
+      returnFocus?.focus();
+    };
+  }, [open]);
 
   if (!open) return null;
 
   return (
-    <div
-      className="drawer-backdrop"
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      ref={dialogRef}
+      className="drawer-dialog"
       aria-label="Citation trace"
-      onClick={onClose}
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      onClick={(event) => {
+        // Backdrop clicks target the dialog element itself.
+        if (event.target === dialogRef.current) onClose();
+      }}
     >
-      <div className="drawer" onClick={(event) => event.stopPropagation()}>
+      <div className="drawer">
         <div className="drawer-header">
           <h3 className="section-title">Citation trace</h3>
           <button
@@ -115,6 +163,6 @@ export function CitationDrawer({
           ))}
         </ul>
       </div>
-    </div>
+    </dialog>
   );
 }

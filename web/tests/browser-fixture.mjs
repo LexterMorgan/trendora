@@ -27,15 +27,20 @@ function actorFrom(request) {
   } catch { return null; }
 }
 function fictionalReport(topic, options = {}) {
-  const ref = { source_code: "youtube", content_external_id: "fictional-1" };
+  const source = options.publicWeb ? "public_web" : "youtube";
+  // Echo the requested markets/sources when the mock was given them, so a
+  // saved snapshot reflects the real global request (markets [], both sources).
+  const markets = options.requestMarkets ?? ["SG"];
+  const sources = options.requestSources ?? [source];
+  const ref = { source_code: source, content_external_id: "fictional-1" };
   const citations = [{ kind: "fact", reference: ref, field: "view_count" }];
   const model_provenance = { provider: "fictional", model: "fixture-only" };
   const report = {
     status: "completed",
     research: {
-      status: "completed", query: { topic, markets: ["SG"], market: "SG", date_from: "2026-08-01", date_to: "2026-08-31", sources: ["youtube"], result_limit: 20, facebook_page_id: null },
-      coverage: { completeness: "complete", sources: [{ source_code: "youtube", capability: "keyword_search", status: "available", reason: null }] }, executed_sources: ["youtube"],
-      references: [{ ...ref, url: "https://example.test/fictional", title: "Fictional source", description: options.oversized ? "a".repeat(8_388_609) : "Fictional evidence", published_at: null, channel_external_id: null, channel_title: null, market_contexts: ["SG"], market_context: "SG", market_basis: "youtube_region_availability", source_rank: 1, metrics: { view_count: 0, like_count: null, comment_count: null, reaction_count: null, share_count: null }, collected_at: "2026-10-01T00:00:00Z" }],
+      status: "completed", query: { topic, markets, market: markets.length === 1 ? markets[0] : null, date_from: "2026-08-01", date_to: "2026-08-31", sources, result_limit: 20, facebook_page_id: null },
+      coverage: { completeness: "complete", sources: sources.map((code) => ({ source_code: code, capability: "keyword_search", status: "available", reason: null })) }, executed_sources: sources,
+      references: [{ ...ref, url: "https://example.test/fictional", title: "Fictional source", description: options.oversized ? "a".repeat(8_388_609) : "Fictional evidence", published_at: null, channel_external_id: null, channel_title: null, market_contexts: markets.length ? markets.slice(0, 1) : [], market_context: markets.length === 1 ? markets[0] : null, market_basis: markets.length ? "youtube_region_availability" : null, source_rank: 1, metrics: { view_count: 0, like_count: null, comment_count: null, reaction_count: null, share_count: null }, collected_at: "2026-10-01T00:00:00Z" }],
     },
     evidence: { analyses: [{ reference_id: ref, facts: [{ field: "view_count", value: 0 }], observations: [] }], patterns: [] },
     interpretation: { model_provenance, interpretations: [{ statement: "Fictional interpretation", citations }] },
@@ -147,11 +152,16 @@ export async function createMockBackend() {
           if (generationOptions.interpretationFailure === "malformed") interpretationCalls.push("interpretation");
         }
         if (body.include_content_tools === true) optionalCalls.push("strategy", ...(generationOptions.contentUnavailable ? [] : ["ideation"]));
-        const report = fictionalReport(body.topic, { ...generationOptions, sourceSummaries: body.include_content_tools !== undefined, researchOnly: body.include_content_tools === false });
+        const report = fictionalReport(body.topic, { ...generationOptions, publicWeb: body.sources?.[0] === "public_web", requestMarkets: body.markets, requestSources: body.sources, sourceSummaries: body.include_content_tools !== undefined, researchOnly: body.include_content_tools === false });
         const receipt = `fictional-opaque.${randomUUID()}`;
         report.persistence.recovery_receipt = receipt;
         receiptProofs.set(receipt, { actor, snapshot: JSON.stringify(Object.fromEntries(snapshotFields.map((field) => [field, report[field]]))) });
         return await finish(200, report);
+      }
+      if (pathname === "/api/v1/research/reports" && request.method === "GET") {
+        const limit = Number(url.searchParams.get("limit") ?? 50), offset = Number(url.searchParams.get("offset") ?? 0);
+        const summaries = [...reports.entries()].map(([id, entry]) => ({ id, created_at: "2026-10-01T00:00:00Z", status: entry.report.status, topic: entry.report.research?.query?.topic ?? "Fictional saved report", markets: entry.report.research?.query?.markets ?? ["SG"], source_codes: entry.report.research?.query?.sources ?? ["youtube"] }));
+        return reply(response, 200, summaries.slice(offset, offset + limit));
       }
       if (action === "report") {
         const saved = reports.get(pathname.split("/").at(-1));
@@ -244,7 +254,7 @@ export async function runBrowserScenarios({ chromium, origin, mock, root, env, e
         page, origin, A, B, calls: mock.calls, optionalCalls: mock.optionalCalls, interpretationCalls: mock.interpretationCalls, records: mock.records, reports: mock.reports, waitFor, snapshot,
         newPost: async () => { await page.goto(origin + "/planner/new"); await page.getByLabel("Title", { exact: true }).waitFor(); },
         openResearch: async () => { await page.goto(origin + (selectedReport ? `/report/${selectedReport}` : "/")); await (selectedReport ? page.locator(".report") : page.getByRole("button", { name: "Generate research report", exact: true })).waitFor(); },
-        submitResearch: async (topic, options = {}) => { mock.generationOptions(options); await page.getByLabel("Topic", { exact: true }).fill(topic); await page.getByRole("checkbox", { name: "Include content ideas and briefs", exact: true }).setChecked(!options.researchOnly); await page.getByRole("button", { name: "Generate research report", exact: true }).click(); await page.locator(".report").waitFor(); },
+        submitResearch: async (topic, options = {}) => { mock.generationOptions(options); await page.getByLabel("Topic", { exact: true }).fill(topic); await page.getByRole("checkbox", { name: "Generate content ideas and briefs", exact: true }).setChecked(!options.researchOnly); await page.getByRole("button", { name: "Generate research report", exact: true }).click(); await page.locator(".report").waitFor(); },
         seedSavedReport: async (options) => { selectedReport = mock.seedSavedReport(options); return selectedReport; },
         fault: (value) => mock.fault(value), stalled: () => mock.stalled(), release: () => mock.release(),
         async switchAccount(id) {

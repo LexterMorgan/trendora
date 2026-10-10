@@ -173,18 +173,20 @@ class YouTubeClient:
         self,
         *,
         query: str,
-        region_code: str,
+        region_code: str | None,
         published_after: str | None,
         published_before: str | None,
         limit: int,
     ) -> list[SearchResource]:
         """search.list (type=video, order=relevance) with deterministic pagination.
 
-        ``published_after`` / ``published_before`` are RFC 3339 timestamps
-        passed through to the API. Page size is capped at 50; at most
-        ``ceil(limit / 50)`` pages are requested. Results preserve source
-        order and are deduplicated by video id. Never returns more than
-        ``limit`` items.
+        ``region_code`` is optional: ``None`` performs a **global** search and
+        omits ``regionCode`` entirely (no country substituted). A provided
+        region is passed through unchanged. ``published_after`` /
+        ``published_before`` are RFC 3339 timestamps passed through to the API.
+        Page size is capped at 50; at most ``ceil(limit / 50)`` pages are
+        requested. Results preserve source order and are deduplicated by video
+        id. Never returns more than ``limit`` items.
         """
         if limit < 1:
             return []
@@ -200,10 +202,11 @@ class YouTubeClient:
                 "part": "snippet",
                 "type": "video",
                 "q": query,
-                "regionCode": region_code,
                 "order": "relevance",
                 "maxResults": min(_MAX_IDS_PER_REQUEST, remaining),
             }
+            if region_code:
+                params["regionCode"] = region_code
             if published_after:
                 params["publishedAfter"] = published_after
             if published_before:

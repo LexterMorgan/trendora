@@ -40,5 +40,15 @@ class ResearchAIProviderError(ResearchError):
     """Upstream provider failure (network, timeout, non-2xx HTTP)."""
 
 
+class ResearchAITimeoutError(ResearchAIProviderError):
+    """The provider did not answer within the configured client timeout.
+
+    A distinct subclass so a slow-but-reachable provider is diagnosable
+    (and tunable) rather than masked as a generic provider failure. It is
+    still a ``ResearchAIProviderError``, so existing fallback handling is
+    unchanged.
+    """
+
+
 class ResearchAIResponseError(ResearchError):
     """Malformed provider/model response or invalid model output."""

@@ -191,6 +191,44 @@ class TestRetriever:
         assert references[0].market_context == "TH"
         assert references[0].market_basis is MarketBasis.YOUTUBE_REGION_AVAILABILITY
 
+    def test_global_query_omits_region_code(self) -> None:
+        captured: dict[str, object] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured.update(dict(request.url.params))
+            if request.url.path.endswith("/search"):
+                return httpx.Response(200, json=SEARCH_PAGE_1)
+            return httpx.Response(200, json=VIDEOS_LIST_OK)
+
+        # Global: no markets at all.
+        query = ResearchQuery(
+            topic="AI education",
+            markets=(),
+            date_from=date(2026, 8, 1),
+            date_to=date(2026, 8, 30),
+        )
+        retriever = YouTubeResearchRetriever(_client(handler))
+        references = retriever.normalize(retriever.collect(query, collected_at=COLLECTED_AT))
+        # No regionCode param is sent, and none is silently substituted.
+        assert "regionCode" not in captured
+        # No regional-availability claim is made for a global result.
+        assert references[0].market_context is None
+        assert references[0].market_contexts == ()
+        assert references[0].market_basis is None
+
+    def test_explicit_regional_query_still_sends_region_code(self) -> None:
+        captured: dict[str, object] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured.update(dict(request.url.params))
+            if request.url.path.endswith("/search"):
+                return httpx.Response(200, json=SEARCH_PAGE_1)
+            return httpx.Response(200, json=VIDEOS_LIST_OK)
+
+        retriever = YouTubeResearchRetriever(_client(handler))
+        retriever.collect(_query(market="SG"), collected_at=COLLECTED_AT)
+        assert captured.get("regionCode") == "SG"
+
     def test_no_creator_publisher_or_origin_country_inferred(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
             if request.url.path.endswith("/search"):

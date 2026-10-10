@@ -71,7 +71,7 @@ export function ReferenceCard({ reference, window }: ReferenceCardProps) {
         <span>{published === "—" ? "Publication date unknown" : <>Published <time dateTime={reference.published_at ?? undefined}>{published}</time></>}</span>
         <span>{collected === "—" ? "Collection date unknown" : <>Collected <time dateTime={reference.collected_at}>{collected}</time></>}</span>
         {(reference.market_contexts?.length ?? 0) > 0 && (
-          <span title="Regional YouTube availability/viewability — not creator nationality, content origin, or language">
+          <span title="Regional YouTube availability/viewability, not creator nationality, content origin, or language">
             Available in {reference.market_contexts.join(" · ")}
           </span>
         )}

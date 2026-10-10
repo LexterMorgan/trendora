@@ -12,10 +12,22 @@ interface CoveragePanelProps {
  * from `executed_sources`.
  */
 export function CoveragePanel({ coverage, executedSources }: CoveragePanelProps) {
+  // The backend "completeness" is static capability coverage: a source can be
+  // "available" yet not executed at runtime (e.g. public web is unconfigured).
+  // Surface that honestly instead of claiming "complete" when a requested
+  // source was skipped.
+  const requested = coverage?.sources ?? [];
+  const skipped = executedSources
+    ? requested.filter((source) => !executedSources.includes(source.source_code))
+    : [];
+  const capability = coverage?.completeness || "Unavailable";
+  const label = skipped.length
+    ? `${capability} (partial execution: ${skipped.map((s) => sourceLabel(s.source_code)).join(", ")} not searched)`
+    : capability;
   return (
     <section className="coverage-panel" aria-label="Source coverage">
       <h2 className="section-title">Source coverage</h2>
-      <p className="coverage-completeness">Capability coverage: {coverage?.completeness || "Unavailable"}</p>
+      <p className="coverage-completeness">Capability coverage: {label}</p>
       <p className="section-note">
         Coverage describes the listed sources and bounded sample, not the whole internet.
       </p>

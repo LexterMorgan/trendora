@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Trendora — Research Workspace",
+  title: "Trendora · Research Workspace",
   description:
-    "Research real content before deciding what to post. Evidence-backed social content intelligence.",
+    "Search available sources and read sourced findings with their dates and coverage limits. Content ideas and briefs are optional.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
