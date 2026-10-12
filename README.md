@@ -1,366 +1,548 @@
 # Trendora
 
-Research across available internet sources for topics you choose: AI, business, gaming, fashion, or another field. Reports should explain what the sources support, why it may matter, and where coverage is limited. Content creation and the shared two-person planner are optional downstream uses.
+A research workspace for collecting information from YouTube and the public web, reviewing source-backed AI interpretations, and developing research into content.
 
-**Historical implementation summary:** Milestones 2A–4 ingest; M5 analytics; M6A in-memory forecast baselines; M6B evaluation docs; M6C naive-vs-challenger MAE comparison (in-memory); M7 series diagnostics (in-memory); M8 forecasting product contract & readiness gate ([docs/11](docs/11_FORECASTING_PRODUCT_SPEC.md)); M9 forecasting product requirements decided ([docs/12](docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md)); M10 V1 GitHub forecasting slice implemented ([src/trendora/product/](src/trendora/product/)) — naive level forecasts of GitHub repository `stargazer_count`/`fork_count`, 4 weekly points, on demand from M5, ≥4 observations, in-memory; M11A forecast API contract defined ([docs/13](docs/13_FORECASTING_API_CONTRACT.md)); M11B FastAPI adapter implemented ([src/trendora/api/](src/trendora/api/)) — no auth/persistence; M15 research API; M23A research report pipeline + API; M25A–M25D Facebook public Page client → normalization → research execution → API wiring (mocked only, opt-in via `META_ACCESS_TOKEN` + `META_GRAPH_API_VERSION`); M25E frontend Facebook Page research mode; M26B combined YouTube + Facebook backend execution (deterministic limit split, fail-closed unconfigured sources); M26C multi-market backend contract ([docs/32](docs/32_MULTI_MARKET_RESEARCH.md)) — canonical ordered `markets`, per-market YouTube targets, truthful reference provenance; M26D multi-market frontend selection (checkbox group, fixed-order submission); M28A report persistence (append-only JSONB snapshots); M28B report read API (list + fetch endpoints); M35A flexible research requests (topic-only simplified contract with defaults, full contract unchanged). Streamlit, advanced ML, WebSub, and other source connectors are not implemented.
+Trendora brings source discovery, evidence review, saved reports, and a shared content planner into one workflow. It is designed for personal research and small marketing teams that need to understand a topic before deciding what to create.
 
-## Product direction
+**Current stage:** Local-first application under active development. Research, saved reports, and planner workflows are implemented. Public deployment and broader operational readiness remain separate work.
 
-The authoritative [product PRD](docs/14_PRODUCT_ARCHITECTURE_REBASELINE.md) defines research as the main experience: choose a topic and timeframe, inspect sourced findings and dates, understand coverage gaps, and save useful research. A recent result or high current count is not evidence of a growing trend. Forecasting remains an optional capability. Preserve the existing planner without expanding or removing it.
+[Product Specification](docs/14_PRODUCT_ARCHITECTURE_REBASELINE.md) · [Deployment Guide](docs/DEPLOYMENT.md) · [Frontend Documentation](web/README.md)
 
-Reports lead with sourced findings, references, dates, and coverage. Research-only requests use the existing grounded interpretation adapter for synthesis, with labeled source excerpts when interpretation is unavailable or invalid. Content ideas and briefs require explicit opt-in, and their failure preserves research. The PRD records implemented behavior and the database, retention-operation, policy, and hosting checks still needed for release.
+---
 
-## What Trendora will answer
+## Business Problem
 
-> What happened in my chosen topic during this period? What is gaining attention, what evidence supports that, and why might it matter?
+Research for content planning often happens across disconnected tools: search engines, YouTube, social platforms, notes, and spreadsheets.
 
-Existing market filters: Indonesia, Thailand, Malaysia, Singapore, Vietnam, Philippines. Their meaning depends on the source; they do not imply worldwide coverage.
+Finding links is only one part of the work. Researchers also need to understand:
 
-Topics are chosen by the user. Current source capabilities and configuration determine what can be collected; unsupported or undated coverage must remain explicit.
+- What the collected sources actually say.
+- Which claims have supporting references.
+- Whether information falls within the requested period.
+- Which sources were searched and which were unavailable.
+- How useful research can become a content idea without losing its origin.
 
-## Core principle
+Trendora organizes this work around a practical question:
 
-Python owns the truth. AI owns the explanation.
+> What does the available evidence say about this topic, and what can I responsibly do with it?
 
-Python will calculate KPIs, trends, forecasts, anomalies, and statistical results. An LLM, if used at all, interprets structured outputs. The LLM will not receive unrestricted raw database access.
+The product is research-first. Content generation and planning are optional steps after reviewing the evidence.
 
-The implemented frontend is the Next.js research workspace in `web/`. The earlier Streamlit dashboard proposal is historical and is not the primary product surface.
+## Research Workflow
 
-## Implementation history and references
-
-Milestones 2A, 2B, 3A, 3B, and 4 are the implemented ingestion paths. Milestone 5 is the analytics read layer. Milestone 6A is in-memory forecasting baselines. Milestone 6B is evaluation/model-selection documentation. Milestone 6C is in-memory naive-vs-challenger MAE comparison. Milestone 7 is in-memory series diagnostics. Milestone 8 defines the forecasting product contract and readiness gate. Milestone 9 decides the V1 forecasting product requirements. Milestone 10 implements the V1 GitHub forecast slice over M5/M6A/M7. Milestone 11A defines the forecast API contract. Milestone 11B implements the FastAPI adapter. Milestone 12 re-baselines the product toward evidence-backed content intelligence (forecasting becomes a secondary signal). Milestone 13 implements the research core (ResearchQuery, capabilities, coverage, ResearchRun). Milestone 14 implements YouTube-first research retrieval (search + enrichment → in-memory references). Milestone 15 exposes the research workflow via `POST /api/v1/research`. Milestone 16 adds the research workspace UI (`web/`). Milestone 17 adds evidence facts & deterministic content observations over references. Milestone 18 adds deterministic pattern aggregation over those observations. Milestone 19 defines the grounded AI-interpretation contract (EvidencePack, typed citations, grounding validation; no LLM yet). Milestone 20 adds a real OpenAI-compatible provider adapter with strict parsing and mandatory grounding validation. Milestone 21 adds content gaps & opportunities (strategic layer over grounded interpretation). Milestone 22 adds grounded content ideas & briefs. Milestone 23A adds the backend research report pipeline + API (`POST /api/v1/research/report`). Milestone 26C makes `markets` (an ordered, normalized, deduplicated list of SEA markets) the canonical query field with truthful per-reference `market_contexts`, and Milestone 26D replaces the single-market dropdown with a multi-select checkbox group in the workspace form. Milestone 28A persists each completed report as an append-only `research_reports` row (full JSONB snapshot) — best-effort at the API layer, requiring `DATABASE_URL`, silently skipped when unconfigured. Milestone 28B adds read endpoints below `POST /api/v1/research/report`: `GET /api/v1/research/reports?limit=50&offset=0` returns metadata summaries (no JSONB payloads, newest first), and `GET /api/v1/research/reports/{report_id}` replays the full snapshot by UUID (404 when absent or malformed). See:
-
-- [docs/04_INGESTION_PIPELINE.md](docs/04_INGESTION_PIPELINE.md) — connectors, config, and how to run them
-- [docs/05_ANALYTICS_SPEC.md](docs/05_ANALYTICS_SPEC.md) — observation contracts and candidate KPI caveats
-- [docs/06_ML_FORECASTING.md](docs/06_ML_FORECASTING.md) — M6A baselines, M6B evaluation protocol, M6C comparison, M7 diagnostics, open decisions
-- [docs/11_FORECASTING_PRODUCT_SPEC.md](docs/11_FORECASTING_PRODUCT_SPEC.md) — M8 forecasting product contract & readiness gate
-- [docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md](docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md) — M9 V1 forecasting product requirements & decisions
-- [docs/13_FORECASTING_API_CONTRACT.md](docs/13_FORECASTING_API_CONTRACT.md) — M11A/M11B forecast API contract; FastAPI adapter implemented in [src/trendora/api/](src/trendora/api/)
-- [docs/14_PRODUCT_ARCHITECTURE_REBASELINE.md](docs/14_PRODUCT_ARCHITECTURE_REBASELINE.md): authoritative research-first product PRD, current gaps, and one proposed next milestone
-- [docs/15_RESEARCH_CORE.md](docs/15_RESEARCH_CORE.md) — M13 research core (ResearchQuery, capabilities, coverage, ResearchRun)
-- [docs/16_YOUTUBE_RESEARCH_RETRIEVAL.md](docs/16_YOUTUBE_RESEARCH_RETRIEVAL.md) — M14 YouTube-first research retrieval (search + enrichment → in-memory references)
-- [docs/17_RESEARCH_API.md](docs/17_RESEARCH_API.md) — M15 research API (`POST /api/v1/research`)
-- [docs/18_RESEARCH_WORKSPACE.md](docs/18_RESEARCH_WORKSPACE.md) — M16 research workspace UI (`web/`, Next.js)
-- [docs/19_EVIDENCE_CONTENT_OBSERVATIONS.md](docs/19_EVIDENCE_CONTENT_OBSERVATIONS.md) — M17 evidence facts & deterministic content observations
-- [docs/20_DETERMINISTIC_PATTERN_AGGREGATION.md](docs/20_DETERMINISTIC_PATTERN_AGGREGATION.md) — M18 deterministic pattern aggregation
-- [docs/21_GROUNDED_AI_INTERPRETATION_CONTRACT.md](docs/21_GROUNDED_AI_INTERPRETATION_CONTRACT.md) — M19 grounded AI-interpretation contract
-- [docs/22_AI_PROVIDER_GROUNDED_EXECUTION.md](docs/22_AI_PROVIDER_GROUNDED_EXECUTION.md) — M20 AI provider adapter + grounded execution
-- [docs/23_CONTENT_GAPS_OPPORTUNITIES.md](docs/23_CONTENT_GAPS_OPPORTUNITIES.md) — M21 content gaps & opportunities
-- [docs/24_CONTENT_IDEAS_BRIEFS.md](docs/24_CONTENT_IDEAS_BRIEFS.md) — M22 grounded content ideas & briefs
-- [docs/25_RESEARCH_REPORT_PIPELINE_API.md](docs/25_RESEARCH_REPORT_PIPELINE_API.md) — M23A research report pipeline + API
-- [docs/26_FACEBOOK_PUBLIC_PAGE_CLIENT.md](docs/26_FACEBOOK_PUBLIC_PAGE_CLIENT.md) — M25A Facebook public Page client (isolated, mocked-only)
-- [docs/27_FACEBOOK_POST_NORMALIZATION.md](docs/27_FACEBOOK_POST_NORMALIZATION.md) — M25B Facebook post normalization & grounded evidence (isolated)
-- [docs/28_FACEBOOK_RESEARCH_EXECUTION.md](docs/28_FACEBOOK_RESEARCH_EXECUTION.md) — M25C Facebook research execution seams (isolated, mocked)
-- [docs/29_FACEBOOK_API_WIRING.md](docs/29_FACEBOOK_API_WIRING.md) — M25D Facebook research API wiring (settings, lifecycle, error mapping)
-- [docs/30_FACEBOOK_FRONTEND.md](docs/30_FACEBOOK_FRONTEND.md) — M25E Facebook Page research frontend mode (single-source selector, mocked)
-- [docs/31_COMBINED_MULTI_SOURCE_EXECUTION.md](docs/31_COMBINED_MULTI_SOURCE_EXECUTION.md) — M26B combined YouTube + Facebook execution (backend, mocked)
-- [docs/32_MULTI_MARKET_RESEARCH.md](docs/32_MULTI_MARKET_RESEARCH.md) — M26C/M26D multi-market research (backend contract + frontend selection)
-- [PROJECT_PREP.md](PROJECT_PREP.md) — environment, MCP, and setup notes
-- [docs/01_ARCHITECTURE.md](docs/01_ARCHITECTURE.md) — layer boundaries and V1 database decision
-- [docs/02_DATABASE_SCHEMA.md](docs/02_DATABASE_SCHEMA.md) — tables, constraints, migrations
-- [docs/03_DATA_SOURCES.md](docs/03_DATA_SOURCES.md) — verified source research (read this before any connector work)
-
-## Flexible Research Requests (M35A)
-
-`POST /api/v1/research` and `POST /api/v1/research/report` accept two request shapes:
-
-**Full contract (unchanged):**
-
-```json
-{
-  "topic": "AI education",
-  "markets": ["SG", "ID"],
-  "date_from": "2026-08-01",
-  "date_to": "2026-08-31",
-  "sources": ["youtube"],
-  "result_limit": 30
-}
+```text
+Topic + Timeframe
+        ↓
+YouTube + Public-Web Discovery
+        ↓
+Normalized References and Evidence
+        ↓
+AI Interpretation and Citation Validation
+        ↓
+Research Report
+        ├── Read findings and inspect sources
+        ├── Save and reopen from history
+        └── Generate optional content ideas and briefs
+                         ↓
+                  Shared Content Planner
 ```
 
-**Simplified contract:**
+If AI interpretation is unavailable or fails validation, Trendora can display clearly labeled source-attributed excerpts instead.
 
-```json
-{ "topic": "AI education" }
-```
+An excerpt fallback is not presented as AI synthesis.
 
-A request with no market (omitted, or an empty `markets` list) is **global**: no country restriction, not comprehensive worldwide coverage. Global YouTube search omits `regionCode` rather than substituting a country. Omitted fields are completed by the adapter (`src/trendora/research/adapter.py`): a topic-first request defaults to `markets=[]` (global), last 30 days (ending today), `sources=["youtube", "public_web"]`, `result_limit=50`; a request that supplies an explicit `market`/`markets` stays regional and defaults to `sources=["youtube"]`. Any explicitly provided value overrides its default. If a requested source has no configured runtime retriever, the configured sources still run and the missing one is reported as partial/unavailable coverage; only when none are configured does the request fail (`research_source_not_configured`).
+---
 
-For `/api/v1/research/report` only, `include_content_tools=false` requests research synthesis through the existing grounded interpretation adapter and skips strategy/ideation; `true` also requests those optional content stages. Unavailable, malformed, or structurally ungrounded synthesis falls back to exact, labeled source excerpts without discarding evidence. Omission preserves the legacy three-stage report pipeline. This flag is outside the unchanged six-field saved snapshot and its canonical hash. Resolvable citations do not establish factual correctness; undated and outside-window material remains context.
+## Core Capabilities
 
-The adapter runs **before** the service executes anything and does not weaken validation: the resulting `ResearchQuery` is still fully validated (market validity when a market is supplied, date order, source normalization, result limits), and all downstream evidence/citation grounding is unaffected. Supplying both `market` and `markets` is still rejected; supplying neither is a valid global request. Explicit regional requests keep their existing behavior and provenance.
+### Global Topic Research
 
-## Technology direction
+The main research form uses a topic and timeframe, without requiring country, source, or advanced configuration choices.
 
-| Layer | Direction | Now |
+Requests use the configured YouTube and public-web sources. Global scope means no country restriction is applied; it does not mean the result set represents the entire world or internet.
+
+Example research topics include:
+
+- AI tools for education.
+- Changes in creator workflows.
+- Gaming products and communities.
+- Fashion-related discussions.
+- Marketing tools and industry developments.
+
+Results are bounded samples, not exhaustive monitoring feeds.
+
+### Multi-Source Discovery
+
+| Source | Integration | Available material |
 | --- | --- | --- |
-| Language | Python 3.12+ | Installed |
-| Database | PostgreSQL via SQLAlchemy + Alembic | Installed |
-| V1 development DB | Supabase PostgreSQL integration | Application connectivity and current schema remain unverified. Disposable verification is separate. |
-| HTTP | httpx (YouTube Data API v3 client) | Installed |
-| Connectors | YouTube watchlist + mostPopular; Hacker News stories; Stack Exchange questions; GitHub repositories; Facebook public Page posts + normalization + research wiring (M25A–M25D, mocked, opt-in) | M2A + M2B + M3A + M3B + M4 + M25A + M25B + M25C + M25D |
-| Research UI | Next.js research workspace; simplified global form (topic + timeframe, optional content tools) | M16 + M24 + M25E |
-| Analytics | Read-only observation/query layer over `metric_snapshots` | M5 |
-| Forecasting | In-memory naive / moving average / SES over M5 series; naive-vs-challenger MAE; series diagnostics; V1 GitHub forecast product | M6A + M6C + M7 + M10 |
-| API | FastAPI read model: GitHub forecast product + research/report endpoints | M11B + M15 + M23A |
-| Historical dashboard proposal | Streamlit + Plotly | Not implemented; not the primary surface |
-| Data / ML | Pandas, NumPy, scikit-learn, statsmodels | Not installed |
-| AI | Configurable HTTP provider adapters | Research synthesis and optional content use the existing configuration. Explicit research requests fall back to excerpts if interpretation is unavailable; legacy report generation still requires configuration. Live compatibility remains unverified. |
+| YouTube | YouTube Data API | Video titles, descriptions, publication dates, channel information, and available engagement metrics |
+| Public web | Self-hosted SearXNG | Indexed URLs, page titles, and search snippets |
+| Public web | Optional Serper adapter | Search-result URLs, titles, and snippets |
 
-Do not make the core system depend on paid APIs, paid datasets, paid LLMs, paid scrapers, or paid infrastructure.
+The web-search backend is configurable. Explicitly selecting SearXNG does not silently switch to Serper if the local service fails.
 
-## Local setup
+If one source fails and another succeeds, the report identifies partial coverage. A failed or skipped source is not presented as successfully searched.
 
-Python 3.12 is required. The macOS Command Line Tools `python3` on this machine is 3.9.6 and is past end-of-life.
+#### Public Social Discovery
 
-A project virtualenv is already present (CPython 3.12.14), along with frontend
-dependencies. From the repository root, start the backend in Terminal 1:
+The SearXNG integration includes platform-targeted searches for public results from:
 
-```bash
-.venv/bin/python -m uvicorn trendora.api.app:create_app --factory \
-  --reload --host 127.0.0.1 --port 8000
+- Reddit.
+- TikTok.
+- Instagram.
+- X and Twitter.
+- LinkedIn.
+- Facebook.
+
+These results remain public-web references. Platform labels come from the returned hostname.
+
+This is search-engine discovery of indexed public content, not authenticated social-platform access or direct full-post scraping. Availability depends on indexing, upstream search engines, and the report's result budget. Every platform is not guaranteed to appear in every report.
+
+### Evidence-Aware Reports
+
+Reports separate different kinds of output:
+
+| Section | Meaning |
+| --- | --- |
+| Research findings | Interpretations with resolvable supporting title or description evidence |
+| AI observations about the sample | Interpretations supported by sample patterns, observations, or valid metrics |
+| Interpretations with limited evidence | Retained interpretations whose citations are missing, incomplete, or insufficient for the other categories |
+| Source-attributed excerpts | Source text shown when research synthesis is unavailable or rejected |
+
+Citation traces connect interpretations to the underlying evidence and references.
+
+These checks establish structural support. They do not prove that an AI statement is true or that the cited text logically supports every part of its wording. Users should inspect important claims at their original sources.
+
+### Source Cards and Previews
+
+Source cards show the information needed to evaluate a reference:
+
+- Title and original URL.
+- Source or platform identity.
+- Publication date, where available.
+- Collection details and coverage caveats.
+- Available source metrics.
+- Expandable supporting information.
+
+YouTube cards request higher-resolution thumbnails first and fall back to smaller versions when necessary. If no usable thumbnail loads, the text and source link remain available.
+
+Public-web results currently use text-based cards without image previews.
+
+YouTube thumbnails load directly from `i.ytimg.com`. Requests omit the referrer, but the image host still receives the viewer's IP address.
+
+### Saved Research
+
+Research reports can be saved and reopened from history.
+
+Reports are stored as snapshots, separate from editable planner records. The interface distinguishes a successfully generated report from a successfully saved report and provides recovery behavior for supported persistence failures.
+
+History visibility and data retention are different concerns. Hiding a report from a history window does not itself delete the underlying data.
+
+### Optional Content Development
+
+Users can request content ideas and creative briefs after choosing to include content tools.
+
+Generated material retains its source references and can be imported into the planner. Content-tool failures do not require discarding otherwise available research.
+
+Research-only requests do not need to run the optional strategy and ideation stages.
+
+### Shared Content Planner
+
+The planner supports manual drafting and research-to-content handoff.
+
+Saved posts can contain:
+
+- Title.
+- Platform.
+- Caption and hook.
+- Creative brief.
+- Asset links.
+- Notes.
+- Planned publishing date.
+- Assignment to an active member.
+
+The current planner supports **Idea** and **Working on it** statuses, along with active and archived records.
+
+Active members can read and edit the shared planner. Revision checks help prevent concurrent edits from silently overwriting newer changes.
+
+Planner editing and saving do not require an AI completion, although the application backend, authentication, and database must remain available.
+
+A planned date is a reminder for the workflow. Trendora does not automatically publish the post.
+
+---
+
+## Architecture
+
+```mermaid
+flowchart TD
+    U[User] --> W[Next.js Research Workspace]
+    W --> A[Supabase Auth]
+    W --> P[Next.js API Routes]
+    P --> B[FastAPI Backend]
+
+    B --> Y[YouTube Data API]
+    B --> S[SearXNG or Serper]
+    Y --> E[Normalized Evidence]
+    S --> E
+
+    E --> I[OpenAI-Compatible AI Provider]
+    I --> V[Schema and Citation Validation]
+    E --> F[Labeled Excerpt Fallback]
+    V --> R[Research Report]
+    F --> R
+
+    B --> D[(PostgreSQL)]
+    R --> D
+    R --> W
+
+    W --> C[Shared Planner]
+    C --> P
 ```
 
-Start the frontend in Terminal 2, also from the repository root:
+### Application Boundaries
+
+- The frontend handles research input, report reading, authentication UI, and planner editing.
+- Next.js API routes forward application requests to FastAPI.
+- FastAPI handles research execution, validation, access checks, persistence, and planner operations.
+- PostgreSQL stores report snapshots, memberships, planner records, and supporting data.
+- Supabase provides authentication and can host the PostgreSQL database.
+- Search and AI providers remain external dependencies with their own availability, quotas, and limits.
+
+### AI Provider Integration
+
+Trendora uses an OpenAI-compatible Chat Completions adapter.
+
+A compatible gateway such as 9router can route requests to a configured model or combo alias. Compatibility still depends on the upstream models returning responses that satisfy Trendora's schemas and grounding checks.
+
+The AI pipeline uses a shared monotonic deadline across interpretation, supported retries, and optional content stages. In-flight HTTP operations use the remaining budget.
+
+This does not guarantee that the entire report finishes within that budget. Collection, local parsing, validation, persistence, and cleanup also take time. Cancelling Trendora's request does not guarantee cancellation of work already running inside an upstream router.
+
+## Technology Stack
+
+| Layer | Technology |
+| --- | --- |
+| Frontend | Next.js, React, TypeScript |
+| Backend | Python 3.12+, FastAPI, Uvicorn |
+| Data validation | Pydantic |
+| Database | PostgreSQL |
+| Persistence | SQLAlchemy, psycopg |
+| Migrations | Alembic |
+| Authentication | Supabase Auth |
+| Public-web discovery | SearXNG or Serper |
+| Video discovery | YouTube Data API |
+| AI execution | OpenAI-compatible Chat Completions |
+| Backend tests | pytest |
+| Frontend checks | Node test runner, TypeScript, ESLint |
+| Browser regressions | Playwright-compatible isolated harness |
+
+## Repository Structure
+
+```text
+trendora/
+├── src/trendora/
+│   ├── api/                 # HTTP routes, authentication, request validation
+│   ├── connectors/          # External-source adapters
+│   ├── research/            # Retrieval, evidence, interpretation, reports
+│   ├── models/              # Database models
+│   ├── db/                  # Database engine and session management
+│   ├── planner.py           # Shared planner operations
+│   ├── planner_origin.py    # Imported research provenance
+│   ├── analytics/           # Historical observation analysis
+│   ├── forecasting/         # Forecasting baselines
+│   ├── diagnostics/         # Time-series diagnostics
+│   └── product/             # Forecast product contracts
+├── web/
+│   ├── app/                 # Pages and Next.js API routes
+│   ├── components/          # Research, report, auth, and planner UI
+│   ├── lib/                 # Client helpers and evidence resolution
+│   └── tests/               # Unit and browser regression coverage
+├── alembic/                 # Database migrations
+├── deploy/searxng/          # Local search-service configuration
+├── tests/
+│   ├── unit/
+│   └── integration/
+└── docs/                    # Product, architecture, and operational guides
+```
+
+The repository also contains earlier ingestion, analytics, and forecasting work, including Hacker News, Stack Exchange, and GitHub connectors. These are separate from the default YouTube and public-web research workflow.
+
+---
+
+## Running Locally
+
+### Prerequisites
+
+- Python 3.12 or newer.
+- Node.js and npm. The frontend test command requires a Node version capable of running the repository's TypeScript tests.
+- A configured PostgreSQL database and Supabase Auth project.
+- YouTube API credentials for YouTube research.
+- SearXNG or Serper configuration for public-web research.
+- A compatible AI endpoint for generated interpretations.
+
+A container runtime is needed only when running SearXNG in a container. On macOS, Colima is one option.
+
+### 1. Clone and Install
 
 ```bash
+git clone https://github.com/LexterMorgan/trendora.git
+cd trendora
+
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -e ".[dev]"
+
 cd web
-npm run dev -- --webpack --hostname 127.0.0.1 --port 3000
+npm ci
+cd ..
 ```
 
-Open `http://127.0.0.1:3000`. Keep configured private environment files intact.
-Neither startup command installs dependencies or migrates a database.
-[The local guide](docs/DEPLOYMENT.md#a-local-startup-with-installed-tools)
-lists required variable names and separates fictional fixture acceptance from
-live Supabase, research-provider and 9router behavior.
+### 2. Configure the Backend
 
-### Environment variables
+For a fresh checkout, copy `.env.example` to `.env`. Do not overwrite an existing configuration.
 
-Create the local file only if it is missing, then fill in secrets privately.
-The command preserves an existing `.env`. Never commit it.
-
-```bash
-cp -n .env.example .env
-```
-
-Separate reference templates exist for each side: `.env.example.backend` (FastAPI: `DATABASE_URL`, `YOUTUBE_API_KEY`, `META_*`, `TRENDORA_AI_*`) and `.env.example.frontend` (Next.js: `TRENDORA_API_BASE_URL`). See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
-
-`DATABASE_URL` is required at backend startup, for Alembic and for any live
-database session. Protected workflows also need matching Supabase Auth
-settings and active membership; new source-bearing recovery needs the
-backend signing key documented in the local guide.
+Configure the relevant variables:
 
 | Variable | Purpose |
 | --- | --- |
-| `DATABASE_URL` | PostgreSQL URL. Use `postgresql+psycopg://…?sslmode=require` for Supabase. `postgresql://` and `postgres://` are accepted and rewritten to the psycopg driver. |
-| `APP_ENV` | Optional. Defaults to `development`. |
-| `APP_NAME` | Optional. Defaults to `trendora`. |
-| `LOG_LEVEL` | Optional. Defaults to `INFO`. |
-| `YOUTUBE_API_KEY` | Required to run YouTube ingestion. YouTube Data API v3 key. Leave empty for unit tests. |
-| `YOUTUBE_CHANNEL_IDS` | Comma-separated 24-character channel IDs (`UC…`). Handles and URLs are rejected. Required for watchlist ingest only; `most-popular` does not use this list. |
-| `YOUTUBE_MAX_VIDEOS_PER_CHANNEL` | Optional. Caps uploads fetched per watchlist channel (default 50, max 500). |
-| `STACKEXCHANGE_API_KEY` | Optional. Stack Exchange API key for a higher request quota. M3B works without it. |
-| `GITHUB_TOKEN` | Optional. GitHub token for a higher REST API quota. M4 works without it for public repositories. |
-| `GITHUB_REPOSITORIES` | Optional. Comma-separated `owner/repository` identifiers. Required for a default GitHub run; `--repos` can override. |
+| `DATABASE_URL` | PostgreSQL connection using the SQLAlchemy psycopg driver |
+| `SUPABASE_URL` | Supabase project URL used by backend authentication |
+| `YOUTUBE_API_KEY` | YouTube Data API access |
+| `TRENDORA_WEB_SEARCH_BACKEND` | `searxng`, `serper`, `auto`, or `none` |
+| `SEARXNG_URL` | Base URL of the configured SearXNG instance |
+| `SERPER_API_KEY` | Required when using Serper |
+| `TRENDORA_AI_PROVIDER` | Provider identifier |
+| `TRENDORA_AI_MODEL` | Model name or gateway combo alias |
+| `TRENDORA_AI_ENDPOINT_URL` | Complete Chat Completions endpoint |
+| `TRENDORA_AI_API_KEY` | AI endpoint credential |
+| `TRENDORA_AI_TIMEOUT_SECONDS` | Shared AI request deadline setting |
+| `TRENDORA_REPORT_RECOVERY_SIGNING_KEY` | Stable signing secret for report recovery |
 
-Supabase Auth and PostgreSQL are integrated in source. Read-only checks on
-2026-10-07 found `trendora` (`ymzloduyggkcmapmiics`) ACTIVE_HEALTHY and matching
-local frontend/backend/database project settings. Its database is still at
-`0002_research_reports`, with no membership or planner tables; report RLS is
-disabled and public API roles have SELECT access. This is not a verified
-application setup. Migration and access changes need exact target approval.
-The [local guide](docs/DEPLOYMENT.md#a-local-startup-with-installed-tools)
-records the remaining auth, recovery and provider checks. Never put passwords
-in source, tests or docs.
+The AI endpoint must include the complete path, such as `/v1/chat/completions`; the adapter does not append it automatically.
 
-The same models work against a later local PostgreSQL URL. Do not hard-code Supabase APIs into the domain layer.
+Keep credentials in local environment files or the deployment platform's secret store. Never commit real keys or database passwords.
 
-### Migrations
+### 3. Configure the Frontend
 
-Alembic is the application migration tool. From the repository root, with `.venv` active and `DATABASE_URL` set:
+Create `web/.env.local` with your project settings:
 
-```bash
-alembic current
-alembic upgrade head
+```dotenv
+TRENDORA_API_BASE_URL=http://127.0.0.1:8000
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_PUBLIC_ANON_OR_PUBLISHABLE_KEY
 ```
 
-The initial revision is `0001_initial_schema`. It creates Trendora application tables in `public` only. It does not drop unrelated Supabase schemas.
+Only public Supabase client configuration belongs in `NEXT_PUBLIC_*` variables. Never place a service-role key, database password, or AI credential there.
 
-An existing `0001_initial_schema` database still needs the later migrations; the current head is `0008_report_source_expiry`. Applying them requires approval for the exact database target. See [the deployment guide](docs/DEPLOYMENT.md#f-ordered-release-operations) for verification and rollout order.
+### 4. Prepare Authentication and the Database
 
-### YouTube ingestion (Milestones 2A and 2B)
+Follow the [deployment guide](docs/DEPLOYMENT.md) before applying migrations to an existing database.
 
-Manual, on-demand only. This is not a scheduler.
-
-Watchlist (M2A):
+For a fresh or explicitly approved target:
 
 ```bash
-python -m trendora.connectors.youtube
-# equivalent:
-trendora-ingest-youtube
+.venv/bin/alembic upgrade head
+.venv/bin/alembic current
 ```
 
-Optional watchlist overrides:
+Back up existing data before migration and review the documented migration compatibility notes.
 
-```bash
-python -m trendora.connectors.youtube --channel-ids UCxxxxxxxxxxxxxxxxxxxxxx --max-videos 20
-```
-
-Regional mostPopular (M2B). Default markets are ID, TH, MY, SG, VN, PH. Default cap is 50 videos per market. Does not require `YOUTUBE_CHANNEL_IDS`. Does not crawl discovered channels with `playlistItems.list`.
-
-```bash
-python -m trendora.connectors.youtube most-popular
-python -m trendora.connectors.youtube most-popular --markets ID,SG
-python -m trendora.connectors.youtube most-popular --max-videos 20
-```
-
-`regionCode` is stored as chart-origin metadata. `market_id` is still taken only from the channel `snippet.country` when it is a seeded SEA code.
-
-Both paths store publishers, content items, and append-only `metric_snapshots` (view/like/comment counts, plus channel view/subscriber/video counts when present). YouTube non-authorized stats and metadata get `retain_until` from the existing 30-day policies. Neither path uses `search.list`.
-
-Unit tests mock HTTP and never send `YOUTUBE_API_KEY` to Google.
-
-### Hacker News ingestion (Milestone 3A)
-
-Manual, on-demand only. This is not a scheduler. Uses the official Firebase API. Does not scrape. Does not ingest HN users.
-
-```bash
-python -m trendora.connectors.hackernews
-# equivalent:
-trendora-ingest-hackernews
-```
-
-Optional overrides:
-
-```bash
-python -m trendora.connectors.hackernews --feeds topstories --max-items 5
-python -m trendora.connectors.hackernews --feeds topstories,beststories --max-items 20
-```
-
-Defaults are `topstories,newstories,beststories` and 50 items per feed. Stories are stored as `content_items` (`content_type=story`) with append-only `score` and `comment_count` snapshots. `market_id` is unset. HN authors are not created as publishers. Does not require YouTube configuration.
-
-### Stack Exchange ingestion (Milestone 3B)
-
-Manual, on-demand only. This is not a scheduler. Uses the official Stack Exchange API v2.3 `/questions` endpoint. Does not scrape. Does not ingest answers, comments, or users as Trendora entities.
-
-```bash
-python -m trendora.connectors.stackexchange \
-  --sites stackoverflow \
-  --max-items 5
-# equivalent:
-trendora-ingest-stackexchange --sites stackoverflow --max-items 5
-```
-
-Optional overrides:
-
-```bash
-python -m trendora.connectors.stackexchange --sites stackoverflow,datascience --max-items 10
-python -m trendora.connectors.stackexchange --sites stackoverflow --max-items 20 --tags python,sql
-```
-
-The default M3B run observes `stackoverflow` and `datascience` with a bounded cap of 50 questions per site. Sites must be explicit slugs (not URLs or domain names). At most five tags are accepted; they are sent as `tagged=` and stored only in `source_metadata`. Questions are stored as `content_items` (`content_type=question`) with append-only `score`, `view_count`, and `answer_count` snapshots. `publisher_id` and `market_id` stay unset. Does not require `STACKEXCHANGE_API_KEY`.
-
-### GitHub ingestion (Milestone 4)
-
-Manual, on-demand only. This is not a scheduler. Uses `GET /repos/{owner}/{repo}` only. Does not search, discover, or crawl commits, issues, pull requests, or users.
-
-```bash
-python -m trendora.connectors.github \
-  --repos openai/openai-python \
-  --max-items 1
-# equivalent:
-trendora-ingest-github --repos openai/openai-python --max-items 1
-```
-
-Configured list from `GITHUB_REPOSITORIES`, or override with `--repos`. `--max-items` caps how many of those identifiers are fetched (default 50). Identifiers must be `owner/repository` slugs, not URLs, handles, or search queries. Repositories are stored as `content_items` (`content_type=repository`) with append-only `stargazer_count`, `fork_count`, `open_issue_count`, and `watcher_count` snapshots. `publisher_id` and `market_id` stay unset. GitHub topics remain source metadata. Does not require `GITHUB_TOKEN`.
-
-### Analytics (Milestone 5)
-
-Read-only Python contracts over existing `metric_snapshots`. No CLI is required. Does not call source APIs. Does not mutate the database. Does not invent KPI formulas, engagement ratios, or a Trendora Score.
-
-Use `AnalyticsService.from_session(session)` to load a `MetricSeries` or a Trendora-derived `AggregateSummary` (`count`, `earliest_observed_at`, `latest_observed_at`, `latest_value`). Time windows are `observed_from <= observed_at < observed_until`. Missing observations stay missing. Candidate KPI families in [docs/05_ANALYTICS_SPEC.md](docs/05_ANALYTICS_SPEC.md) remain unfinalized.
-
-### Forecasting (Milestones 6A / 6C / 7)
-
-In-memory baselines over M5 `MetricSeries`: naive, moving average, and simple exponential smoothing. `ForecastingService` calls `AnalyticsService`; it does not query snapshots or write. Interval and horizon are explicit. No resampling or imputation. Chronological holdout MAE only. M6C compares naive vs one caller-chosen M6A challenger on the same series and holdout (`challenger_mae < naive_mae`; ties are false). That is an evaluation artifact, not a production winner. M7 reports deterministic series diagnostics (history length, gaps, duplicates, deltas) over the same M5 series. It does not score forecastability or select a model. The M9 V1 product requirements are decided in [docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md](docs/12_FORECASTING_PRODUCT_REQUIREMENTS.md) (V1 = naive level forecasts of GitHub repository `stargazer_count`/`fork_count`, 4 weekly points, ≥4 observations, on demand from M5); the product contract is in [docs/11_FORECASTING_PRODUCT_SPEC.md](docs/11_FORECASTING_PRODUCT_SPEC.md) and the technical open decisions remain in [docs/06_ML_FORECASTING.md](docs/06_ML_FORECASTING.md). Not ARIMA, dashboards, or persisted forecasts.
-
-### V1 GitHub forecast product (Milestone 10)
-
-`GitHubForecastProduct` ([src/trendora/product/](src/trendora/product/)) is a thin in-memory layer over M5/M6A/M7 implementing the M9 V1 contract: `github` source, repository `content_item` subject, `stargazer_count` / `fork_count`, naive level forecast, exactly 4 points at a 7-day generation interval (a labeling convention, not a cadence claim), minimum 4 observations (fewer raises `InsufficientHistoryError`), `origin=trendora_forecast`, plus factual history/freshness/cadence context. Unsupported source/metric/publisher-subject requests raise `ForecastingValidationError`. No SQL, no connectors, no persistence, no resampling. FastAPI/Streamlit not involved. The HTTP exposure contract is defined in [docs/13_FORECASTING_API_CONTRACT.md](docs/13_FORECASTING_API_CONTRACT.md).
-
-### V1 forecast API (Milestones 11A / 11B)
-
-`create_app()` ([src/trendora/api/](src/trendora/api/)) builds a FastAPI app with read endpoints: `GET /api/v1/forecasts/github/{content_item_id}?metric=stargazer_count|fork_count` plus the M15 research and M23A report endpoints. The forecast adapter is pure: it validates the metric, calls `GitHubForecastProduct`, and serializes the result (`origin=trendora_forecast`, 4 points, `interval_days=7`, history/freshness/cadence context). Errors use the `{"error": {"code", "message"}}` envelope (422 `invalid_metric` / `invalid_request` / `forecast_insufficient_history`; 500 `analytics_query_error` / `internal_error`). No auth, no rate limiting, no persistence. FastAPI (`fastapi>=0.115,<1`) is the only new dependency; no ASGI server was added (tests use `TestClient`).
-
-### Tests
-
-```bash
-pytest tests/unit -v
-```
-
-PostgreSQL integration tests require an explicit `TRENDORA_TEST_DATABASE_URL`;
-they never fall back to application `DATABASE_URL`. Destructive fixtures also
-require a matching `TRENDORA_TEST_DISPOSABLE_PG_URL` and approved disposable
-target. Leave both unset for ordinary local acceptance:
-
-```bash
-pytest tests/integration -v
-```
-
-Never point destructive fixtures at an application database. Unit tests do not
-consume YouTube quota. Completed disposable checks are recorded in the local
-guide; they do not verify the application's database.
-
-### Live YouTube smoke test (opt-in)
-
-An opt-in live smoke test (`tests/integration/test_research_youtube_live.py`) exercises the real YouTube Data API end-to-end through the research endpoint. It is gated behind `TRENDORA_LIVE_SMOKE=1` plus a configured `YOUTUBE_API_KEY` (loaded from `.env`), so a normal `pytest tests/integration` run skips it and spends no quota. Each of its two requests costs roughly ~102 quota units (~204 per run): one `search.list` (100 units) + one `videos.list` (1 unit), `result_limit` capped at 6, no retries, no report/AI calls.
-
-```bash
-TRENDORA_LIVE_SMOKE=1 pytest tests/integration/test_research_youtube_live.py -v
-```
-
-A report-pipeline live smoke (`tests/integration/test_research_youtube_report_live.py`) uses the same gate and additionally requires a complete AI provider config (`TRENDORA_AI_PROVIDER`/`TRENDORA_AI_MODEL`/`TRENDORA_AI_ENDPOINT_URL`/`TRENDORA_AI_API_KEY`). It runs one real `POST /api/v1/research/report` end-to-end (~102 YouTube units plus exactly one real AI completion, no retries) and asserts grounded citations and provenance:
-
-```bash
-TRENDORA_LIVE_SMOKE=1 pytest tests/integration/test_research_youtube_report_live.py -v
-```
-
-A merge-verification live smoke (`tests/integration/test_research_youtube_merge_live.py`) uses the same gate and runs one two-market request (`markets: ["SG","ID"]`, `result_limit: 10`, ~204 quota units) to verify the M26C merge invariants on real data: dedupe identity uniqueness, per-source `source_rank` integrity, market-truthfulness of `market_contexts`/`market_context`, and the global limit. Cross-market overlap (a video returned for both markets, with its `market_contexts` union) is asserted only when it actually occurs:
-
-```bash
-TRENDORA_LIVE_SMOKE=1 pytest tests/integration/test_research_youtube_merge_live.py -v
-```
-
-Offline unit checks use fictional source/provider responses. Completed local
-and disposable-database verification is described in the deployment guide;
-neither establishes live Supabase or provider behavior.
-
-## Repository layout
+Configure local authentication URLs consistently:
 
 ```text
-src/trendora/          # application package
-  config.py            # pydantic-settings
-  db/                  # engine, session, declarative Base
-  models/              # SQLAlchemy models
-  reference.py         # deterministic V1 seed rows
-  connectors/          # YouTube (M2A/M2B), Hacker News (M3A), Stack Exchange (M3B), GitHub (M4), Facebook public Page client + normalizer (M25A/M25B)
-  analytics/           # M5 read-only observation queries
-  forecasting/         # M6A baselines and M6C naive-vs-challenger comparison over M5 series
-  diagnostics/         # M7 in-memory series diagnostics over M5 series
-  product/             # M10 V1 GitHub forecast product layer over M5/M6A/M7 (in-memory)
-  api/                 # M11B FastAPI adapter over the M10 product (read endpoints)
-  research/            # M13 core + M14 retrieval + M15 app + M17 evidence + M18 patterns + M19 interpretation + M20 AI provider + M21 strategy + M22 ideation + M23A reporting
-web/                   # M16 research workspace UI (Next.js App Router + TypeScript)
-alembic/               # Alembic env + versions
-tests/unit/            # no database required
-tests/integration/     # PostgreSQL, explicitly gated disposable/test targets
-docs/                  # architecture and research documents
-.cursor/               # MCP example config (not live credentials)
+Site URL:
+http://127.0.0.1:3000/
+
+Allowed redirects:
+http://127.0.0.1:3000/accept-invite
+http://127.0.0.1:3000/reset-password
 ```
 
-`.cursor/` is gitignored except for example files. Do not commit `.cursor/mcp.json` or `.env`.
+For a private workspace, disable public signup and provision authorized accounts through a trusted administrative workflow.
 
-**Deployment instructions:** See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (reference templates: `Dockerfile`, `docker-compose.yml`, `render.yaml`, `.env.example.backend`, `.env.example.frontend`).
+An Auth account also needs an active Trendora membership. Membership and administrator privileges must come from trusted application records, not user-editable metadata.
+
+### 5. Start Supporting Services
+
+If using SearXNG, start its container runtime and the Trendora search container using [the SearXNG setup instructions](deploy/searxng/README.md).
+
+Configure the backend to use it:
+
+```dotenv
+TRENDORA_WEB_SEARCH_BACKEND=searxng
+SEARXNG_URL=http://127.0.0.1:8888
+```
+
+If using a local AI gateway such as 9router, start that gateway separately and confirm the configured endpoint and model alias.
+
+SearXNG provides search results. It does not replace the AI provider.
+
+### 6. Start the Backend
+
+In the first terminal, from the repository root:
+
+```bash
+.venv/bin/python -m uvicorn trendora.api.app:create_app \
+  --factory \
+  --host 127.0.0.1 \
+  --port 8000
+```
+
+The backend health endpoint is:
+
+```text
+http://127.0.0.1:8000/health
+```
+
+The command intentionally omits `--reload`. Enable automatic reload only when needed during development.
+
+### 7. Start the Frontend
+
+In a second terminal:
+
+```bash
+cd trendora/web
+npm run dev -- --webpack --hostname 127.0.0.1 --port 3000
+```
+
+If the terminal is already at the repository root, use `cd web` instead.
+
+Open:
+
+```text
+http://127.0.0.1:3000
+```
+
+Use the same hostname for browsing and Auth redirects. `localhost` and `127.0.0.1` are different browser origins and do not share the same session storage.
+
+### Stopping Local Services
+
+Press `Ctrl+C` in each frontend and backend terminal.
+
+To stop the named SearXNG container:
+
+```bash
+docker stop trendora-searxng
+```
+
+If Colima is no longer needed:
+
+```bash
+colima stop
+```
+
+Stopping Colima stops every container in that Colima instance. Stop a local AI gateway separately if it is no longer needed.
+
+Trendora does not need to run continuously. Stopping the local application does not delete saved database records.
+
+If a port is already occupied, identify its listener before starting another instance:
+
+```bash
+lsof -nP -iTCP:3000 -sTCP:LISTEN
+lsof -nP -iTCP:8000 -sTCP:LISTEN
+```
+
+Avoid broad process-killing commands that could stop unrelated projects.
+
+---
+
+## Testing and Validation
+
+### Backend Unit Tests
+
+From the repository root:
+
+```bash
+.venv/bin/python -m pytest tests/unit -q
+```
+
+### Frontend Checks
+
+From `web/`:
+
+```bash
+npm test
+npm run typecheck
+npm run lint
+npm run build -- --webpack
+```
+
+### Browser Regressions
+
+```bash
+npm run test:browser
+```
+
+The browser runner requires an installed Playwright-compatible driver and browser. It uses an isolated fixture environment with mocked application responses.
+
+```bash
+npm run test:browser:contract
+```
+
+The contract command checks browser-test module structure. It does not execute a browser and is not a substitute for browser acceptance tests.
+
+### Database and Live Checks
+
+PostgreSQL integration tests require an explicit test database. Destructive fixtures additionally require an approved disposable PostgreSQL target.
+
+Never point disposable or destructive tests at the application database.
+
+Live source and AI checks are separate from mocked tests. They may consume quotas or incur charges and should be run deliberately.
+
+## Security and Data Handling
+
+- Protected research and planner operations require authentication and membership checks.
+- Report snapshots and editable planner posts use separate persistence models.
+- Database grants and row-level security must be verified on the actual deployment target.
+- Backend secrets stay outside browser bundles.
+- Report recovery uses signed data and a dedicated signing key.
+- History visibility does not replace retention cleanup.
+- Provider credentials, report content, and operational backups require appropriate local and deployment access controls.
+
+These are application design boundaries, not a claim of independent security certification.
+
+## Current Limitations
+
+- Search results are a bounded sample, not comprehensive internet coverage.
+- Public-web publication dates remain unverified, and the requested timeframe is not enforced for those results.
+- A high engagement count or common pattern does not establish growing attention over time.
+- Citation validation does not prove semantic correctness.
+- Public social discovery depends on search-engine indexing; it does not provide complete social feeds or private content.
+- Full-page extraction, authenticated social scraping, and public-web image previews are not part of the current research flow.
+- AI availability, response quality, latency, and free-tier access depend on external providers.
+- The planner does not yet provide calendar or board views, approval workflows, published URLs, or actual publication dates.
+- Automatic publishing, media uploads, and platform analytics integrations are not implemented.
+- Local operation requires the relevant application and supporting services to be running.
+- Production deployment requires its own authentication, migration, backup, retention, and hosting verification.
+
+## Development Priorities
+
+Future work should build on the existing research workflow:
+
+- Improve source diversity and the usefulness of research summaries.
+- Verify publication dates and improve timeframe filtering.
+- Add carefully bounded public-page extraction where appropriate.
+- Complete manual publication tracking in the planner.
+- Reduce unnecessary provider input and improve cost visibility.
+- Complete operational readiness before public hosting.
+
+These are development directions, not shipped features or delivery commitments.
+
+## Documentation
+
+- [Product specification and current scope](docs/14_PRODUCT_ARCHITECTURE_REBASELINE.md)
+- [Deployment and operational guidance](docs/DEPLOYMENT.md)
+- [Frontend setup and behavior](web/README.md)
+- [SearXNG configuration](deploy/searxng/README.md)
+- [Research evidence contract](docs/19_EVIDENCE_CONTENT_OBSERVATIONS.md)
+- [Grounded interpretation contract](docs/21_GROUNDED_AI_INTERPRETATION_CONTRACT.md)
+- [Research report pipeline](docs/25_RESEARCH_REPORT_PIPELINE_API.md)
+
+Older milestone documents describe the project's development history. Consult the current product specification and implementation before treating an older document as current behavior.
+
+## Author
+
+[Michael Alexander](https://github.com/LexterMorgan)
 
 ## License
 
-Proprietary unless a license is added later.
+Proprietary. This repository does not currently grant an open-source license.
