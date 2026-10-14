@@ -3,10 +3,75 @@ import { randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
+import zlib from "node:zlib";
+
 import { plannerWorkspaceRegressions } from "./planner-workspace.browser.mjs";
 
 const A = "00000000-0000-4000-8000-000000000001";
 const B = "00000000-0000-4000-8000-000000000002";
+// First-party image hosts the report may load directly. The isolated harness
+// answers them locally (never a real network call) so the no-external-request
+// guard stays intact for every other origin.
+const IMAGE_HOSTS = new Set(["i.ytimg.com", "img.youtube.com", "ytimg.com"]);
+
+// A minimal solid-colour PNG of exact pixel dimensions, so a successful preview
+// carries realistic naturalWidth/naturalHeight (a 1x1 PNG would prove nothing
+// about resolution). No dependency: IHDR/IDAT/IEND with CRC32.
+const CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n += 1) {
+    let c = n;
+    for (let k = 0; k < 8; k += 1) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+function crc32(buffer) {
+  let c = 0xffffffff;
+  for (let i = 0; i < buffer.length; i += 1) c = CRC_TABLE[(c ^ buffer[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+function pngChunk(type, data) {
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length, 0);
+  const body = Buffer.from(type, "ascii");
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(Buffer.concat([body, data])), 0);
+  return Buffer.concat([length, body, data, crc]);
+}
+const PNG_CACHE = new Map();
+function png(width, height) {
+  const key = `${width}x${height}`;
+  const cached = PNG_CACHE.get(key);
+  if (cached) return cached;
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8;  // bit depth
+  ihdr[9] = 2;  // colour type: truecolour
+  const row = Buffer.alloc(1 + width * 3);
+  const raw = Buffer.concat(Array.from({ length: height }, () => row));
+  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  const buffer = Buffer.concat([
+    signature,
+    pngChunk("IHDR", ihdr),
+    pngChunk("IDAT", zlib.deflateSync(raw)),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+  PNG_CACHE.set(key, buffer);
+  return buffer;
+}
+// `null` means the image is unavailable (404); a pair is the served dimensions.
+// YouTube's higher-resolution files are not guaranteed, and a missing file
+// returns its ~120x90 placeholder rather than an error.
+function previewSize(file, mode) {
+  const isMaxres = file.includes("maxresdefault");
+  const isHq = file.includes("hqdefault");
+  if (mode === "broken") return null;
+  if (mode === "missing-high") return isMaxres ? null : isHq ? [480, 360] : [320, 180];
+  if (mode === "placeholder") return isMaxres ? [120, 90] : isHq ? [480, 360] : [320, 180];
+  return isMaxres ? [1280, 720] : isHq ? [480, 360] : [320, 180];
+}
 const fields = ["title", "platform", "caption", "hook", "creative_brief", "asset_links", "notes", "planned_date", "assignee_id"];
 const snapshotFields = ["status", "research", "evidence", "interpretation", "strategy", "ideation"];
 const blank = () => ({ title: "", platform: "", caption: "", hook: "", creative_brief: "", asset_links: [], notes: "", planned_date: null, assignee_id: null, status: "idea" });
@@ -33,7 +98,8 @@ function fictionalReport(topic, options = {}) {
   const markets = options.requestMarkets ?? ["SG"];
   const sources = options.requestSources ?? [source];
   const ref = { source_code: source, content_external_id: "fictional-1" };
-  const citations = [{ kind: "fact", reference: ref, field: "view_count" }];
+  // A valid synthesis rests on real source text (a title/description fact).
+  const citations = [{ kind: "fact", reference: ref, field: "description" }];
   const model_provenance = { provider: "fictional", model: "fixture-only" };
   const report = {
     status: "completed",
@@ -42,7 +108,7 @@ function fictionalReport(topic, options = {}) {
       coverage: { completeness: "complete", sources: sources.map((code) => ({ source_code: code, capability: "keyword_search", status: "available", reason: null })) }, executed_sources: sources,
       references: [{ ...ref, url: "https://example.test/fictional", title: "Fictional source", description: options.oversized ? "a".repeat(8_388_609) : "Fictional evidence", published_at: null, channel_external_id: null, channel_title: null, market_contexts: markets.length ? markets.slice(0, 1) : [], market_context: markets.length === 1 ? markets[0] : null, market_basis: markets.length ? "youtube_region_availability" : null, source_rank: 1, metrics: { view_count: 0, like_count: null, comment_count: null, reaction_count: null, share_count: null }, collected_at: "2026-10-01T00:00:00Z" }],
     },
-    evidence: { analyses: [{ reference_id: ref, facts: [{ field: "view_count", value: 0 }], observations: [] }], patterns: [] },
+    evidence: { analyses: [{ reference_id: ref, facts: [{ field: "title", value: "Fictional source" }, { field: "description", value: "Fictional evidence" }, { field: "view_count", value: 0 }], observations: [] }], patterns: [] },
     interpretation: { model_provenance, interpretations: [{ statement: "Fictional interpretation", citations }] },
     strategy: { model_provenance, content_gaps: [{ statement: "Fictional gap", supporting_interpretation_indexes: [0], citations }], opportunities: [{ statement: "Fictional opportunity", gap_indexes: [0], citations }] },
     ideation: { model_provenance, content_ideas: [{ title: "Fictional import idea", angle: "Fictional angle", opportunity_indexes: [0], citations }], content_briefs: [{ idea_index: 0, objective: "Fictional objective", format: "Video", hook: "Fictional hook", outline: ["Fictional step"], citations }] },
@@ -64,6 +130,81 @@ function fictionalReport(topic, options = {}) {
     ];
     const ids = report.research.references.map(({ source_code, content_external_id }) => ({ source_code, content_external_id }));
     report.evidence.patterns = [{ observation_type: "title_has_numeral", analyzed_count: 3, matching_count: 1, non_matching_count: 2, ratio: 1 / 3, matching_reference_ids: ids.slice(0, 1), non_matching_reference_ids: ids.slice(1) }];
+  }
+  if (options.partialSearch) {
+    // The source still appears in executed_sources; only its coverage reason
+    // says the batch was partial. Warnings must be derived from the reason.
+    for (const source of report.research.coverage.sources) {
+      if (source.source_code === "public_web") source.reason = "search_partial";
+    }
+  }
+  if (options.manySources) {
+    const count = options.manySources;
+    const original = report.research.references[0];
+    report.research.references = Array.from({ length: count }, (_, i) => ({
+      ...original,
+      content_external_id: `fictional-${i + 1}`,
+      title: `Fictional source ${i + 1}`,
+      url: `https://example.test/source-${i + 1}`,
+      published_at: "2026-08-12T12:00:00Z",
+    }));
+    report.research.references[count - 1] = {
+      ...report.research.references[count - 1],
+      source_code: "public_web",
+      title: `Fictional web source ${count}`,
+      metrics: { view_count: null, like_count: null, comment_count: null, reaction_count: null, share_count: null },
+    };
+  }
+  if (options.invalidYoutubeId) {
+    for (const reference of report.research.references) {
+      if (reference.source_code === "youtube") reference.content_external_id = "not-valid-id";
+    }
+  }
+  if (options.socialWeb) {
+    const url = "https://www.reddit.com/r/webdev/comments/1/fictional-topic/";
+    report.research.query.sources = ["youtube", "public_web"];
+    report.research.executed_sources = ["youtube", "public_web"];
+    const reference = report.research.references[0];
+    report.research.references = [{
+      ...reference,
+      source_code: "public_web",
+      content_external_id: url,
+      url,
+      title: "Fictional Reddit thread",
+      description: "Fictional indexed excerpt",
+      channel_title: "www.reddit.com",
+      channel_external_id: null,
+      published_at: null,
+      metrics: { view_count: null, like_count: null, comment_count: null, reaction_count: null, share_count: null },
+    }];
+  }
+  if (options.observationOnly || options.mixedFindings) {
+    const ids = report.research.references.map(({ source_code, content_external_id }) => ({ source_code, content_external_id }));
+    const observation_type = "title_has_numeral";
+    report.evidence.patterns = [{ observation_type, analyzed_count: 3, matching_count: 1, non_matching_count: 2, ratio: 1 / 3, matching_reference_ids: ids.slice(0, 1), non_matching_reference_ids: ids.slice(1) }];
+    const observation = { statement: "Fictional sample observation", citations: [{ kind: "pattern", observation_type }] };
+    report.interpretation.interpretations = options.observationOnly
+      ? [observation]
+      : [{ statement: "Fictional sourced finding", citations: [{ kind: "fact", reference: ref, field: "description" }] }, observation];
+  }
+  if (options.unresolvedFinding) {
+    const missing = { source_code: "youtube", content_external_id: "absent-reference" };
+    report.interpretation.interpretations = [{ statement: "Fictional unresolved finding", citations: [{ kind: "fact", reference: missing, field: "description" }] }];
+  }
+  if (options.blankTextFact || options.nullMetricFact || options.metadataOnlyFact) {
+    const analysis = report.evidence.analyses[0];
+    if (options.blankTextFact) {
+      report.interpretation.interpretations = [{ statement: "Fictional blank-text finding", citations: [{ kind: "fact", reference: ref, field: "description" }] }];
+      analysis.facts = analysis.facts.map((fact) => fact.field === "description" ? { ...fact, value: null } : fact);
+    }
+    if (options.nullMetricFact) {
+      report.interpretation.interpretations = [{ statement: "Fictional null-metric finding", citations: [{ kind: "fact", reference: ref, field: "view_count" }] }];
+      analysis.facts = analysis.facts.map((fact) => fact.field === "view_count" ? { ...fact, value: null } : fact);
+    }
+    if (options.metadataOnlyFact) {
+      report.interpretation.interpretations = [{ statement: "Fictional metadata-only finding", citations: [{ kind: "fact", reference: ref, field: "url" }] }];
+      analysis.facts = [...analysis.facts, { field: "url", value: "https://example.test/fictional" }];
+    }
   }
   if (options.legacy) {
     delete report.research.query;
@@ -111,7 +252,7 @@ function fictionalReport(topic, options = {}) {
 export async function createMockBackend() {
   const records = new Map(), reports = new Map(), keys = new Map(), origins = new Map(), receiptProofs = new Map(), calls = [], optionalCalls = [], interpretationCalls = [];
   const nonce = randomUUID();
-  let frontend, origin, fault = null, held = null, generationOptions = {};
+  let frontend, origin, fault = null, held = null, generationOptions = {}, imageMode = "ok";
   const post = (values, actor) => ({ ...blank(), id: randomUUID(), version: 1, content_revision: 1, created_by: actor, updated_by: actor, created_at: "2026-10-01T00:00:00Z", updated_at: "2026-10-01T00:00:00Z", archived_at: null, ...values });
   function reply(response, status, body) {
     response.writeHead(status, { "content-type": "application/json", "cache-control": "no-store", "access-control-allow-origin": frontend ?? "null", "access-control-allow-headers": "authorization,apikey,content-type,x-client-info,x-supabase-api-version", "access-control-allow-methods": "GET,POST,PUT,OPTIONS" });
@@ -214,8 +355,10 @@ export async function createMockBackend() {
   origin = `http://127.0.0.1:${server.address().port}`;
   return {
     origin, nonce, calls, optionalCalls, interpretationCalls, records, reports, setFrontend(value) { frontend = value; },
-    reset() { assert.equal(held, null); records.clear(); reports.clear(); keys.clear(); origins.clear(); receiptProofs.clear(); calls.length = 0; optionalCalls.length = 0; interpretationCalls.length = 0; fault = null; generationOptions = {}; },
+    reset() { assert.equal(held, null); records.clear(); reports.clear(); keys.clear(); origins.clear(); receiptProofs.clear(); calls.length = 0; optionalCalls.length = 0; interpretationCalls.length = 0; fault = null; generationOptions = {}; imageMode = "ok"; },
     fault(value) { assert.equal(fault, null); fault = value; },
+    setImageMode(value) { imageMode = value; },
+    imageMode() { return imageMode; },
     stalled: () => waitFor(() => typeof held === "function"),
     async release() { assert.equal(typeof held, "function"); held(); held = null; await waitFor(() => calls.every((call) => call.completed !== false)); },
     generationOptions(value) { generationOptions = value; },
@@ -229,7 +372,7 @@ export async function createMockBackend() {
 }
 
 export async function runBrowserScenarios({ chromium, origin, mock, root, env, executablePath, registerBrowserCleanup }) {
-  const results = [], diagnostics = [], blocked = [];
+  const results = [], diagnostics = [], blocked = [], images = [];
   const output = (name, value) => writeFile(path.join(root, name), JSON.stringify(value, null, 2));
   mock.setFrontend(origin);
   const browser = await chromium.launch({ headless: true, executablePath, downloadsPath: path.join(root, "runtime"), tracesDir: path.join(root, "runtime"), env, args: ["--disable-background-networking", "--disable-component-update", "--disable-sync", "--disable-domain-reliability", "--no-first-run", "--metrics-recording-only", "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1"] });
@@ -242,6 +385,15 @@ export async function runBrowserScenarios({ chromium, origin, mock, root, env, e
       await context.route("**/*", (route) => {
         const url = new URL(route.request().url());
         if ([origin, mock.origin].includes(url.origin)) return route.continue();
+        if (IMAGE_HOSTS.has(url.hostname)) {
+          // Answered locally; never a real network call. The image mode decides
+          // which candidate resolutions are available so fallback is exercised.
+          const file = url.pathname.split("/").pop();
+          images.push({ index, url: url.origin + url.pathname, file });
+          const size = previewSize(file, mock.imageMode());
+          if (!size) return route.fulfill({ status: 404, contentType: "image/png", body: Buffer.alloc(0) });
+          return route.fulfill({ status: 200, contentType: "image/png", body: png(size[0], size[1]) });
+        }
         blocked.push({ index, url: url.origin + url.pathname }); return route.abort("blockedbyclient");
       });
       const page = await context.newPage(); page.setDefaultTimeout(5000);
@@ -257,6 +409,8 @@ export async function runBrowserScenarios({ chromium, origin, mock, root, env, e
         submitResearch: async (topic, options = {}) => { mock.generationOptions(options); await page.getByLabel("Topic", { exact: true }).fill(topic); await page.getByRole("checkbox", { name: "Generate content ideas and briefs", exact: true }).setChecked(!options.researchOnly); await page.getByRole("button", { name: "Generate research report", exact: true }).click(); await page.locator(".report").waitFor(); },
         seedSavedReport: async (options) => { selectedReport = mock.seedSavedReport(options); return selectedReport; },
         fault: (value) => mock.fault(value), stalled: () => mock.stalled(), release: () => mock.release(),
+        setImageMode: (value) => mock.setImageMode(value),
+        images,
         async switchAccount(id) {
           const previousWorkspace = await page.locator("main.workspace").elementHandle();
           assert(previousWorkspace, "Authenticated workspace must be mounted before switching");
@@ -304,6 +458,6 @@ export async function runBrowserScenarios({ chromium, origin, mock, root, env, e
         await output("browser-results.json", results);
       }
     }
-  } finally { await browser.close(); await output("browser-diagnostics.json", diagnostics); await output("blocked-requests.json", blocked); }
+  } finally { await browser.close(); await output("browser-diagnostics.json", diagnostics); await output("blocked-requests.json", blocked); await output("image-requests.json", images); }
   return { passed: results.filter((r) => r.status === "passed").length, failed: results.filter((r) => r.status === "failed").length, skipped: names.length - results.length, total: names.length };
 }

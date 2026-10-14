@@ -17,7 +17,6 @@ interface SimpleFormProps {
   onSubmit: (values: ResearchFormValues) => void;
   disabled: boolean;
   initialValues?: Partial<ResearchFormValues>;
-  showExamples?: boolean;
 }
 
 /**
@@ -25,7 +24,7 @@ interface SimpleFormProps {
  * configured topic-search sources. No country, source, or depth selection.
  * Content ideas and briefs stay an explicit, unchecked-by-default opt-in.
  */
-export function SimpleForm({ onSubmit, disabled, initialValues, showExamples }: SimpleFormProps) {
+export function SimpleForm({ onSubmit, disabled, initialValues }: SimpleFormProps) {
   const [topic, setTopic] = useState(initialValues?.topic ?? "");
   const [localError, setLocalError] = useState<string | null>(null);
   const [includeContentTools, setIncludeContentTools] = useState(initialValues?.include_content_tools ?? false);
@@ -116,25 +115,23 @@ export function SimpleForm({ onSubmit, disabled, initialValues, showExamples }: 
         />
       </div>
 
-      {showExamples && (
-        <div className="form-field" aria-label="Example topics">
-          <span className="form-label">Example topics</span>
-          <div className="example-queries">
-            {EXAMPLE_QUERIES.map((query) => (
-              <button
-                key={query}
-                type="button"
-                className={topic === query ? "example-query is-selected" : "example-query"}
-                aria-pressed={topic === query}
-                disabled={disabled}
-                onClick={() => setTopic(query)}
-              >
-                {query}
-              </button>
-            ))}
-          </div>
+      <div className="form-field" aria-label="Example topics">
+        <span className="form-label">Example topics</span>
+        <div className="example-queries">
+          {EXAMPLE_QUERIES.map((query) => (
+            <button
+              key={query}
+              type="button"
+              className={topic === query ? "example-query is-selected" : "example-query"}
+              aria-pressed={topic === query}
+              disabled={disabled}
+              onClick={() => setTopic(query)}
+            >
+              {query}
+            </button>
+          ))}
         </div>
-      )}
+      </div>
 
       <fieldset className="date-fieldset">
         <legend>Timeframe</legend>
@@ -185,8 +182,6 @@ export function SimpleForm({ onSubmit, disabled, initialValues, showExamples }: 
         </div>
       </fieldset>
 
-      <p className="date-help source-coverage-note">{GLOBAL_COVERAGE_NOTE}</p>
-
       <label className="source-option">
         <input type="checkbox" checked={includeContentTools} onChange={(event) => setIncludeContentTools(event.target.checked)} disabled={disabled} />
         <span className="source-name">Generate content ideas and briefs</span>
@@ -201,6 +196,8 @@ export function SimpleForm({ onSubmit, disabled, initialValues, showExamples }: 
           {localError}
         </p>
       )}
+
+      <p className="date-help source-coverage-note">{GLOBAL_COVERAGE_NOTE}</p>
     </form>
   );
 }

@@ -6,6 +6,12 @@ interface CoveragePanelProps {
   executedSources?: string[];
 }
 
+/** Friendly text for the machine-readable coverage reason codes. */
+export const COVERAGE_REASON_TEXT: Record<string, string> = {
+  search_partial:
+    "Public social discovery was partial: some platform queries failed or the shared time budget expired. Results shown are the ones that completed.",
+};
+
 /**
  * Shows capability coverage and execution truth separately. Capability
  * availability never implies a source was actually searched; that comes only
@@ -45,7 +51,7 @@ export function CoveragePanel({ coverage, executedSources }: CoveragePanelProps)
               >
                 Execution: {executed === undefined ? "Unavailable" : executed ? "Searched" : "Not searched"}
               </span>
-              {source.reason && <p className="drawer-muted coverage-reason">{source.reason}</p>}
+              {source.reason && <p className="drawer-muted coverage-reason">{COVERAGE_REASON_TEXT[source.reason] ?? source.reason}</p>}
             </li>
           );
         })}

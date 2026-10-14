@@ -9,7 +9,6 @@ import { sourceLabel } from "@/lib/format";
 export interface SessionTurn {
   id: number;
   request: ResearchFormValues;
-  userMessage: string;
   state: "loading" | "success" | "error";
   report: ResearchReportResponse | null;
   error: { code: string; message: string; kind?: string } | null;
@@ -21,23 +20,24 @@ interface TurnViewProps {
   onRetry: (request: ResearchFormValues) => void;
 }
 
-export function userMessage(request: ResearchFormValues): string {
+/** The window the request asked for, in plain words. */
+function requestWindowLabel(request: ResearchFormValues): string {
+  return request.date_from && request.date_to
+    ? `${request.date_from} to ${request.date_to}`
+    : "Last 30 days";
+}
+
+/** One quiet line of request detail under the topic. */
+function requestMeta(request: ResearchFormValues): string {
   const scope = request.markets.length ? request.markets.join(", ") : "Global";
-  const sourceSummary = request.sources.map(sourceLabel).join(", ");
-  const dateSummary =
-    request.date_from && request.date_to
-      ? `${request.date_from} → ${request.date_to}`
-      : "Last 30 days";
   return [
-    request.topic,
     scope,
-    dateSummary,
-    `${request.result_limit} references`,
-    sourceSummary,
+    requestWindowLabel(request),
+    // A request limit is not a result count.
+    `up to ${request.result_limit} references`,
+    request.sources.map(sourceLabel).join(", "),
     request.include_content_tools ? "Content ideas and briefs included" : "Research only",
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  ].join(" · ");
 }
 
 export function TurnView({ turn, onEdit, onRetry }: TurnViewProps) {
@@ -45,10 +45,11 @@ export function TurnView({ turn, onEdit, onRetry }: TurnViewProps) {
     <article className="turn">
       <div className="turn-user">
         <span className="turn-label">You</span>
-        <p className="turn-message">{turn.userMessage}</p>
+        <p className="turn-message">{turn.request.topic}</p>
+        <span className="turn-meta">{requestMeta(turn.request)}</span>
         <button
           type="button"
-          className="secondary-button"
+          className="turn-edit"
           onClick={() => onEdit(turn.request)}
         >
           Edit and rerun
@@ -59,7 +60,9 @@ export function TurnView({ turn, onEdit, onRetry }: TurnViewProps) {
         <span className="turn-label">Trendora</span>
         {turn.state === "loading" && (
           <p className="loading-note" role="status">
-            Generating report…
+            Searching {turn.request.sources.map(sourceLabel).join(" and ")} for{" "}
+            {turn.request.topic} ({requestWindowLabel(turn.request)}). Findings appear here
+            when the run finishes.
           </p>
         )}
         {turn.state === "error" && turn.error && (

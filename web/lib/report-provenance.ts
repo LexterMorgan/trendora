@@ -204,6 +204,79 @@ function resolveReferences(
   return { references, unresolvedIdentifiers };
 }
 
+/** Source-text fields that can support a research finding. */
+const TEXT_FACT_FIELDS = new Set(["title", "description"]);
+
+/**
+ * True when a finding cites a title/description fact whose actual evidence
+ * value in the provenance maps is a nonblank string.
+ *
+ * Structural resolution (the field exists) is not enough: a null, blank, or
+ * non-string value does not support a synthesis finding. The check reads the
+ * cited fact's value, never the reference's own text, and never infers a value
+ * that the cited evidence does not carry. Generic citation resolution is
+ * unchanged: a null-valued fact still resolves structurally in the drawer.
+ */
+export function hasResolvedTextSupport(
+  maps: ProvenanceMaps,
+  citations: ResolvedCitation[],
+): boolean {
+  return citations.some((resolved) => {
+    const raw = resolved.citation;
+    if (raw.kind !== "fact" || !TEXT_FACT_FIELDS.has(raw.field)) return false;
+    const analysis = maps.analysisById.get(referenceKey(raw.reference));
+    const fact = analysis?.facts.find((entry) => entry.field === raw.field);
+    return typeof fact?.value === "string" && fact.value.trim().length > 0;
+  });
+}
+
+/** The three presentation buckets a finding can fall into. */
+export type FindingSupportBucket = "finding" | "observation" | "limited";
+
+const METRIC_FACT_FIELDS = new Set([
+  "view_count", "like_count", "comment_count", "reaction_count", "share_count",
+]);
+
+/** True when a resolved citation is sample-level on its own: an existing
+ * pattern, an existing observation, or a metric fact with a finite,
+ * nonnegative numeric value. Metadata-only and text facts are not sample-level. */
+function isSampleLevelCitation(maps: ProvenanceMaps, resolved: ResolvedCitation): boolean {
+  if (!resolved.resolved || resolved.unresolvedIdentifiers.length > 0) return false;
+  const raw = resolved.citation;
+  if (raw.kind === "pattern" || raw.kind === "observation") return true;
+  if (!METRIC_FACT_FIELDS.has(raw.field)) return false;
+  const analysis = maps.analysisById.get(referenceKey(raw.reference));
+  const fact = analysis?.facts.find((entry) => entry.field === raw.field);
+  const value = fact?.value;
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+/**
+ * Classify a finding from its typed, resolved citations, in this order:
+ *
+ * 1. ``limited`` when there is no citation, any citation is unresolved, or any
+ *    resolved citation carries unresolved identifiers.
+ * 2. ``finding`` when the citations support real source text.
+ * 3. ``observation`` only when every citation is sample-level (pattern,
+ *    observation, or nonnegative numeric metric).
+ *
+ * Everything else (blank/null/non-string text facts, null metrics,
+ * metadata-only citations such as URLs or collection dates) is ``limited``.
+ * Never inferred from statement wording. Pure: it does not mutate its inputs.
+ */
+export function classifyFindingSupport(
+  maps: ProvenanceMaps,
+  citations: ResolvedCitation[],
+): FindingSupportBucket {
+  if (citations.length === 0) return "limited";
+  if (citations.some((resolved) => !resolved.resolved || resolved.unresolvedIdentifiers.length > 0)) {
+    return "limited";
+  }
+  if (hasResolvedTextSupport(maps, citations)) return "finding";
+  if (citations.every((resolved) => isSampleLevelCitation(maps, resolved))) return "observation";
+  return "limited";
+}
+
 export interface ChainLink {
   label: string;
   value: string;

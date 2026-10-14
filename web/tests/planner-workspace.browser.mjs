@@ -10,6 +10,17 @@ export function plannerWorkspaceRegressions(f) {
   const plannerMutations = () => f.calls.filter((c) => c.path?.startsWith("/api/v1/planner/") && ["POST", "PUT"].includes(c.method));
   const contentTools = () => f.page.locator(".report summary").filter({ hasText: /^Content tools \(optional\)$/ });
   const saved = () => f.page.locator(".planner-status-line").filter({ hasText: "Saved" }).waitFor();
+  const expandSource = (card) => card.locator("details.reference-details").evaluate((element) => { element.open = true; });
+  const scopeSummary = () => f.page.locator(".report summary").filter({ hasText: /^Scope and coverage details$/ });
+  // Screenshots must show the settled page: the entrance animation fills
+  // backwards, so an early capture is legitimately invisible.
+  const settleAnimations = () => f.page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)));
+  async function openScopeDetails() {
+    const summary = scopeSummary();
+    await summary.waitFor();
+    if (!await summary.evaluate((element) => element.parentElement.open)) await summary.click();
+    await f.page.getByRole("heading", { name: "Source coverage", exact: true }).waitFor();
+  }
   async function openContentTools() {
     const summary = contentTools();
     await summary.waitFor();
@@ -384,6 +395,9 @@ export function plannerWorkspaceRegressions(f) {
         assert.equal(await f.page.getByText(kind === "fresh" ? "Fictional sourced synthesis fictional-1: context from collected source material." : "Fictional interpretation", { exact: true }).first().isVisible(), true);
         assert.equal(await f.page.getByText("AI interpretation", { exact: true }).first().isVisible(), true);
         assert.equal(await f.page.locator(".reference-card").first().isVisible(), true);
+        assert.equal(await scopeSummary().isVisible(), true, "Scope essentials stay reachable while the details are closed");
+        assert.equal(await scopeSummary().evaluate((element) => element.parentElement.open), false);
+        await openScopeDetails();
         assert.equal(await f.page.getByRole("heading", { name: "Source coverage", exact: true }).isVisible(), true);
         assert.match(await f.page.locator(".report").innerText(), /Requested timeframe: 2026-08-01 to 2026-08-31/);
         assert.match(await f.page.locator(".report").innerText(), /References: 3/);
@@ -405,20 +419,122 @@ export function plannerWorkspaceRegressions(f) {
         await f.snapshot(`research-first-${kind}`);
       }
     }],
+    ["Report source library expands, keeps counts, and reflows at mobile width", async () => {
+      await f.seedSavedReport({ manySources: 8 }); await f.openResearch();
+      const cards = f.page.locator(".reference-card");
+      const more = f.page.locator("details.reference-more");
+      const moreSummary = f.page.getByText("Show all 8 sources", { exact: true });
+      assert.equal(await f.page.locator(".reference-card:visible").count(), 6, "Only the first six sources show before expanding");
+      assert.equal(await more.evaluate((element) => element.open), false);
+      await moreSummary.click();
+      assert.equal(await f.page.locator(".reference-card:visible").count(), 8, "Expanding reveals every source");
+      assert.equal(await cards.count(), 8);
+      assert.equal(plannerMutations().length, 0);
+      await f.page.setViewportSize({ width: 360, height: 800 });
+      await f.metrics("source-library-360");
+      await f.snapshot("source-library-expanded");
+    }],
+    ["Preview loads the highest-resolution image once and stops", async () => {
+      const base = f.images.length;
+      await f.seedSavedReport({ topic: "Fictional preview research" }); await f.openResearch();
+      const card = f.page.locator(".reference-card").first();
+      const image = card.locator(".reference-preview img");
+      await card.scrollIntoViewIfNeeded();
+      await f.waitFor(() => f.images.length >= base + 1);
+      await f.waitFor(async () => (await image.evaluate((element) => element.naturalWidth)) > 0);
+      assert.equal(await image.getAttribute("src"), "https://i.ytimg.com/vi/fictional-1/maxresdefault.jpg");
+      assert.equal(await image.getAttribute("width"), "320");
+      assert.equal(await image.getAttribute("height"), "180");
+      assert.equal(await image.getAttribute("loading"), "lazy");
+      assert.equal(await image.getAttribute("referrerpolicy"), "no-referrer");
+      assert.equal(await image.getAttribute("alt"), "YouTube thumbnail for Fictional source");
+      assert.equal(await image.evaluate((element) => element.naturalWidth), 1280);
+      assert.deepEqual(f.images.slice(base).map((entry) => entry.file), ["maxresdefault.jpg"], "A successful high-resolution load must stop the fallback");
+      await f.snapshot("source-preview");
+      await f.page.setViewportSize({ width: 360, height: 800 });
+      await f.metrics("source-preview-360");
+      assert.equal(plannerMutations().length, 0);
+    }],
+    ["Missing high-resolution image falls back to the next candidate", async () => {
+      f.setImageMode("missing-high");
+      const base = f.images.length;
+      await f.seedSavedReport({ topic: "Fictional missing-high preview" }); await f.openResearch();
+      const card = f.page.locator(".reference-card").first();
+      const image = card.locator(".reference-preview img");
+      await card.scrollIntoViewIfNeeded();
+      await f.waitFor(() => f.images.length >= base + 2);
+      await f.waitFor(async () => (await image.evaluate((element) => element.naturalWidth)) === 480);
+      assert.deepEqual(f.images.slice(base).map((entry) => entry.file), ["maxresdefault.jpg", "hqdefault.jpg"]);
+      assert.equal(await image.getAttribute("src"), "https://i.ytimg.com/vi/fictional-1/hqdefault.jpg");
+      assert.equal(await card.getByRole("heading", { name: "Fictional source", exact: true }).isVisible(), true);
+      assert.equal(plannerMutations().length, 0);
+    }],
+    ["Undersized placeholder advances to the next candidate", async () => {
+      f.setImageMode("placeholder");
+      const base = f.images.length;
+      await f.seedSavedReport({ topic: "Fictional placeholder preview" }); await f.openResearch();
+      const card = f.page.locator(".reference-card").first();
+      const image = card.locator(".reference-preview img");
+      await card.scrollIntoViewIfNeeded();
+      await f.waitFor(() => f.images.length >= base + 2);
+      await f.waitFor(async () => (await image.evaluate((element) => element.naturalWidth)) === 480);
+      assert.deepEqual(f.images.slice(base).map((entry) => entry.file), ["maxresdefault.jpg", "hqdefault.jpg"]);
+      assert.equal(await image.evaluate((element) => element.naturalWidth), 480);
+      assert.equal(plannerMutations().length, 0);
+    }],
+    ["Every preview candidate failing keeps the title and Open source usable", async () => {
+      f.setImageMode("broken");
+      const base = f.images.length;
+      await f.seedSavedReport({ topic: "Fictional broken preview" }); await f.openResearch();
+      const card = f.page.locator(".reference-card").first();
+      await card.scrollIntoViewIfNeeded();
+      await f.waitFor(() => f.images.length >= base + 3);
+      await f.waitFor(() => card.locator(".reference-preview img").count().then((count) => count === 0));
+      assert.deepEqual(f.images.slice(base).map((entry) => entry.file), ["maxresdefault.jpg", "hqdefault.jpg", "mqdefault.jpg"], "Each candidate is tried exactly once");
+      assert.equal(await card.locator(".reference-preview").count(), 0);
+      assert.equal(await card.getByRole("heading", { name: "Fictional source", exact: true }).isVisible(), true);
+      assert.equal(await card.getByRole("link", { name: "Open source", exact: true }).isVisible(), true);
+      await f.snapshot("source-preview-broken");
+      assert.equal(plannerMutations().length, 0);
+    }],
+    ["Public-web and invalid ids request no thumbnail", async () => {
+      const base = f.images.length;
+      await f.seedSavedReport({ topic: "Fictional web research", publicWeb: true }); await f.openResearch();
+      await f.page.locator(".reference-list").scrollIntoViewIfNeeded();
+      assert.equal(await f.page.locator(".reference-card .reference-preview").count(), 0);
+      assert.equal(f.images.length, base, "A public-web reference must make no image request");
+      await f.seedSavedReport({ topic: "Fictional invalid id", invalidYoutubeId: true }); await f.openResearch();
+      await f.page.locator(".reference-list").scrollIntoViewIfNeeded();
+      assert.equal(await f.page.locator(".reference-card .reference-preview").count(), 0);
+      assert.equal(f.images.length, base, "An invalid video id must make no image request");
+      assert.equal(await f.page.locator(".reference-card").first().getByRole("link", { name: "Open source", exact: true }).isVisible(), true);
+      assert.equal(plannerMutations().length, 0);
+    }],
+    ["A public-web result from a known platform is labelled by hostname", async () => {
+      await f.seedSavedReport({ socialWeb: true }); await f.openResearch();
+      const card = f.page.locator(".reference-card").first();
+      assert.equal(await card.locator(".source-badge").innerText(), "Public web");
+      assert.equal(await card.locator(".reference-channel").innerText(), "Reddit · via web search");
+      assert.equal(await card.getByRole("heading", { name: "Fictional Reddit thread", exact: true }).isVisible(), true);
+      // The original URL and citation identity are preserved for the trace.
+      assert.equal(await card.getByRole("link", { name: "Open source", exact: true }).getAttribute("href"), "https://www.reddit.com/r/webdev/comments/1/fictional-topic/");
+      assert.equal(plannerMutations().length, 0);
+    }],
     ["P4 sourcing preserves citation URLs, distinct dates, sample counts and coverage gaps", async () => {
       await f.seedSavedReport({ researchFirst: true }); await f.openResearch();
       const source = (title) => f.page.locator(".reference-card").filter({ has: f.page.getByRole("heading", { name: title, exact: true }) });
       const inWindow = source("Fictional in-window source"), outside = source("Fictional outside-window source"), undated = source("Fictional undated web source");
-      assert.equal(await inWindow.getByRole("link", { name: "View original", exact: true }).getAttribute("href"), "https://example.test/fictional");
+      assert.equal(await inWindow.getByRole("link", { name: "Open source", exact: true }).getAttribute("href"), "https://example.test/fictional");
       assert.match(await inWindow.innerText(), /Published[^\n]*Aug 12, 2026/);
       assert.match(await outside.innerText(), /Published[^\n]*Jul 31, 2026/);
-      for (const card of [inWindow, outside, undated]) assert.match(await card.innerText(), /Collected[^\n]*Oct 1, 2026/);
+      for (const card of [inWindow, outside, undated]) { await expandSource(card); assert.match(await card.innerText(), /Collected[^\n]*Oct 1, 2026/); }
       assert.equal(await undated.getByText("Publication date unknown", { exact: true }).isVisible(), true);
       assert.equal(await f.page.getByText("Public web search did not enforce the requested timeframe. Publication dates are unverified; undated results are context.", { exact: true }).isVisible(), true);
       assert.equal(await f.page.getByText("Timeframe coverage is unverified.", { exact: false }).first().isVisible(), true);
       assert.equal(await inWindow.locator(".metric").filter({ hasText: "Views" }).locator("dd").innerText(), "0");
       assert.equal(await inWindow.locator(".metric").filter({ hasText: "Likes" }).locator("dd").innerText(), "Unknown");
       assert.match(await inWindow.innerText(), /Counts observed at collection, not a measure of growth/);
+      await openScopeDetails();
       const coverage = f.page.locator(".coverage-panel");
       assert.equal(await coverage.getByText(/Fictional Page access unavailable/).isVisible(), true);
       assert.equal(await coverage.locator('[data-searched="true"]').count(), 2);
@@ -444,10 +560,17 @@ export function plannerWorkspaceRegressions(f) {
         await f.seedSavedReport({ legacy: true, noEvidence }); await f.openResearch();
         assert.equal(await f.page.getByText("No research findings are available in this report.", { exact: true }).isVisible(), true);
         assert.equal(await f.page.getByText("Fictional interpretation", { exact: true }).count(), 0);
+        assert.equal(
+          await f.page.getByText(/Execution details are unavailable in this report/i).isVisible(),
+          true,
+          "Missing legacy execution data stays visible while the details are closed",
+        );
+        await openScopeDetails();
         assert.match(await f.page.locator(".coverage-panel").innerText(), /unknown|unavailable/i);
         await f.page.getByText("Saved to history.", { exact: true }).waitFor();
         if (!noEvidence) {
           assert.equal(await f.page.getByText("Publication date unknown", { exact: true }).isVisible(), true);
+          await expandSource(f.page.locator(".reference-card").first());
           assert.equal(await f.page.getByText("Collection date unknown", { exact: true }).isVisible(), true);
           assert.equal(await contentTools().evaluate((element) => element.parentElement.open), false);
           await openContentTools();
@@ -542,7 +665,7 @@ export function plannerWorkspaceRegressions(f) {
         await f.submitResearch(`Fictional ${reason} synthesis`, { researchOnly: true, researchFirst: true, interpretationFailure: reason });
         assert.deepEqual(f.optionalCalls, []);
         assert.equal(f.interpretationCalls.length - interpretationCount, reason === "malformed" ? 2 : 1);
-        assert.equal(await f.page.getByText("Source-attributed excerpt", { exact: true }).count(), 3);
+        assert.equal(await f.page.getByText("Source-attributed excerpt", { exact: true }).count(), 1);
         assert.equal(await f.page.getByText("“Fictional evidence”", { exact: true }).first().isVisible(), true);
         assert.equal(await f.page.getByText(/These are source-attributed excerpts, not synthesized findings/).isVisible(), true);
         assert.equal(await f.page.getByText(/Fictional sourced synthesis fictional-1:/).count(), 0);
@@ -567,7 +690,7 @@ export function plannerWorkspaceRegressions(f) {
         const savedId = [...f.reports.keys()].at(-1);
         await f.page.goto(f.origin + `/report/${savedId}`);
         await f.page.getByText("Saved to history.", { exact: true }).waitFor();
-        assert.equal(await f.page.getByText("Source-attributed excerpt", { exact: true }).count(), 3);
+        assert.equal(await f.page.getByText("Source-attributed excerpt", { exact: true }).count(), 1);
         assert.equal(plannerMutations().length, 0);
         await f.snapshot(`synthesis-fallback-${reason}`);
       }
@@ -575,13 +698,104 @@ export function plannerWorkspaceRegressions(f) {
     ["Final insufficient and unavailable summaries retain evidence without fabricated findings", async () => {
       for (const options of [{ insufficient: true }, { researchUnavailable: true }]) {
         await f.seedSavedReport(options); await f.openResearch();
-        assert.equal(await f.page.getByText("No research findings are available in this report.", { exact: true }).isVisible(), true);
+        const message = f.page.locator(".findings-empty");
+        assert.equal(await message.count(), 1, "Empty findings show exactly one clear message");
+        assert.match(await message.innerText(), options.insufficient ? /Insufficient source text/ : /Sourced summaries are unavailable/);
         assert.equal(await f.page.locator("[data-finding-scope]").count(), 0);
         assert.equal(await f.page.locator(".reference-card").count(), 1);
+        assert.equal(await f.page.getByRole("heading", { name: /Sources and evidence/ }).isVisible(), true, "Sources stay accessible with no findings");
         assert.equal(await f.page.getByText("Saved to history.", { exact: true }).isVisible(), true);
-        assert.match(await f.page.locator(".report").innerText(), options.insufficient ? /Insufficient source text/ : /Sourced summaries are unavailable/);
         assert.equal(plannerMutations().length, 0);
       }
+    }],
+    ["Pattern-only findings render as secondary sample observations", async () => {
+      await f.seedSavedReport({ observationOnly: true }); await f.openResearch();
+      const findings = f.page.locator('section[aria-labelledby="findings-title"]');
+      // No synthesis/excerpt label is shown when no finding rests on source text.
+      assert.equal(await findings.getByText("AI interpretation", { exact: true }).count(), 0);
+      assert.equal(await findings.getByText("Source-attributed excerpt", { exact: true }).count(), 0);
+      const observations = findings.locator(".sample-observations");
+      assert.equal(await observations.isVisible(), true);
+      assert.equal(await observations.getByRole("heading", { name: "AI observations about the sample", exact: true }).isVisible(), true);
+      assert.equal(await observations.getByText("Fictional sample observation", { exact: true }).isVisible(), true);
+      await observations.getByRole("button", { name: "Trace 1 citation", exact: true }).click();
+      const drawer = f.page.getByRole("dialog", { name: "Citation trace", exact: true });
+      await drawer.waitFor();
+      assert.match(await drawer.innerText(), /title_has_numeral/);
+      assert.match(await drawer.innerText(), /Interpretation #0/);
+      await f.page.keyboard.press("Escape");
+      assert.equal(await drawer.count(), 0);
+      assert.equal(plannerMutations().length, 0);
+    }],
+    ["Mixed reports keep indices and separate findings from observations", async () => {
+      const id = await f.seedSavedReport({ mixedFindings: true });
+      const snapshotBefore = JSON.stringify(f.reports.get(id).report);
+      await f.openResearch();
+      const findings = f.page.locator('section[aria-labelledby="findings-title"]');
+      assert.equal(await findings.getByText("AI interpretation", { exact: true }).isVisible(), true);
+      assert.equal(await findings.getByText("Fictional sourced finding", { exact: true }).isVisible(), true);
+      assert.equal(await findings.locator(".sample-observations").getByText("Fictional sample observation", { exact: true }).isVisible(), true);
+      // One trace per finding; original interpretation indices are preserved.
+      const traces = findings.locator(".citation-toggle");
+      assert.equal(await traces.count(), 2);
+      await traces.nth(0).click();
+      const first = f.page.getByRole("dialog", { name: "Citation trace", exact: true });
+      await first.waitFor();
+      assert.match(await first.innerText(), /Interpretation #0/);
+      assert.match(await first.innerText(), /Fictional sourced finding/);
+      await f.page.keyboard.press("Escape");
+      await traces.nth(1).click();
+      const second = f.page.getByRole("dialog", { name: "Citation trace", exact: true });
+      await second.waitFor();
+      assert.match(await second.innerText(), /Interpretation #1/);
+      assert.match(await second.innerText(), /Fictional sample observation/);
+      await f.page.keyboard.press("Escape");
+      // Presentation must not mutate the saved snapshot it renders.
+      assert.equal(JSON.stringify(f.reports.get(id).report), snapshotBefore);
+      assert.equal(plannerMutations().length, 0);
+    }],
+    ["Unresolved legacy evidence stays visible and qualified", async () => {
+      await f.seedSavedReport({ unresolvedFinding: true }); await f.openResearch();
+      const findings = f.page.locator('section[aria-labelledby="findings-title"]');
+      const limited = findings.locator(".limited-evidence");
+      assert.equal(await limited.isVisible(), true);
+      assert.equal(await limited.getByRole("heading", { name: "Interpretations with limited evidence", exact: true }).isVisible(), true);
+      assert.equal(await findings.locator(".sample-observations").count(), 0, "An unresolved reference is not a sample observation");
+      assert.equal(await findings.getByText("AI interpretation", { exact: true }).count(), 0);
+      assert.equal(await findings.getByText("Source-attributed excerpt", { exact: true }).count(), 0);
+      assert.equal(await findings.getByText("Fictional unresolved finding", { exact: true }).isVisible(), true);
+      assert.equal(await limited.getByText(/Unresolved provenance/).first().isVisible(), true);
+      assert.ok(await limited.locator(".citation-toggle").count() >= 1, "citation trace control present");
+      await limited.locator(".citation-toggle").first().click();
+      const drawer = f.page.getByRole("dialog", { name: "Citation trace", exact: true });
+      await drawer.waitFor();
+      assert.match(await drawer.innerText(), /Unresolved/);
+      await f.page.keyboard.press("Escape");
+      assert.equal(await drawer.count(), 0);
+      assert.equal(plannerMutations().length, 0);
+    }],
+    ["Missing, null, or metadata-only evidence is limited evidence", async () => {
+      const cases = [
+        { blankTextFact: true, statement: "Fictional blank-text finding" },
+        { nullMetricFact: true, statement: "Fictional null-metric finding" },
+        { metadataOnlyFact: true, statement: "Fictional metadata-only finding" },
+      ];
+      for (const item of cases) {
+        await f.seedSavedReport(item); await f.openResearch();
+        const findings = f.page.locator('section[aria-labelledby="findings-title"]');
+        const limited = findings.locator(".limited-evidence");
+        assert.equal(await limited.isVisible(), true, item.statement);
+        assert.equal(await limited.getByText(item.statement, { exact: true }).isVisible(), true);
+        assert.equal(await findings.locator(".sample-observations").count(), 0, item.statement);
+        assert.equal(await findings.getByText("AI interpretation", { exact: true }).count(), 0);
+        assert.match(await limited.innerText(), /missing, incomplete, or insufficient/);
+        await limited.getByRole("button", { name: "Trace 1 citation", exact: true }).click();
+        const drawer = f.page.getByRole("dialog", { name: "Citation trace", exact: true });
+        await drawer.waitFor();
+        assert.match(await drawer.innerText(), /Interpretation #0/);
+        await f.page.keyboard.press("Escape");
+      }
+      assert.equal(plannerMutations().length, 0);
     }],
     ["Final delayed generation cannot restore an old account’s research or optional selection", async () => {
       await f.openResearch();
@@ -961,6 +1175,150 @@ export function plannerWorkspaceRegressions(f) {
       await f.page.locator(".planner-row").first().waitFor();
       assert.equal(await f.page.locator(".planner-row").count(), 1);
       await f.snapshot("planner-archive-restore");
+    }],
+    ["Scope essentials stay visible while detail is closed, including a partial search", async () => {
+      await f.seedSavedReport({ researchFirst: true, partialSearch: true }); await f.openResearch();
+      const summary = scopeSummary();
+      assert.equal(await summary.isVisible(), true);
+      assert.equal(await summary.evaluate((element) => element.parentElement.open), false, "detail starts closed");
+      // Essentials derived from the report, not hardcoded.
+      const report = f.page.locator(".report");
+      assert.match(await report.innerText(), /Requested timeframe: 2026-08-01 to 2026-08-31/);
+      assert.match(await report.innerText(), /Sources searched: YouTube, Public web/);
+      assert.match(await report.innerText(), /References: 3/);
+      // A partial search is reported by the source's own reason even though the
+      // source appears in executed_sources, and it is visible while closed.
+      const partial = f.page.locator(".scope-warning").filter({ hasText: /Public social discovery was partial/ });
+      assert.equal(await partial.isVisible(), true, "the partial warning is visible while the details are closed");
+      assert.equal(await f.page.getByText(/Requested but not searched: Facebook/).isVisible(), true);
+      assert.equal(
+        await f.page.getByText(/Timeframe coverage is unverified/).first().isVisible(),
+        true,
+        "the report-level timeframe caveat stays visible while the details are closed",
+      );
+      assert.equal(await f.page.getByText(/Public web search did not enforce the requested timeframe/).isVisible(), true);
+      // Warnings must meet AA against the background actually painted behind
+      // them, walking up through transparent ancestors.
+      const warningContrast = await f.page.evaluate(() => {
+        const channels = (value) => (value.match(/[\d.]+/g) ?? []).map(Number);
+        const alpha = (value) => { const parts = channels(value); return parts.length >= 4 ? parts[3] : 1; };
+        const luminance = ([r, g, b]) => {
+          const lin = [r, g, b].map((c) => { const v = c / 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+          return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+        };
+        const ratio = (fg, bg) => { const a = luminance(fg), b = luminance(bg); const [hi, lo] = a > b ? [a, b] : [b, a]; return (hi + 0.05) / (lo + 0.05); };
+        const paintedBackground = (element) => {
+          for (let node = element; node; node = node.parentElement) {
+            const value = getComputedStyle(node).backgroundColor;
+            if (alpha(value) > 0) return channels(value).slice(0, 3);
+          }
+          return [255, 255, 255];
+        };
+        return [...document.querySelectorAll(".scope-warning")].map((element) => {
+          const style = getComputedStyle(element);
+          return {
+            text: element.textContent.trim().slice(0, 40),
+            ratio: ratio(channels(style.color).slice(0, 3), paintedBackground(element)),
+            fontSize: parseFloat(style.fontSize),
+          };
+        });
+      });
+      assert(warningContrast.length >= 2, "both coverage warnings render");
+      for (const entry of warningContrast) {
+        const threshold = entry.fontSize >= 18 ? 3 : 4.5;
+        assert(
+          entry.ratio >= threshold,
+          `warning contrast ${entry.ratio.toFixed(2)}:1 at ${entry.fontSize}px must be at least ${threshold}:1 for "${entry.text}"`,
+        );
+      }
+      // Detail is reachable and keyboard operable.
+      await summary.focus();
+      assert.notEqual(await summary.evaluate((element) => getComputedStyle(element).outlineStyle), "none");
+      await f.page.keyboard.press("Enter");
+      assert.equal(await summary.evaluate((element) => element.parentElement.open), true);
+      await f.page.keyboard.press("Space");
+      assert.equal(await summary.evaluate((element) => element.parentElement.open), false);
+      await settleAnimations();
+      await f.snapshot("scope-essentials");
+      assert.equal(plannerMutations().length, 0);
+    }],
+    ["Requested limit and returned count are labelled differently", async () => {
+      await f.openResearch();
+      await f.submitResearch("Fictional count labelling", { researchOnly: true, researchFirst: true });
+      const meta = await f.page.locator(".turn-meta").first().innerText();
+      assert.match(meta, /up to 50 references/, "the request limit is labelled as a limit");
+      assert.match(await f.page.locator(".report").innerText(), /References: 3/, "the report shows the returned count");
+      assert.equal(plannerMutations().length, 0);
+    }],
+    ["Edit and rerun fills the form, focuses it, and never resubmits", async () => {
+      await f.openResearch();
+      await f.submitResearch("Fictional edit topic", { researchOnly: true, researchFirst: true });
+      const submissions = () => f.calls.filter((call) => call.path === "/api/v1/research/report").length;
+      const before = submissions();
+      await button("Edit and rerun").click();
+      const topic = f.page.getByLabel("Topic", { exact: true });
+      assert.equal(await topic.inputValue(), "Fictional edit topic");
+      assert.equal(await topic.evaluate((element) => element === document.activeElement), true, "the topic field takes focus");
+      assert.equal(submissions(), before, "editing must not submit on its own");
+      assert.equal(plannerMutations().length, 0);
+      await settleAnimations();
+      await f.snapshot("research-edit-form");
+    }],
+    ["An in-flight generation cannot be submitted twice", async () => {
+      await f.openResearch();
+      f.fault({ action: "generate", mode: "delay-before" });
+      const topic = f.page.getByLabel("Topic", { exact: true });
+      await topic.fill("Fictional duplicate guard");
+      await button("Generate research report").click();
+      await f.stalled();
+      assert.equal(await button("Generating report…").isDisabled(), true, "the action is disabled while busy");
+      assert.equal(
+        f.calls.filter((call) => call.path === "/api/v1/research/report").length,
+        1,
+        "only one generation request is in flight",
+      );
+      await f.release();
+      await f.waitFor(() => f.calls.every((call) => call.completed !== false));
+      assert.equal(f.calls.filter((call) => call.path === "/api/v1/research/report").length, 1);
+      assert.equal(plannerMutations().length, 0);
+    }],
+    ["Composer sticks only where there is room and stays reachable", async () => {
+      await f.openResearch();
+      await f.page.setViewportSize({ width: 1440, height: 1000 });
+      // Examples are available before the first run, not only after one.
+      assert.equal(await f.page.locator('[aria-label="Example topics"]').isVisible(), true);
+      await settleAnimations();
+      await f.snapshot("home-empty-1440");
+      await f.page.setViewportSize({ width: 360, height: 800 });
+      await settleAnimations();
+      await f.snapshot("home-empty-360");
+      await f.page.setViewportSize({ width: 1440, height: 1000 });
+      await f.submitResearch("Fictional composer reach", { researchOnly: true, researchFirst: true });
+      // ...and they stay available while working in a session.
+      assert.equal(await f.page.locator('[aria-label="Example topics"]').isVisible(), true);
+      const panel = f.page.locator(".form-panel");
+      assert.equal(await panel.evaluate((element) => getComputedStyle(element).position), "sticky");
+      // The sidebar is narrow: its date fields must stack and stay usable.
+      const dateTops = await panel.locator(".form-row").first().evaluate(
+        (row) => [...row.children].map((child) => Math.round(child.getBoundingClientRect().top)),
+      );
+      assert.notEqual(dateTops[0], dateTops[1], "From and To stack in the narrow sidebar");
+      const dateWidths = await panel.locator(".form-row input").evaluateAll(
+        (elements) => elements.map((element) => Math.round(element.getBoundingClientRect().width)),
+      );
+      assert.ok(Math.min(...dateWidths) >= 200, `date fields must stay usable, got ${dateWidths.join("/")}`);
+      // Short viewport: normal flow, so no control sits in a nested scroll area.
+      await f.page.setViewportSize({ width: 1440, height: 560 });
+      assert.equal(await panel.evaluate((element) => getComputedStyle(element).position), "static");
+      const submit = f.page.getByRole("button", { name: "Generate research report", exact: true });
+      await submit.scrollIntoViewIfNeeded();
+      assert.equal(await submit.isVisible(), true, "the primary action stays reachable");
+      assert.equal(await panel.evaluate((element) => getComputedStyle(element).overflowY), "visible");
+      // Narrow viewport: stacked, still reachable.
+      await f.page.setViewportSize({ width: 360, height: 800 });
+      assert.equal(await panel.evaluate((element) => getComputedStyle(element).position), "static");
+      await f.metrics("research-composer-360");
+      assert.equal(plannerMutations().length, 0);
     }],
   ];
 }

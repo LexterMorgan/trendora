@@ -75,10 +75,7 @@ function PastReportsContent() {
 
   return (
     <main className="workspace history-workspace">
-      <Header
-        section="Past Reports"
-        actionLink={{ href: "/", label: "New research" }}
-      />
+      <Header section="Reports" />
 
       {loading && (
         <p className="loading-note" role="status">

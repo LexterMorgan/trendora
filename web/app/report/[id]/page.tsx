@@ -66,16 +66,7 @@ function ReportContent({ id }: { id: string }) {
 
   return (
     <main className="workspace report-viewer">
-      <Header
-        section={section}
-        actionLink={{ href: "/past-reports", label: "Past reports" }}
-      />
-
-      <nav className="report-viewer-actions" aria-label="Report actions">
-        <Link className="secondary-button" href="/">
-          New research
-        </Link>
-      </nav>
+      <Header section={section} />
 
       {loading && (
         <p className="loading-note" role="status">

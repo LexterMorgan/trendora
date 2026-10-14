@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { type ResearchFormValues } from "@/components/ResearchForm";
 import { SimpleForm } from "@/components/SimpleForm";
 import { Header } from "@/components/Header";
 import { Protected } from "@/components/Protected";
-import { TurnView, userMessage, type SessionTurn } from "@/components/TurnView";
+import { TurnView, type SessionTurn } from "@/components/TurnView";
 import { submitReport } from "@/lib/report-api";
 import { ResearchApiError } from "@/lib/trendora-api";
 import { createSubmitGate } from "@/lib/submit-gate";
@@ -25,6 +25,7 @@ function Workspace() {
   const [editValues, setEditValues] = useState<Partial<ResearchFormValues>>({});
   const [busy, setBusy] = useState(false);
   const [gate] = useState(createSubmitGate);
+  const focusAfterEdit = useRef(false);
   const emptySession = turns.length === 0;
 
   async function handleSubmit(values: ResearchFormValues) {
@@ -35,7 +36,6 @@ function Workspace() {
     const turn: SessionTurn = {
       id,
       request: values,
-      userMessage: userMessage(values),
       state: "loading",
       report: null,
       error: null,
@@ -64,16 +64,25 @@ function Workspace() {
 
   function handleEdit(request: ResearchFormValues) {
     setEditValues({ ...request });
+    focusAfterEdit.current = true;
     setComposerKey((key) => key + 1);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
   }
+
+  // The composer is remounted after an edit, so move focus to the topic field
+  // the user asked to change. Editing never submits on its own.
+  useEffect(() => {
+    if (!focusAfterEdit.current) return;
+    focusAfterEdit.current = false;
+    const topic = document.getElementById("topic");
+    topic?.focus();
+    if (topic instanceof HTMLInputElement) topic.select();
+  }, [composerKey]);
 
   return (
     <main className="workspace">
-      <Header
-        section="Research Workspace"
-        actionLink={{ href: "/past-reports", label: "Past reports" }}
-      />
+      <Header section="Research Workspace" />
 
       {emptySession ? (
         <div className="start-sheet">
@@ -94,7 +103,6 @@ function Workspace() {
               onSubmit={handleSubmit}
               disabled={busy}
               initialValues={editValues}
-              showExamples
             />
           </section>
         </div>

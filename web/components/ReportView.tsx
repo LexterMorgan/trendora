@@ -6,6 +6,7 @@ import type { ResearchReportResponse } from "@/lib/report-api";
 import type { ChainLink, ResolvedCitation } from "@/lib/report-provenance";
 import {
   buildProvenanceMaps,
+  classifyFindingSupport,
   hasSourceBackedSummaries,
   citationPublicationScope,
   publicationScopeLabel,
@@ -15,7 +16,7 @@ import {
 import { briefMarkdown, copyToClipboard, downloadReportJson, ideaMarkdown } from "@/lib/report-actions";
 import { formatDate, sourceLabel } from "@/lib/format";
 import { CitationDrawer } from "./CitationDrawer";
-import { CoveragePanel } from "./CoveragePanel";
+import { COVERAGE_REASON_TEXT, CoveragePanel } from "./CoveragePanel";
 import { MarketCaveat } from "./MarketCaveat";
 import { ReferenceList } from "./ReferenceList";
 import { ReportPersistencePanel } from "./ReportPersistencePanel";
@@ -68,6 +69,24 @@ function humanizeObservationType(observationType: string): string {
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
+}
+
+/** True when a finding has any citation that could not be resolved. */
+function hasUnresolvedProvenance(citations: ResolvedCitation[]): boolean {
+  return citations.some(
+    (resolved) => !resolved.resolved || resolved.unresolvedIdentifiers.length > 0,
+  );
+}
+
+/** One clear message for a report with no findings, by status. */
+function emptyFindingsMessage(status: string): string {
+  if (status === "research_unavailable") {
+    return "Sourced summaries are unavailable. Collected sources and evidence remain available below.";
+  }
+  if (status === "insufficient_evidence") {
+    return "Insufficient source text for a sourced summary. No development claim is inferred from dates or counts. Sources and evidence remain available below.";
+  }
+  return "No research findings are available in this report.";
 }
 
 export function ReportView({ report }: ReportViewProps) {
@@ -253,16 +272,36 @@ export function ReportView({ report }: ReportViewProps) {
   const interpretations = report.interpretation?.interpretations ?? [];
   const findings = interpretations.map((item, index) => {
     const citations = (item.citations ?? []).map((citation) => resolveCitation(citation, maps));
-    return { item, index, citations, scope: citationPublicationScope(citations, report.research.query) };
+    return {
+      item,
+      index,
+      citations,
+      scope: citationPublicationScope(citations, report.research.query),
+      // Classification comes from typed, resolved citations only, never the
+      // statement wording. See classifyFindingSupport.
+      bucket: classifyFindingSupport(maps, citations),
+      unresolved: hasUnresolvedProvenance(citations),
+    };
   });
+  const primaryFindings = findings.filter((entry) => entry.bucket === "finding");
+  const observationFindings = findings.filter((entry) => entry.bucket === "observation");
+  const limitedFindings = findings.filter((entry) => entry.bucket === "limited");
+  const hasPrimaryFindings = primaryFindings.length > 0;
 
-  function finding({ item, index, citations, scope }: (typeof findings)[number]) {
+  function finding({ item, index, citations, scope, bucket, unresolved }: (typeof findings)[number]) {
     const chain = resolveUpstreamChain(report, { kind: "interpretation", item });
+    const isPrimary = bucket === "finding";
     return (
       <article key={index} className="report-item" data-finding-scope={scope}>
-        {sourceBacked ? <span className="claim-kind claim-kind-ai">Source-attributed excerpt</span> : <ClaimKind kind="ai" />}
-        <p className="report-statement">{sourceBacked ? `“${item.statement}”` : item.statement}</p>
-        {citationsButton(sourceBacked ? `Source-backed summary #${index}` : `Interpretation #${index}`, item.statement, citations, chain, setDrawer)}
+        {sourceBacked && isPrimary
+          ? <blockquote className="finding-statement finding-excerpt">{`“${item.statement}”`}</blockquote>
+          : <p className="report-statement finding-statement">{item.statement}</p>}
+        {unresolved && (
+          <p className="drawer-muted">
+            Unresolved provenance: some cited evidence could not be matched and is left qualified.
+          </p>
+        )}
+        {citationsButton(sourceBacked && isPrimary ? `Source-backed summary #${index}` : `Interpretation #${index}`, item.statement, citations, chain, setDrawer)}
       </article>
     );
   }
@@ -272,26 +311,51 @@ export function ReportView({ report }: ReportViewProps) {
       <ReportPersistencePanel report={report} onResolved={setReportId} />
       <section className="report-primary-section" aria-labelledby="findings-title">
         <h3 className="section-title" id="findings-title">Research findings</h3>
-        <p className="section-note">
-          {sourceBacked
-            ? "These are source-attributed excerpts, not synthesized findings. A source’s statement and publication date do not independently verify an event or its date. Event dates are unavailable."
-            : "AI synthesis of the collected material. Citations show supporting evidence, but do not independently verify a claim or its significance. Publication dates do not establish event dates. Event dates are unavailable."}
-        </p>
-        {report.status === "research_unavailable" && (
-          <p className="drawer-muted">Sourced summaries are unavailable. Collected sources and evidence remain available below.</p>
-        )}
-        {report.status === "insufficient_evidence" && (
-          <p className="drawer-muted">Insufficient source text for a sourced summary. No development claim is inferred from dates or counts.</p>
+        {hasPrimaryFindings && (sourceBacked ? (
+          <span className="claim-kind claim-kind-ai">Source-attributed excerpt</span>
+        ) : (
+          <ClaimKind kind="ai" />
+        ))}
+        {hasPrimaryFindings && (
+          <p className="section-note">
+            {sourceBacked
+              ? "These are source-attributed excerpts, not synthesized findings. A source’s statement and publication date do not independently verify an event or its date. Event dates are unavailable."
+              : "AI synthesis of the collected material. Citations show supporting evidence, but do not independently verify a claim or its significance. Publication dates do not establish event dates. Event dates are unavailable."}
+          </p>
         )}
         {findings.length === 0 ? (
-          <p className="drawer-muted">No research findings are available in this report.</p>
-        ) : (["in_window", "outside_window", "undated", "unknown_window"] as const).map((scope) => {
-          const group = findings.filter((entry) => entry.scope === scope);
-          return group.length ? <section key={scope} aria-label={publicationScopeLabel(scope)}>
-            <h4 className="drawer-subheading">{publicationScopeLabel(scope)}</h4>
-            {group.map(finding)}
-          </section> : null;
-        })}
+          <p className="drawer-muted findings-empty">{emptyFindingsMessage(report.status)}</p>
+        ) : (
+          <>
+            {hasPrimaryFindings && (["in_window", "outside_window", "undated", "unknown_window"] as const).map((scope) => {
+              const group = primaryFindings.filter((entry) => entry.scope === scope);
+              return group.length ? <section key={scope} aria-label={publicationScopeLabel(scope)}>
+                <h4 className="drawer-subheading">{publicationScopeLabel(scope)}</h4>
+                {group.map(finding)}
+              </section> : null;
+            })}
+            {observationFindings.length > 0 && (
+              <section className="sample-observations" aria-label="AI observations about the sample">
+                <h4 className="drawer-subheading">AI observations about the sample</h4>
+                <p className="section-note">
+                  These interpretations concern patterns, formatting, or metrics in the collected sample.
+                  They do not establish developments or growing attention.
+                </p>
+                {observationFindings.map(finding)}
+              </section>
+            )}
+            {limitedFindings.length > 0 && (
+              <section className="limited-evidence" aria-label="Interpretations with limited evidence">
+                <h4 className="drawer-subheading">Interpretations with limited evidence</h4>
+                <p className="section-note">
+                  The cited evidence is missing, incomplete, or insufficient to support a research finding.
+                  These interpretations are retained for reference.
+                </p>
+                {limitedFindings.map(finding)}
+              </section>
+            )}
+          </>
+        )}
       </section>
 
       <ReportScope report={report} />
@@ -432,21 +496,49 @@ function ReportScope({ report }: { report: ResearchReportResponse }) {
   const knownDates = collectedDates.filter((date) => date !== "—");
   const hasPublicWeb = research.executed_sources?.includes("public_web") ||
     references.some((reference) => reference.source_code === "public_web");
+
+  // Everything below is derived from the report. Nothing here is a fixed count
+  // or window, and a request limit is never shown as a result count.
+  const executed = research.executed_sources;
+  const requested = query?.sources ?? [];
+  const notSearched = executed ? requested.filter((code) => !executed.includes(code)) : [];
+  const referencesLabel = research.references ? String(references.length) : "Unavailable";
+  const searchedLabel = executed
+    ? executed.map(sourceLabel).join(", ") || "None"
+    : "Unavailable";
+  // A partial search is reported by the source itself, even when that source
+  // appears in executed_sources, so the warning cannot be inferred from the
+  // executed list alone.
+  const partialReasons = (research.coverage?.sources ?? [])
+    .map((source) => ({ code: source.source_code, text: COVERAGE_REASON_TEXT[source.reason ?? ""] }))
+    .filter((entry): entry is { code: string; text: string } => Boolean(entry.text));
+
   return (
     <section className="report-primary-section" aria-label="Research scope">
       <h3 className="section-title">Research scope</h3>
-      <ul className="provenance-list">
-        <li>Topic: {query?.topic || "Unavailable"}</li>
-        <li>Scope: {query?.markets?.length ? query.markets.join(", ") : "Global (no country restriction)"}</li>
+      <ul className="provenance-list scope-summary">
         <li>Requested timeframe: {query?.date_from || "Unknown"} to {query?.date_to || "Unknown"}</li>
-        <li>Requested sources: {query?.sources?.map(sourceLabel).join(", ") || "Unavailable"}</li>
-        <li>Sources searched: {research.executed_sources?.map(sourceLabel).join(", ") || (research.executed_sources ? "None" : "Unavailable")}</li>
-        <li>References: {research.references ? references.length : "Unavailable"}</li>
-        <li>
-          Collection dates: {knownDates.join(", ") || "Unknown"}
-          {knownDates.length > 0 && collectedDates.includes("—") && "; some collection dates unknown"}
-        </li>
+        <li>Sources searched: {searchedLabel}</li>
+        <li>References: {referencesLabel}</li>
       </ul>
+
+      {!executed && (
+        <p className="scope-warning">
+          Execution details are unavailable in this report. The requested sources are listed
+          below; nothing here proves a search ran.
+        </p>
+      )}
+      {notSearched.length > 0 && (
+        <p className="scope-warning">
+          Requested but not searched: {notSearched.map(sourceLabel).join(", ")}.
+        </p>
+      )}
+      {partialReasons.map((entry) => (
+        <p className="scope-warning" key={entry.code}>
+          {sourceLabel(entry.code)}: {entry.text}
+        </p>
+      ))}
+
       <p className="section-note">
         Timeframe coverage is unverified. Publication dates are source metadata;
         collection dates do not establish when a development happened.
@@ -454,8 +546,24 @@ function ReportScope({ report }: { report: ResearchReportResponse }) {
       {hasPublicWeb && (
         <p className="section-note">Public web search did not enforce the requested timeframe. Publication dates are unverified; undated results are context.</p>
       )}
-      <CoveragePanel coverage={research.coverage} executedSources={research.executed_sources} />
-      <MarketCaveat markets={query?.markets ?? []} executedSources={research.executed_sources ?? []} />
+
+      <details className="report-section report-secondary-details">
+        <summary>Scope and coverage details</summary>
+        <ul className="provenance-list">
+          <li>Topic: {query?.topic || "Unavailable"}</li>
+          <li>Scope: {query?.markets?.length ? query.markets.join(", ") : "Global (no country restriction)"}</li>
+          <li>Requested timeframe: {query?.date_from || "Unknown"} to {query?.date_to || "Unknown"}</li>
+          <li>Requested sources: {requested.map(sourceLabel).join(", ") || "Unavailable"}</li>
+          <li>Sources searched: {searchedLabel}</li>
+          <li>References: {referencesLabel}</li>
+          <li>
+            Collection dates: {knownDates.join(", ") || "Unknown"}
+            {knownDates.length > 0 && collectedDates.includes("—") && "; some collection dates unknown"}
+          </li>
+        </ul>
+        <CoveragePanel coverage={research.coverage} executedSources={research.executed_sources} />
+        <MarketCaveat markets={query?.markets ?? []} executedSources={research.executed_sources ?? []} />
+      </details>
     </section>
   );
 }

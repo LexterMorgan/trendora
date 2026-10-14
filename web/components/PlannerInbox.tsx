@@ -65,7 +65,7 @@ export function PlannerInbox() {
 
   return (
     <main className="workspace planner-workspace">
-      <Header section="Shared planner" actionLink={{ href: "/past-reports", label: "Past reports" }} />
+      <Header section="Shared planner" />
       <section className="planner-heading">
         <div>
           <h1>Shared planner</h1>

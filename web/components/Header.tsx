@@ -9,8 +9,6 @@ import { SignOutButton } from "@/components/SignOutButton";
 export interface HeaderProps {
   /** Current view name, shown in the mobile menu (e.g. "Research Workspace"). */
   section: string;
-  /** Optional action button rendered on the right. */
-  actionLink?: { href: string; label: string };
 }
 
 // `match` lists every route prefix that belongs to a destination. A saved
@@ -25,9 +23,11 @@ const NAV = [
  * App shell header. Primary destinations are always visible on desktop; on
  * narrow screens they collapse into a labelled Menu disclosure so no
  * destination depends on a hover or an unlabelled icon. The current
- * destination is marked with `aria-current`, not color alone.
+ * destination is marked with `aria-current`, not color alone. Contextual
+ * actions live on the page that owns them, so the header never repeats a
+ * destination as a second button.
  */
-export function Header({ section, actionLink }: HeaderProps) {
+export function Header({ section }: HeaderProps) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -61,11 +61,6 @@ export function Header({ section, actionLink }: HeaderProps) {
       </nav>
 
       <div className="header-action">
-        {actionLink && (
-          <Link href={actionLink.href} className="secondary-button header-action-link">
-            {actionLink.label}
-          </Link>
-        )}
         <SignOutButton />
         <button
           type="button"

@@ -172,14 +172,17 @@ a {
   }
 }
 
+/* Sticky only where there is room: on short viewports or with enlarged text the
+   panel keeps normal document flow, so no control is ever trapped in a nested
+   scroll area. */
 .form-panel {
-  position: sticky;
-  top: 20px;
+  position: static;
 }
 
-@media (max-width: 900px) {
+@media (min-width: 901px) and (min-height: 760px) {
   .form-panel {
-    position: static;
+    position: sticky;
+    top: 20px;
   }
 }
 
@@ -358,10 +361,12 @@ a {
   min-width: 0;
 }
 
+/* The user's request reads as one quiet meta bar: topic first, details muted,
+   and the edit control beside it instead of a full-width button. */
 .turn-user {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 4px 14px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 3px 14px;
   align-items: baseline;
   border: var(--rule);
   border-left: 3px solid var(--accent);
@@ -373,32 +378,78 @@ a {
 @media (max-width: 640px) {
   .turn-user {
     grid-template-columns: 1fr;
+    gap: 6px;
   }
 }
 
 .turn-user .turn-label {
+  grid-column: 1;
+  grid-row: 1;
   color: var(--accent);
 }
 
 .turn-message {
+  grid-column: 2;
+  grid-row: 1;
   margin: 0;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 650;
   color: var(--ink);
   overflow-wrap: anywhere;
 }
 
-.turn-user .secondary-button {
+.turn-meta {
   grid-column: 2;
-  justify-self: start;
+  grid-row: 2;
   font-size: 12px;
-  min-height: 0;
+  color: var(--ink-faint);
+  overflow-wrap: anywhere;
+}
+
+.turn-edit {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
   padding: 3px 10px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: transparent;
+  border: var(--rule);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-base) var(--ease),
+    border-color var(--dur-base) var(--ease),
+    color var(--dur-base) var(--ease);
+}
+
+.turn-edit:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.turn-edit:active {
+  transform: translateY(1px);
+}
+
+.turn-edit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 @media (max-width: 640px) {
-  .turn-user .secondary-button {
+  .turn-message,
+  .turn-meta {
     grid-column: 1;
+    grid-row: auto;
+  }
+
+  .turn-edit {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
   }
 }
 
@@ -1657,11 +1708,6 @@ a {
   gap: 8px;
 }
 
-.header-action-link {
-  min-height: 44px;
-  border-color: var(--ink-faint);
-}
-
 /* Mobile menu trigger: labelled, not a bare hamburger. Hidden on desktop. */
 .menu-toggle {
   display: none;
@@ -1867,16 +1913,6 @@ a {
 
 .report :is(.reference-card-top, .reference-metrics) {
   flex-wrap: wrap;
-}
-
-.report-viewer-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 16px;
-}
-
-.report-viewer-actions .secondary-button {
-  min-height: 44px;
 }
 
 @media (max-width: 768px) {
@@ -2448,4 +2484,148 @@ a {
 .planner-origin-sources li {
   padding: 4px 0;
   overflow-wrap: anywhere;
+}
+
+/* --- Report reading experience: findings, citations, sources -------------
+   Findings read first at a comfortable measure; the mode label appears once,
+   not per finding. Citation controls stay compact. Source cards show a
+   YouTube preview, title, source/domain and date; the rest hides behind one
+   Details disclosure. */
+
+.report-item .finding-statement {
+  max-width: 68ch;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.finding-excerpt {
+  margin: 0;
+  padding-left: 14px;
+  border-left: 3px solid var(--border-strong);
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* A finding's citation control is a lightweight inline chip, quieter than a
+   primary action while keeping a 44px touch target. */
+.report-item .citation-toggle {
+  min-height: 32px;
+  min-width: 0;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  background: var(--surface-alt);
+  border-color: transparent;
+}
+
+.report-item .citation-toggle:hover,
+.report-item .citation-toggle:focus-visible {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+@media (pointer: coarse) {
+  .report-item .citation-toggle {
+    min-height: 44px;
+  }
+}
+
+.reference-preview {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface-alt);
+  overflow: hidden;
+}
+
+.reference-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.reference-date-line {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+
+.reference-details {
+  width: 100%;
+}
+
+.reference-details > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.reference-details-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.reference-more {
+  width: 100%;
+}
+
+.reference-more > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.reference-more[open] > summary {
+  margin-bottom: 12px;
+}
+
+/* The single findings mode label hugs its text; as a flex child it would
+   otherwise stretch across the reading column. */
+.report-primary-section > .claim-kind {
+  align-self: flex-start;
+}
+
+/* --- Scope essentials and disclosures ------------------------------------
+   The essentials (window, sources searched, returned count) and every
+   execution warning stay visible; the long provenance list, capability
+   coverage, and market caveat sit behind one native disclosure. */
+
+.scope-summary {
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.scope-warning {
+  margin: 0;
+  font-size: 12.5px;
+  /* These warnings sit on --bg, where --warn measures 4.23:1 and fails AA for
+     12.5px text. --ink-soft measures 7.98:1 there. The global warning palette
+     is unchanged. */
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.scope-warning + .scope-warning {
+  margin-top: -4px;
+}
+
+@media (pointer: coarse) {
+  .turn-edit {
+    min-height: 44px;
+    padding: 8px 14px;
+  }
 }

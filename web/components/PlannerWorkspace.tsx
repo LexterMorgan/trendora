@@ -170,7 +170,7 @@ export function PlannerWorkspace({ id: routeId }: { id?: string }) {
 
   return (
     <main className="workspace planner-workspace">
-      <Header section={saved || id ? "Post workspace" : "New planner post"} actionLink={{ href: "/past-reports", label: "Past reports" }} />
+      <Header section={saved || id ? "Post workspace" : "New planner post"} />
       <Link className="secondary-button" href="/planner">Back to planner</Link>
       <section className="planner-heading">
         <div>
