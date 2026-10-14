@@ -11,11 +11,12 @@ import pytest
 from pydantic import ValidationError
 
 from tests.unit.test_research_reporting import (
-    _query, _report_service, _reference,
+    _grounded_interpretation, _pattern_type, _query, _report_service, _reference,
+    _text_supported_interpretation,
 )
 from trendora.api.report_snapshot import ReportSnapshot, snapshot_fingerprint
 from trendora.api.research_report_models import ResearchReportRequest, to_report_response
-from trendora.research.evidence import EvidenceField, analyze_references
+from trendora.research.evidence import EvidenceField, ObservationType, analyze_references
 from trendora.research.exceptions import (
     ResearchAIProviderError, ResearchAIProviderNotConfiguredError,
     ResearchAIResponseError, ResearchAITimeoutError, ResearchInterpretationError,
@@ -24,8 +25,10 @@ from trendora.research.ai_execution import GroundedInterpretationService
 from trendora.research.ai_provider import AIProviderConfig, OpenAICompatibleInterpretationProvider
 from trendora.research.interpretation import (
     AIInterpretation, EvidencePack, FactCitation, InterpretationResult,
-    ModelProvenance, validate_interpretations,
+    ModelProvenance, ObservationCitation, PatternCitation, has_text_support,
+    validate_interpretations, validate_text_supported_interpretations,
 )
+from trendora.research.patterns import aggregate_patterns
 from trendora.research.reporting import (
     ResearchReportStatus, source_summaries, validate_research_report,
 )
@@ -35,13 +38,94 @@ def _snapshot(report):
     return to_report_response(report).model_dump(mode="json", exclude={"persistence"})
 
 
-def test_research_only_uses_existing_interpretation_before_optional_content():
-    events = []
-    report = _report_service(events).build_report(**_query(), include_content_tools=False)
-    assert events == ["interpretation"]
+def _pattern_pack():
+    analyses = analyze_references((_reference("v1", title="5 AI tools"), _reference("v2", title="Why AI?")))
+    return EvidencePack(analyses, aggregate_patterns(analyses))
+
+
+def test_research_only_pattern_citation_is_rejected_against_the_compacted_input():
+    # The compact research input carries no pattern aggregates, so a model that
+    # cites one cannot validate against the exact evidence it was given. The
+    # exact labelled source excerpts are retained, with no extra AI request.
+    calls: list[int] = []
+
+    def interpret(pack, **_):
+        calls.append(1)
+        return InterpretationResult(
+            ModelProvenance("test", "test-model"),
+            (AIInterpretation("mix of numbered framing", (
+                PatternCitation(ObservationType.TITLE_HAS_NUMERAL),
+            )),),
+        )
+
+    service = _report_service([])
+    service._interpretation = GroundedInterpretationService(SimpleNamespace(interpret=interpret))
+    report = service.build_report(**_query(), include_content_tools=False)
+    assert len(calls) == 1, "rejection must not add an AI request"
+    assert report.status is ResearchReportStatus.RESEARCH_COMPLETED
+    assert report.interpretation_result == source_summaries(report.evidence_pack)
+    assert report.interpretation_result.model_provenance.provider == "source_evidence"
+    assert report.strategic_result is report.ideation_result is None
+    # Stored evidence keeps its patterns, which the research input omits.
+    assert report.evidence_pack.patterns
+
+
+def test_research_only_text_supported_synthesis_is_accepted():
+    service = _report_service([])
+    service._interpretation = GroundedInterpretationService(
+        SimpleNamespace(interpret=lambda pack, **_: _text_supported_interpretation(pack))
+    )
+    report = service.build_report(**_query(), include_content_tools=False)
+    assert report.interpretation_result.model_provenance.provider == "test"
+    assert report.interpretation_result.interpretations[0].statement == "Grounded source finding"
+
+
+def test_legacy_pipeline_keeps_pattern_only_interpretation():
+    # The generic citation contract is unchanged: pattern citations stay valid
+    # in their original content-analysis workflow (no research-synthesis boundary).
+    service = _report_service([])
+    service._interpretation = GroundedInterpretationService(SimpleNamespace(
+        interpret=lambda pack, **_: _grounded_interpretation(pack)
+    ))
+    report = service.build_report(**_query())
     assert report.interpretation_result.model_provenance.provider == "test"
     assert report.interpretation_result.interpretations[0].statement == "mix of numbered framing"
-    assert report.strategic_result is report.ideation_result is None
+
+
+def test_text_support_requires_nonblank_title_or_description_text():
+    pack = _pattern_pack()
+    analysis = pack.analyses[0]
+    assert has_text_support(pack, AIInterpretation("x", (FactCitation(analysis.reference, EvidenceField.TITLE),)))
+    for citation in (
+        FactCitation(analysis.reference, EvidenceField.VIEW_COUNT),  # metric-only
+        PatternCitation(_pattern_type(pack)),                        # pattern-only
+        ObservationCitation(analysis.reference, analysis.observations[0].observation_type),
+    ):
+        assert not has_text_support(pack, AIInterpretation("x", (citation,)))
+
+
+def test_text_support_rejects_missing_and_blank_source_text():
+    for reference in (
+        replace(_reference("v1", title=None), description=None),
+        replace(_reference("v2", title="   "), description="   "),
+    ):
+        pack = EvidencePack(analyze_references((reference,)))
+        identity = pack.analyses[0].reference
+        for field in (EvidenceField.TITLE, EvidenceField.DESCRIPTION):
+            assert not has_text_support(pack, AIInterpretation("x", (FactCitation(identity, field),)))
+
+
+def test_validate_text_supported_rejects_pattern_only_and_accepts_text():
+    pack = _pattern_pack()
+    identity = pack.analyses[0].reference
+    provenance = ModelProvenance("test", "test-model")
+    pattern_only = InterpretationResult(provenance, (AIInterpretation("x", (PatternCitation(_pattern_type(pack)),)),))
+    with pytest.raises(ResearchInterpretationError):
+        validate_text_supported_interpretations(pack, pattern_only)
+    supported = InterpretationResult(provenance, (AIInterpretation("x", (FactCitation(identity, EvidenceField.TITLE),)),))
+    assert validate_text_supported_interpretations(pack, supported) is supported
+    # Generic citation validation still accepts the pattern citation.
+    assert validate_interpretations(pack, pattern_only) is pattern_only
 
 
 def test_unconfigured_interpretation_keeps_resolvable_source_quotes_without_content():
@@ -119,7 +203,11 @@ def test_failed_synthesis_preserves_exact_excerpts_and_evidence_with_bounded_ret
     service._interpretation.interpret = fail
     report = service.build_report(**_query(), include_content_tools=False)
     assert len(attempts) == (2 if error is ResearchAIResponseError else 1)
-    assert report.evidence_pack is attempts[0]
+    # The provider saw the compacted input subset; the stored pack keeps every
+    # original analysis, and the excerpt fallback is built from that full pack.
+    assert {a.reference for a in attempts[0].analyses} <= {
+        a.reference for a in report.evidence_pack.analyses
+    }
     assert report.interpretation_result == source_summaries(report.evidence_pack)
     assert report.strategic_result is report.ideation_result is None
     ReportSnapshot.model_validate(_snapshot(report))

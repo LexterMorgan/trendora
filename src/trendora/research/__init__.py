@@ -68,6 +68,7 @@ from trendora.research.interpretation import (
     interpretation_analysis_basis,
     validate_citations,
     validate_interpretations,
+    validate_text_supported_interpretations,
 )
 from trendora.research.ideation import (
     AIIdeationProvider,
@@ -202,6 +203,7 @@ __all__ = [
     "validate_citations",
     "validate_ideation_result",
     "validate_interpretations",
+    "validate_text_supported_interpretations",
     "validate_research_report",
     "validate_strategic_result",
     "CoverageCompleteness",

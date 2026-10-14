@@ -150,6 +150,15 @@ class TestSerialization:
 
 
 class TestPrompt:
+    def test_request_json_is_compact_without_losing_evidence(self) -> None:
+        pack = _pack()
+        before = evidence_pack_to_payload(pack)
+        content = build_grounded_request(_config(), pack)["messages"][1]["content"]
+        encoded = content.split("\n\n", 1)[1]
+        assert json.loads(encoded) == json.loads(json.dumps(before))
+        assert encoded == json.dumps(before, ensure_ascii=False, separators=(",", ":"))
+        assert evidence_pack_to_payload(pack) == before
+
     def test_prompt_contains_boundaries(self) -> None:
         prompt = SYSTEM_PROMPT.lower()
         boundaries = [

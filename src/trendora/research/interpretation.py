@@ -192,6 +192,54 @@ def validate_interpretations(
     return result
 
 
+# Only the free-text source fields can support a research finding. A pattern,
+# observation, or metric citation describes the sample's shape, not what any
+# source says, so it can never carry a research finding on its own.
+_TEXT_SUPPORT_FIELDS: frozenset[EvidenceField] = frozenset(
+    {EvidenceField.TITLE, EvidenceField.DESCRIPTION}
+)
+
+
+def has_text_support(pack: EvidencePack, interpretation: AIInterpretation) -> bool:
+    """True when a finding cites a resolvable title/description fact with nonblank text.
+
+    Establishes text support only: it does not prove semantic truth, and a
+    blank/absent source text is not support.
+    """
+    analysis_by_id = {analysis.reference: analysis for analysis in pack.analyses}
+    for citation in interpretation.citations:
+        if not isinstance(citation, FactCitation):
+            continue
+        if citation.field not in _TEXT_SUPPORT_FIELDS:
+            continue
+        analysis = analysis_by_id.get(citation.reference)
+        if analysis is None:
+            continue
+        for fact in analysis.facts:
+            if fact.field is citation.field and isinstance(fact.value, str) and fact.value.strip():
+                return True
+    return False
+
+
+def validate_text_supported_interpretations(
+    pack: EvidencePack,
+    result: InterpretationResult,
+) -> InterpretationResult:
+    """Require every finding to carry source-text support (title or description).
+
+    At the research-synthesis acceptance boundary, a finding supported only by
+    pattern, observation, or metric citations is not a research finding and is
+    rejected, so the caller can fall back to labeled source excerpts. Generic
+    citation validation and content-analysis workflows are unchanged.
+    """
+    for interpretation in result.interpretations:
+        if not has_text_support(pack, interpretation):
+            raise ResearchInterpretationError(
+                "finding lacks a resolvable title or description fact with text"
+            )
+    return result
+
+
 def _resolve_citation(
     citation: Citation,
     analysis_by_id: dict[ReferenceId, ReferenceAnalysis],

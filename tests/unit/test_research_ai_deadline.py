@@ -29,9 +29,9 @@ from trendora.research.reporting import (
 from tests.unit.test_research_reporting import (
     RecordingIdeationProvider,
     RecordingStrategyProvider,
-    _grounded_interpretation,
     _query,
     _research,
+    _text_supported_interpretation,
     _youtube_handler,
 )
 
@@ -83,7 +83,7 @@ class TestRetrySharesBudget:
             if interp.calls == 1:
                 clock["t"] += 80.0  # burn most of the budget on the first attempt
                 raise ResearchAIResponseError("bad")
-            return _grounded_interpretation(pack)
+            return _text_supported_interpretation(pack)
 
         interp.interpret = interpret
         report = _service(interp, budget=90.0).build_report(
@@ -122,7 +122,7 @@ class TestOptionalStagesShareBudget:
         def interp(pack, *, deadline=None):
             interp_obj.calls += 1
             clock["t"] += 90.0  # interpretation alone exhausts the budget
-            return _grounded_interpretation(pack)
+            return _text_supported_interpretation(pack)
 
         interp_obj.interpret = interp
         strategy = RecordingStrategyProvider(events)
@@ -142,7 +142,7 @@ class TestOptionalStagesShareBudget:
         def interp(pack, *, deadline=None):
             interp_obj.calls += 1
             clock["t"] += 10.0  # leaves 80s
-            return _grounded_interpretation(pack)
+            return _text_supported_interpretation(pack)
 
         interp_obj.interpret = interp
         report = _service(
@@ -174,12 +174,12 @@ class TestTimeoutFallback:
 
 
 class TestNormalSuccess:
-    def test_normal_grounded_output_succeeds_under_deadline(self, clock):
+    def test_normal_text_supported_output_succeeds_under_deadline(self, clock):
         interp = _DeadlineAwareInterp()
 
         def ok(pack, *, deadline=None):
             interp.calls += 1
-            return _grounded_interpretation(pack)
+            return _text_supported_interpretation(pack)
 
         interp.interpret = ok
         report = _service(interp, budget=90.0).build_report(

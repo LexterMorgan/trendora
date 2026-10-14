@@ -125,7 +125,10 @@ Rules:
 24. A source's published_at is its publication date. collected_at only records retrieval and never proves publication within the requested window. Undated or outside-window sources are context, not confirmed recent developments; identify that limitation in statements using them.
 25. A recent publication does not establish when an event occurred. Attribute source claims and do not invent event dates or details missing from titles/descriptions.
 26. Sample prevalence, observed counts, and pattern ratios do not establish growing attention or temporal trends. No whole-internet coverage is established.
-27. If the supplied text cannot support a useful synthesis, return an empty interpretations list. Structural citation validity does not prove factual correctness."""
+27. If the supplied text cannot support a useful synthesis, return an empty interpretations list. Structural citation validity does not prove factual correctness.
+28. When research_context is supplied, write one distinct finding per interpretation. Lead with the specific development or source claim and name the relevant entity when supplied. Group overlapping coverage rather than repeating the same finding for each reference. Do not pad the report to a target number of findings.
+29. Cite the specific title or description supporting each development claim, and each source contributing to a combined finding. Counts and title-format observations alone cannot support a development claim. Repeated coverage is not independent corroboration.
+30. If supplied sources disagree, attribute the conflicting claims separately without deciding which is true. Preserve uncertainty and source attribution; do not turn promotional language into an established fact."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -261,7 +264,7 @@ def _serialize_pattern(pattern: PatternAggregate) -> dict[str, Any]:
 
 def build_grounded_request(config: AIProviderConfig, pack: EvidencePack) -> dict[str, Any]:
     """Provider-neutral request body (system rules + delimited evidence data)."""
-    payload = json.dumps(evidence_pack_to_payload(pack), ensure_ascii=False)
+    payload = json.dumps(evidence_pack_to_payload(pack), ensure_ascii=False, separators=(",", ":"))
     return {
         "model": config.model,
         "messages": [

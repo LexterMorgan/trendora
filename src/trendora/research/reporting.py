@@ -37,6 +37,7 @@ from trendora.research.exceptions import (
     ResearchInterpretationError,
     ResearchNoCoverageError,
 )
+from trendora.research.ai_input import build_interpretation_input
 from trendora.research.ideation import (
     GroundedIdeationService,
     IdeationContext,
@@ -51,6 +52,7 @@ from trendora.research.interpretation import (
     InterpretationResult,
     ModelProvenance,
     validate_interpretations,
+    validate_text_supported_interpretations,
 )
 from trendora.research.models import ResearchRun, ResearchRunStatus
 from trendora.research.patterns import aggregate_patterns
@@ -370,17 +372,26 @@ class ResearchReportService:
                 try:
                     if self._interpretation is None:
                         raise ResearchAIProviderNotConfiguredError("interpretation provider is unavailable")
+                    # The model sees a compact, diverse subset of the same
+                    # evidence; it can cite only what it was given. The report's
+                    # stored pack below is unchanged.
+                    interpretation_input = build_interpretation_input(pack)
                     synthesis = self._run_ai_stage(
                         "interpretation",
                         lambda: call_with_deadline(
-                            self._interpretation.interpret, pack, deadline
+                            self._interpretation.interpret, interpretation_input, deadline
                         ),
                         deadline,
                     )
-                    validate_interpretations(pack, synthesis)
+                    validate_interpretations(interpretation_input, synthesis)
                     _require_provenance(synthesis.model_provenance, "interpretation")
                     if not synthesis.interpretations:
                         raise ResearchInterpretationError("interpretation returned no findings")
+                    # Research-synthesis boundary: a finding must rest on real
+                    # source text (title/description), not on sample-shape
+                    # patterns, observations, or metrics. Rejection falls back to
+                    # labelled excerpts with no extra AI work.
+                    validate_text_supported_interpretations(interpretation_input, synthesis)
                     interpretation_result = synthesis
                 except (
                     ResearchAIProviderError, ResearchAIProviderNotConfiguredError,

@@ -17,6 +17,7 @@ from trendora.research import (
     EvidenceFact,
     EvidenceField,
     EvidencePack,
+    FactCitation,
     IdeationContext,
     IdeationResult,
     InterpretationResult,
@@ -98,6 +99,25 @@ def _grounded_interpretation(pack: EvidencePack) -> InterpretationResult:
     )
 
 
+def _text_supported_interpretation(pack: EvidencePack) -> InterpretationResult:
+    """A finding grounded on real source text (a title/description fact)."""
+    analysis = pack.analyses[0]
+    field = next(
+        candidate
+        for candidate in (EvidenceField.TITLE, EvidenceField.DESCRIPTION)
+        if any(
+            fact.field is candidate and isinstance(fact.value, str) and fact.value.strip()
+            for fact in analysis.facts
+        )
+    )
+    return InterpretationResult(
+        model_provenance=ModelProvenance(provider="test", model="test-model"),
+        interpretations=(
+            AIInterpretation("Grounded source finding", (FactCitation(analysis.reference, field),)),
+        ),
+    )
+
+
 def _grounded_strategy(context: StrategicContext) -> StrategicResult:
     obs = _pattern_type(context.evidence_pack)
     return StrategicResult(
@@ -128,7 +148,12 @@ class RecordingInterpretationProvider:
         self.calls += 1
         self.events.append("interpretation")
         self.last_pack = pack
-        return _grounded_interpretation(pack)
+        # The legacy/content-analysis path still supplies patterns (pattern
+        # citation accepted); the compact research input omits them, so that
+        # path gets a text-backed finding instead.
+        if pack.patterns:
+            return _grounded_interpretation(pack)
+        return _text_supported_interpretation(pack)
 
 
 class RecordingStrategyProvider:
