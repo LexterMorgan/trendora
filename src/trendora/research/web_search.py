@@ -1,10 +1,12 @@
 """Web search research retrieval (M36A).
 
-Thin adapter over ``SerperGateway``: one search per query, normalized to
-``ResearchReference``. Public indexed content only — no engagement metrics, no
-transcript, no derived metrics, no persistence. ``market_contexts`` stays empty
-because the provider does not filter by region. ``published_at`` stays ``None``:
-provider date strings are relative/ambiguous and are not parsed.
+Adapter over a public-web search backend, normalized to ``ResearchReference``.
+Serper runs one search per query; SearXNG runs one bounded public-social batch
+(one general query plus bounded platform queries) and can report partial
+execution. Public indexed content only: no engagement metrics, no transcript,
+no derived metrics, no persistence. ``market_contexts`` stays empty because the
+provider does not filter by region. ``published_at`` stays ``None``: provider
+date strings are relative/ambiguous and are not parsed.
 """
 
 from __future__ import annotations
@@ -22,17 +24,28 @@ WEB_SEARCH_SOURCE_CODE = "public_web"
 
 @dataclass(frozen=True, slots=True)
 class WebSearchCollectedBatch:
-    """Raw search results plus the single timezone-aware collection timestamp."""
+    """Raw search results plus the single timezone-aware collection timestamp.
+
+    ``partial`` reports that the bounded social batch had a failed or skipped
+    query (distinct from a query that legitimately returned zero results).
+    """
 
     results: tuple[SearchResult, ...]
     collected_at: datetime
+    partial: bool = False
 
 
 class WebSearchResearchRetriever:
-    """One query, one search call, normalized references."""
+    """Collect one backend search batch, then normalize it to references."""
 
     def __init__(self, gateway: SerperGateway) -> None:
         self._gateway = gateway
+        self._partial = False
+
+    def take_partial(self) -> bool:
+        """Return and reset whether the last collection was partial."""
+        partial, self._partial = self._partial, False
+        return partial
 
     def collect(
         self,
@@ -43,7 +56,15 @@ class WebSearchResearchRetriever:
         at = collected_at if collected_at is not None else datetime.now(timezone.utc)
         if at.utcoffset() is None:
             raise ValueError("collected_at must be timezone-aware")
+        # SearXNG offers a bounded, merged public-social batch; Serper keeps its
+        # single-query behavior unchanged.
+        social = getattr(self._gateway, "search_social", None)
+        if social is not None:
+            batch = social(query.topic, limit=query.result_limit)
+            self._partial = bool(batch.partial)
+            return WebSearchCollectedBatch(results=tuple(batch.results), collected_at=at, partial=self._partial)
         results = self._gateway.search(query.topic, limit=query.result_limit)
+        self._partial = False
         return WebSearchCollectedBatch(results=tuple(results), collected_at=at)
 
     def normalize(self, collected: object) -> tuple[ResearchReference, ...]:

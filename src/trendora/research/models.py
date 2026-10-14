@@ -13,7 +13,7 @@ Persistence and retrieval are deliberately deferred to M14+.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING, Final
@@ -286,6 +286,10 @@ class CoverageReason(StrEnum):
     SOURCE_UNKNOWN = "source_unknown"
     CAPABILITY_NOT_SUPPORTED = "capability_not_supported"
     AUTHORIZATION_REQUIRED = "authorization_required"
+    # Execution-time outcome: an available source ran but only partly (some
+    # bounded queries failed or the shared budget expired). Distinct from a
+    # query that legitimately returned zero results.
+    SEARCH_PARTIAL = "search_partial"
 
 
 class MarketBasis(StrEnum):
@@ -484,6 +488,25 @@ class ResearchRun:
         coverage = resolver.resolve(self._query)
         self._coverage = coverage
         self._transition(_terminal_status(coverage.completeness))
+
+    def note_partial_coverage(self, source_code: str, reason) -> None:
+        """Record that an available source executed only partly.
+
+        Smallest compatible extension of existing coverage handling: the
+        resolved coverage entry keeps its status and gains one execution-time
+        reason. Coverage truth (capability + completeness) is unchanged.
+        """
+        if self._coverage is None:
+            return
+        sources = tuple(
+            replace(item, reason=reason)
+            if item.source_code == source_code and item.status is CoverageStatus.AVAILABLE
+            else item
+            for item in self._coverage.sources
+        )
+        self._coverage = ResearchCoverage(
+            sources=sources, completeness=self._coverage.completeness
+        )
 
     def execute(self, source_code: str, retriever: ResearchRetriever) -> None:
         """Execute retrieval for one source on a READY run.

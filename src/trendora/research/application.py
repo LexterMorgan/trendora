@@ -32,6 +32,7 @@ from trendora.research.exceptions import (
     ResearchValidationError,
 )
 from trendora.research.models import (
+    CoverageReason,
     CoverageStatus,
     ResearchCoverage,
     ResearchQuery,
@@ -181,6 +182,17 @@ class ResearchApplicationService:
         # sources still produce an honestly partial report. If every target
         # fails, the run still fails closed (clear sanitized error).
         run.execute_sources(entries, tolerate_failures=True)
+        # Surface a partial public-social search through the existing coverage
+        # entry (no new report field): only when the source ran and its batch
+        # reported failed or skipped queries.
+        web_retriever = self._retrievers.get("public_web")
+        take_partial = getattr(web_retriever, "take_partial", None)
+        if (
+            take_partial is not None
+            and "public_web" in run.executed_sources
+            and take_partial()
+        ):
+            run.note_partial_coverage("public_web", CoverageReason.SEARCH_PARTIAL)
 
 
 def _source_coverage(coverage: ResearchCoverage, source_code: str) -> SourceCoverage | None:

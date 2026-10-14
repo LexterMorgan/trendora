@@ -24,7 +24,7 @@ from trendora.connectors.web_search.exceptions import (
     WebSearchHttpError,
     WebSearchResponseError,
 )
-from trendora.connectors.web_search.url_safety import extract_domain, is_safe_url
+from trendora.connectors.web_search.url_safety import extract_domain, is_safe_url, result_identity
 
 logger = logging.getLogger("trendora.connectors.web_search.serper_gateway")
 
@@ -63,7 +63,7 @@ class SerperGateway:
         self.close()
 
     def search(self, query: str, *, limit: int = MAX_RESULTS) -> list[SearchResult]:
-        """Return validated, exact-URL-deduplicated results in provider order."""
+        """Return validated results in provider order, collapsing campaign URL variants."""
         if not query or not query.strip():
             return []
         bounded = max(1, min(limit, MAX_RESULTS))
@@ -91,9 +91,10 @@ class SerperGateway:
                 skipped += 1
                 continue
             url = link.strip() if isinstance(link, str) else ""  # already whitespace-free
-            if url in seen:
+            identity = result_identity(url)
+            if identity in seen:
                 continue
-            seen.add(url)
+            seen.add(identity)
             title = raw.get("title")
             snippet = raw.get("snippet")
             results.append(

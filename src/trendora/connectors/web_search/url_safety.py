@@ -10,9 +10,24 @@ at connection time).
 
 from __future__ import annotations
 
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 _ALLOWED_SCHEMES = frozenset({"http", "https"})
+_CAMPAIGN_PARAMETERS = frozenset({
+    "utm_id", "utm_source", "utm_medium", "utm_campaign", "utm_term",
+    "utm_content", "utm_source_platform", "utm_creative_format", "utm_marketing_tactic",
+})
+
+
+def result_identity(url: str) -> str:
+    """Compare validated result URLs without campaign attribution parameters."""
+    parsed = urlsplit(url)
+    # Keep raw query values/order and fragments: either can identify different content.
+    query = "&".join(
+        part for part in parsed.query.split("&")
+        if unquote(part.partition("=")[0]) not in _CAMPAIGN_PARAMETERS
+    )
+    return parsed._replace(query=query).geturl()
 
 
 def is_safe_url(value: object) -> bool:

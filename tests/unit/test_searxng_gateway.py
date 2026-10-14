@@ -33,7 +33,12 @@ BASE = "http://127.0.0.1:8888"
 
 
 def _gateway(handler, base: str = BASE) -> SearxngGateway:
-    return SearxngGateway(base, http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+    transport = httpx.MockTransport(handler)
+    return SearxngGateway(
+        base,
+        http_client=httpx.Client(transport=transport),
+        async_transport=transport,
+    )
 
 
 def _ok_handler(payload):
