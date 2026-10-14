@@ -4,10 +4,14 @@ Trendora can discover public web pages through a locally hosted
 [SearXNG](https://docs.searxng.org/) instance instead of a paid search API.
 This directory holds the minimal configuration for that instance.
 
-**Status on this machine:** no container runtime (Docker/Podman/Colima) is
-installed, so this instance was not started here. The Trendora adapter and its
-mocked tests are complete and backend selection is wired; starting SearXNG is
-the one remaining operator step.
+**Status:** the configuration and the Trendora adapter (with its mocked tests)
+are complete, and backend selection is wired. Starting the instance is an
+operator step, and the container runtime is not part of this repository.
+
+Run the container on a host that has a container runtime available. If you use a
+shared runtime such as Colima, remember that stopping that instance stops every
+container in it. See [../../docs/DEPLOYMENT.md](../../docs/DEPLOYMENT.md) for the
+surrounding local setup.
 
 ## Start
 

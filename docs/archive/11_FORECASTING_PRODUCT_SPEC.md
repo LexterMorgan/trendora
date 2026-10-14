@@ -135,7 +135,7 @@ Semantics that are **explicitly not** claimed by the repository:
 
 | Model | Implementation status | Product status | Prerequisites | Unresolved decisions |
 | --- | --- | --- | --- | --- |
-| Naive | **Implemented** (M6A) | Selected only as the evaluation baseline ([10](10_TESTING_EVALUATION.md)); **not** selected as the product model | none | Whether naive is ever the user-facing forecast model |
+| Naive | **Implemented** (M6A) | Selected only as the evaluation baseline ([10](../10_TESTING_EVALUATION.md)); **not** selected as the product model | none | Whether naive is ever the user-facing forecast model |
 | Moving average | **Implemented** (M6A) | Not selected for production | explicit `window` | Default/derivation of `window` (fixed vs per-series vs tuned) — must not be invented |
 | Simple exponential smoothing | **Implemented** (M6A) | Not selected for production | explicit `alpha` (`0 < alpha <= 1`) | Default/derivation of `alpha` (fixed vs per-series vs tuned) — must not be invented |
 | M6C naive-vs-challenger | **Implemented** (M6C) | Evaluation artifact only; **not** a production winner | same series/holdout/interval; one caller-selected challenger; `challenger_beats_naive` is `challenger_mae < naive_mae` | Whether comparison becomes a selection rule, and the tie/selection semantics |
@@ -168,7 +168,7 @@ Advanced models (Holt, seasonal, ARIMA family, neural/boosting) remain **blocked
 
 ### Open decisions
 
-- Calendar-time holdout vs observation-count holdout vs rolling-origin as the V1 selection protocol (06 section 4, [10](10_TESTING_EVALUATION.md)).
+- Calendar-time holdout vs observation-count holdout vs rolling-origin as the V1 selection protocol (06 section 4, [10](../10_TESTING_EVALUATION.md)).
 - Minimum test length and whether multiple evaluation windows are used.
 - Level vs differenced evaluation for cumulative-looking counters.
 - The model-selection rule (e.g. challenger must strictly beat naive) and tie handling — documented as a *proposed* experimental rule in [06](06_ML_FORECASTING.md) section 4, not product law.
@@ -303,7 +303,7 @@ HN/SE/GitHub public reads have no equivalent derived-metric restriction in the r
     - *Resolvable by:* product decision + data-sufficiency milestone.
 15. **Evaluation protocol** — calendar vs observation-count vs rolling-origin; minimum test length; multiple windows; level vs differenced evaluation; selection rule.
     - *Why:* no V1 evaluation requirement exists beyond the implementation.
-    - *Evidence:* 06 section 4; [10](10_TESTING_EVALUATION.md).
+    - *Evidence:* 06 section 4; [10](../10_TESTING_EVALUATION.md).
     - *Resolvable by:* evaluation-policy milestone.
 16. **Forecast persistence** — in-memory / recompute-on-demand / persisted.
     - *Why:* API and dashboard cannot depend on stored forecasts until decided.

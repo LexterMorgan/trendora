@@ -1,102 +1,220 @@
-# 14 - Product requirements: research-first Trendora
+# 14 - Trendora product requirements (authoritative PRD)
 
 ## Status and authority
 
-Updated 2026-10-07 for owner review of the targeted research essentials corrections. This remains the authoritative product PRD, continuing the existing M12 re-baseline in place. It replaces this file's older content-first framing and obsolete milestone roadmap.
+This is the single authoritative product requirements document. It replaces the
+older milestone-roadmap framing of this path and all superseded product plans.
+Where anything else disagrees about intended scope, this document wins; where it
+disagrees with the code about behaviour, the code wins.
 
-The forecasting requirements in [12](12_FORECASTING_PRODUCT_REQUIREMENTS.md) govern that existing capability only. The [shared planner design](superpowers/specs/2026-09-25-shared-content-planner-design.md) governs the optional planner feature, not the primary research experience. Older numbered documents and [PROJECT_PREP](../PROJECT_PREP.md) remain milestone records; their historical product priorities do not override this PRD. Existing technical contracts stay in force until a separately approved implementation changes them.
+- [01_ARCHITECTURE.md](01_ARCHITECTURE.md) describes how the product is built.
+- [DEPLOYMENT.md](DEPLOYMENT.md) covers running it and deployment prerequisites.
+- [10_TESTING_EVALUATION.md](10_TESTING_EVALUATION.md) covers tests and the limits
+  of the evidence they provide.
+- [archive/](archive/README.md) holds historical milestone records. Nothing there
+  is a current requirement.
+- Forecasting and ingestion capabilities that still exist in the code are
+  secondary. Their requirements live in the archive and govern only themselves.
 
-Source, configuration, offline tests, and isolated mocked browser scenarios were inspected or executed as recorded below. No real providers, databases, migrations, retention application, or deployments were run. Implemented behavior is distinct from release verification; no further implementation or operational action is authorized by this document.
+Items marked **PROPOSED** are recommendations from this review. They are not
+approved commitments.
 
-## 1. Product purpose
+## 1. Who it is for and what problem it solves
 
-Trendora helps its owner discover and understand developments in chosen topics across available internet sources. Topics can include AI, business, gaming, fashion, or another field. Existing Southeast Asian market filters remain supported where a source uses them; they do not define every topic or imply worldwide coverage.
+Trendora is built for one owner plus a small shared workflow: a person doing
+personal marketing work who needs to understand a topic before writing about it.
+It is not a company-wide content management platform, and it has no multi-team
+tenancy or billing.
 
-The main experience should help answer:
+The problem is assembling a defensible picture of a topic. Search results and
+platform feeds are fragmented, undated, and easy to over-read. Trendora collects
+material for one topic and timeframe, shows what the material actually supports,
+and keeps the limits visible: what was searched, what was found, when it was
+published, what is unknown, and which statements are source text rather than
+interpretation.
 
-- What happened in AI this week?
-- What is gaining attention, and what evidence supports that?
-- Why does this development matter?
+A report must be useful on its own. Reading, saving, and reopening research
+never requires generating content.
 
-A useful report stands on its own: a concise account of what the collected sources support, links to those sources, relevant dates, and explicit limits. Reading, understanding, saving, and reopening research must be useful without creating a post.
+## 2. Purpose and core workflow
 
-Content ideas, briefs, and the existing shared two-person planner are optional downstream uses. Preserve the planner's current behavior. Do not expand or remove it. Existing analytics and forecasting remain optional capabilities; they are not prerequisites for research.
+**Core journey:** topic and timeframe → collect evidence → review source-backed
+findings → save the research → optionally develop content → plan a post.
 
-## 2. Practical requirements
+Each step is optional after saving. Content ideas, briefs, and the planner are
+downstream conveniences, not prerequisites and not the product's purpose.
 
-| Area | Required behavior |
-| --- | --- |
-| Topic and timeframe | Accept a chosen topic and an explicit timeframe, including a short recent window or custom dates. Show the normalized dates actually used, including defaults, and the selected sources. Do not assume typing “this week” automatically selects a date range. |
-| Sourced summaries | Explain the developments supported by collected material in plain language. Link each substantive summary or interpretation to its supporting references. Distinguish a source's claim from a verified fact and an AI interpretation. Titles and search snippets are limited evidence, not proof of an event or full article analysis. |
-| Recency | Keep the requested window, source publication date, known event date, and collection timestamp distinct. Recent publication does not prove a development occurred then. Unknown dates remain unknown; collection today does not make an item a development from this week. |
-| Attention and trends | Label sample prevalence and current attention levels accurately. A growing or sustained trend needs comparable observations across time or another explicitly documented, validated signal, with its dates, sample, and limitations. A fresh item, high current count, or title pattern alone does not establish growth. If the available evidence cannot establish a trend, say so. Do not invent a trend score. |
-| Coverage and gaps | Show requested sources, executable capabilities, sources actually searched, collection dates, returned reference counts, and available reasons for gaps. Explain undated material, bounded samples, and source-specific restrictions. “Complete” capability coverage is not complete coverage of the internet. |
-| Explanation | Use existing grounded interpretations to explain possible significance, labeled as interpretation. Citation validation proves referenced evidence exists; it does not prove semantic entailment or causality. Do not promote speculation into a measured fact. |
-| Saving and history | Preserve immutable report snapshots until source-data expiry, explicit save outcomes, and same-key recovery without rerunning collection or AI. Reopened retained research keeps its source links, dates, coverage, and provenance where stored. Missing legacy metadata stays visibly unknown. Expiry removes source-bearing bodies but keeps the original identity and replay fingerprint. |
-| Optional content conversion | Keep ideas and briefs secondary to research. A new planner import requires an explicit action and a confirmed accessible report ID. Resolve the selected item server-side; retain its origin while planner edits remain independent of the snapshot. Preserve existing same-key import replay for lost-response recovery. |
+The main questions a report should help answer:
 
-Preserve verified identity and active membership checks. Ordinary members retain the rolling 30-day report-history visibility rule; administrators can access all retained history. Apply the same rule to list, detail, and new import access. Preserve existing same-key import replay after history expiry. Planner sharing does not grant access to unrelated report history.
+- What do the collected sources describe about this topic in this window?
+- Which sources support each statement, and how fresh are they?
+- Where is the evidence thin, undated, or outside the requested window?
 
-Visibility is not retention. Hiding an older report or source link does not delete the underlying snapshot or source metadata. The manual expiry command removes source-bearing material independently of authored planner text. Its real execution and operating schedule remain release checks below.
+## 3. Requirements and acceptance criteria
 
-## 3. Current research flow
+### 3.1 Research
 
-| Step | Current path and boundary |
-| --- | --- |
-| User input | [SimpleForm](../web/components/SimpleForm.tsx) collects topic, timeframe, and an unchecked optional-content selection. [Home](../web/app/page.tsx) submits explicit `include_content_tools=false` by default. The simplified request is **global** (no country restriction), runs YouTube + public web, and uses a fixed 50-reference budget; a topic-only request defaults to `markets=[]`, last 30 days, `sources=["youtube","public_web"]`, and 50 references in [adapter.py](../src/trendora/research/adapter.py). Explicit regional requests keep their behavior. |
-| Collection | The same-origin [report proxy](../web/app/api/report/route.ts) forwards to [app.py](../src/trendora/api/app.py). [application.py](../src/trendora/research/application.py) resolves capabilities and configured retrievers. YouTube, one Facebook Page, and indexed public-web search exist; HN/Stack Exchange/GitHub ingestion does not imply they participate in this topic-research flow. |
-| Source evidence | [models.py](../src/trendora/research/models.py) defines references; [retrieval.py](../src/trendora/research/retrieval.py) defines the retriever protocol. [evidence.py](../src/trendora/research/evidence.py) preserves source facts and deterministic observations. [patterns.py](../src/trendora/research/patterns.py) aggregates title/description structure within the collected sample. Missing metrics are not zero. Source rank is not a Trendora ranking. |
-| Findings and optional generation | [reporting.py](../src/trendora/research/reporting.py) invokes the existing grounded interpretation adapter independently of content tools, supplying topic and timeframe alongside untrusted source evidence. Unavailable, malformed, empty, or structurally ungrounded synthesis falls back to exact description/snippet excerpts or source titles with `source_evidence/extractive-v1` provenance. Explicit opt-in adds existing grounded strategy/ideation; their failure returns `content_unavailable` with research preserved. Omitting the flag retains the legacy three-stage AI pipeline and its error behavior. [interpretation.py](../src/trendora/research/interpretation.py) validates citation resolution, not factual correctness. |
-| Report and saving | [ReportView](../web/components/ReportView.tsx) leads with findings, scope, and references. Exact source excerpts remain distinct from AI interpretation; both show supporting-publication scope. Content tools use a closed native disclosure. [repository.py](../src/trendora/research/repository.py) and [report_save.py](../src/trendora/api/report_save.py) preserve the six-field snapshot, schema version 1, canonical fingerprint, and same-key recovery. A server-signed recovery receipt outside that snapshot binds the actor, original key, hash, and original expiry; recovered provenance stays `client_supplied`. [ReportPersistencePanel](../web/components/ReportPersistencePanel.tsx) forwards it without regenerating research. |
-| History | [Past reports](../web/app/past-reports/page.tsx) lists saved reports; [report detail](../web/app/report/[id]/page.tsx) loads the snapshot. Backend list/detail share the membership and history-window rules. |
-| Optional planner import | [SaveToPlanner](../web/components/SaveToPlanner.tsx) sends the selected idea/brief and frozen request key. [planner API](../src/trendora/api/planner.py) verifies report access and resolves the selection. [planner_origin.py](../src/trendora/planner_origin.py) retains origin and source-state information; the editable post remains separate. |
-| Source expiry | [retention.py](../src/trendora/retention.py) provides an explicit dry-run-first command. Apply tombstones expired source-bearing reports, scrubs derived origin payloads and catalog metadata, and deletes expired metrics/sidecars. Authored planner fields, version, activity, updated time, and original report/import replay identities remain intact. New imports lock the source report against concurrent cleanup. No job is enabled. |
-
-Research collection returns normalized references; it does not imply every result has been written to the ingestion tables or has longitudinal metric history. Keep the existing single analytics read path for persisted metric series; this review proposes no second metric query layer.
-
-## 4. Implemented, partial, and missing
-
-| State | Assessment | Source evidence |
+| Area | Requirement | Acceptance |
 | --- | --- | --- |
-| Implemented | Free-text topics, date presets/custom dates, validated queries, bounded collection, source URLs, nullable publication dates, and collection timestamps. | [SimpleForm](../web/components/SimpleForm.tsx), [adapter.py](../src/trendora/research/adapter.py), [research serialization](../src/trendora/api/research_models.py), [adapter tests](../tests/unit/test_research_adapter.py). |
-| Implemented | Deterministic facts/patterns, structurally grounded interpretations, immutable saving/recovery/history, and explicit optional planner imports. Accepted P3 corrections preserve secure request keys and account-switch isolation. | [evidence.py](../src/trendora/research/evidence.py), [reporting.py](../src/trendora/research/reporting.py), [save regressions](../tests/unit/test_report_save_recovery.py), [history tests](../tests/unit/test_report_history_scope.py), [rendered regressions](../web/tests/planner-workspace.browser.mjs). |
-| Partial | The simplified UI runs YouTube + public web globally; public-web collection passes topic and limit, ignores the requested date window, and deliberately returns unknown publication dates, so it cannot substantiate an in-period news digest. Indexed public social pages may appear, but complete TikTok/Instagram/Facebook coverage is not claimed. | [SimpleForm](../web/components/SimpleForm.tsx), [web_search.py](../src/trendora/research/web_search.py), [web-search tests](../tests/unit/test_research_web_search.py). |
-| Implemented | Research leads fresh and saved reports; publication and collection dates, source-specific coverage, gap reasons, and citation URLs are visible. Legacy missing metadata remains unknown. | [ReportView](../web/components/ReportView.tsx), [ReferenceCard](../web/components/ReferenceCard.tsx), [CoveragePanel](../web/components/CoveragePanel.tsx), [browser regressions](../web/tests/planner-workspace.browser.mjs). |
-| Implemented | Explicit research-only requests may run interpretation and never run strategy/ideation. Failed synthesis preserves evidence and labeled excerpts; failed optional content preserves research and saving. Omitted selection keeps legacy API behavior. Empty collection and insufficient text have distinct states. | [reporting.py](../src/trendora/research/reporting.py), [API construction](../src/trendora/api/app.py), [focused offline tests](../tests/unit/test_research_final.py), [API tests](../tests/unit/test_research_report_api.py). |
-| Implemented, live quality unverified | The existing grounded adapter produces research synthesis with topic/timeframe context. Exact source excerpts are a labeled fallback, not synthesized findings. Both depend on limited source text, not verified events or full-article analysis. Publication-window groups distinguish dated material from outside-window and undated context; event dates are unavailable in the current contract. | [report contract](../src/trendora/api/research_report_models.py), [reporting.py](../src/trendora/research/reporting.py), [publication scope](../web/lib/report-provenance.ts), [ReportView](../web/components/ReportView.tsx). |
-| Implemented, operation pending | Source expiry is explicit and synthetically tested, including authored-content preservation, immutable retry fingerprints, and replay after expiry. It has not run against any database and has no enabled scheduler. | [retention.py](../src/trendora/retention.py), [retention tests](../tests/unit/test_retention.py), [deployment guide](DEPLOYMENT.md). |
-| Missing | Research-report evidence of increasing attention across time. Current structural pattern ratios describe the returned sample; collected counts alone do not show growth. Existing analytics/forecast capabilities are not wired into these report claims. | [patterns.py](../src/trendora/research/patterns.py), [negative pattern tests](../tests/unit/test_research_patterns.py), [reporting.py](../src/trendora/research/reporting.py). |
+| Topic and timeframe | Accept a chosen topic and an explicit timeframe, including a short recent window. The default UI flow is **global** (no country restriction) across the sources it selects. | The report shows the normalized topic, dates actually used, and requested sources. Typing a phrase such as "this week" does not by itself select dates. |
+| Sources | YouTube API discovery and public-web indexing are **distinct mechanisms** with different coverage. Facebook public Pages are a separate, opt-in mechanism. | The report names each source, whether it was searched, and why a source returned nothing or was skipped. |
+| Evidence | Each reference keeps its identity, URL, title, description, publication date (nullable), and collection timestamp. | References render with their source link; missing dates stay unknown. |
+| Findings | Findings must rest on source text (title or description) supplied to the model. | A finding whose citations are only patterns, observations, or engagement counts is not accepted as a research finding. |
+| Presentation | Four things stay distinguishable: AI findings, sample observations, limited-evidence interpretations, and exact source excerpts. | The reader labels each group and never presents a fallback excerpt as synthesis. |
+| Freshness | Publication date and collection date are separate facts. Unknown dates stay unknown. | The report does not infer a publication date from a URL, snippet, or collection time. Public-web results carry the unverified-timeframe caveat. |
+| Attention and trends | Current counts and sample prevalence describe the returned sample only. | No growing-attention claim is made without comparable observations across time. No trend score is invented. |
+| Coverage honesty | Requested sources, capability coverage, sources actually searched, collection dates, reference counts, and gap reasons are visible. | "Complete" capability coverage is never presented as complete coverage of the internet. |
 
-Offline tests and mocked browser execution verify application behavior, not providers, the database, retention enforcement, or deployment. The release table below separates those checks.
+### 3.2 Saving, history, and access
 
-## 5. Implemented research essentials and boundaries
+| Area | Requirement | Acceptance |
+| --- | --- | --- |
+| Snapshots | A saved report is an immutable six-field snapshot with a canonical fingerprint. | Reopening shows the stored findings, citations, coverage, and references. Snapshot content does not change after save. |
+| Recovery | Saving is idempotent per request key, including after a lost response. | The same key returns the original outcome without re-running collection or AI. A conflicting payload for the same key is refused. |
+| Expiry | Source-bearing report bodies expire on a documented retention rule; the identity and replay fingerprint survive. | An expired report reads as a terminal tombstone, cannot be used for new imports, and an old import replay still resolves its original identity. |
+| Visibility | Active members share one workspace. Reports are readable by any active member within the rolling 30-day history window; administrators can read all retained history. | The same rule applies to listing, detail, and report-to-planner import. Reads are scoped by membership and history, not by who created the report. |
+| Shared planner | Planner records are shared workspace records, visible and editable by active members. The assignment list returns active members with their emails so an authorized member can assign work. | Member emails are shown only to authenticated, active members. There is no per-owner private planner space. |
+| Isolation | Account and membership checks gate every report and planner read. | A previous account's client state never leaks after a switch: stale recovery snapshots and unsaved drafts are discarded, and delayed responses from the previous account are ignored. This is guard behaviour, not a privacy boundary between members. |
+| Retention | Visibility is not deletion. Hiding or ageing out a report does not delete stored source material. | Deletion is a separate, explicit, dry-run-first operation, and it is not scheduled today. |
 
-The accepted P4 reader remains in place. The bounded implementation reuses grounded interpretation for research synthesis, preserves excerpt fallback and publication-window grouping, isolates optional content failures, bounds the generation proxy, and makes source expiry explicit. The correction adds a dedicated server recovery signing configuration and one nullable expiry column through a new, unapplied migration; it adds no source, provider route, dependency, analytics signal, planner feature, or background job.
+### 3.3 Planner
 
-The user can choose a topic and dates, read available sourced material without generating content, save it, and explicitly opt into existing ideas/briefs and planner import. Publication within the window establishes only publication timing. Collection timing, sample prevalence, and observed counts establish neither event timing nor growing attention.
+Verified from `src/trendora/models/planner.py` and `src/trendora/planner.py`.
 
-Contract compatibility: the optional request flag, recovery receipt, and trusted stored expiry are outside the six-field snapshot and its hash. Existing nullable stage fields and outcome strings represent research-only and content-unavailable reports; no nested default was added to reinterpret old snapshots or change their retry hash. Source-excerpt output must match cited text exactly. AI paths retain strict parsing and structural grounding; this validation does not establish semantic truth. Malformed interpretation uses the existing single retry, not an additional retry layer.
+| Area | Requirement | Acceptance |
+| --- | --- | --- |
+| Records | A planner post holds title, platform, caption, hook, creative brief, asset links, notes, an optional **planned date**, a status, and an optional assignee. | The fields above exist and are editable. |
+| Status | The only statuses are `idea` and `working`. | No calendar, approval, scheduled, or published state is claimed. |
+| Import | Importing from a report requires an explicit action and an accessible report. | The server resolves the selected item, keeps its origin link, and the post stays editable and independent of the snapshot. |
+| AI-independent operation | Planner work must not depend on AI availability. | Creating, editing, archiving, restoring, and importing work with no AI provider configured. |
+| Requested, not implemented | Calendar or board views, an optional review/approval step, a published URL, and an actual publication date were requested for the planner. | None exists today. `planned_date` is a planned date only. These remain agreed requests, not cancelled scope, and not enterprise features. No implementation is authorized here. |
+| Publishing | A planned date does not trigger publication. | Nothing in the product publishes content anywhere. |
+| Concurrency | Edits are version-checked; creation and import are idempotent per request key. | A stale version is refused rather than silently overwritten; a replayed request returns the original result. |
 
-Date handling reuses existing YouTube publication filters and Facebook Page collection parameters. YouTube malformed or offset-free publication timestamps stay unknown. Returned outside-window items remain labeled context rather than being promoted into in-window findings. Public-web search still ignores the window and returns unknown publication dates. No event-date inference or trend score was added.
+## 4. Capability status
 
-Expiry changes the source-bearing body to an explicit tombstone while preserving the original hash and identity. Detail returns terminal `410 report_expired`; new imports cannot use the tombstone. Matching save/import replay acknowledges the existing identity before receipt/expiry checks and never restores removed source text. A new client-save key cannot renew expired data or bypass the original key's signed receipt. Verified recovery keeps `client_supplied` provenance and its trusted original deadline; recovery time never restarts retention. Legacy server-generated rows retain the existing original collection-date rule. Old client/unknown rows without a trusted deadline remain conservatively expired; unverified new source-bearing recovery is rejected. Authored planner fields are independent of expiry.
+| Capability | Status | Notes |
+| --- | --- | --- |
+| Topic + timeframe research, global default | Implemented | Simplified request defaults to global, last 30 days, YouTube + public web. |
+| YouTube discovery and enrichment | Implemented | YouTube Data API v3; publication filters where the source supports them. |
+| Public-web indexing (Serper) | Implemented | Paid provider; used only when selected. |
+| Public-social discovery (SearXNG) | Implemented, bounded | One general query plus bounded platform queries; merged and deduplicated. Indexed results only. |
+| Facebook public Page research | Implemented, opt-in | Requires configured Meta access. No keyword search; it is not a general Facebook source. |
+| Grounded AI findings | Implemented, live quality unverified | Text-supported findings required; structural grounding is not factual verification. |
+| Excerpt fallback | Implemented | Used when synthesis is unavailable, malformed, empty, or rejected. Clearly labeled. |
+| Sample observations vs limited evidence | Implemented | Separate reader groups; a citation that cannot be validated against supplied evidence is not shown as a finding. |
+| Save, recovery, history, expiry | Implemented; retention command not scheduled | Snapshot and recovery behaviour are tested offline. Expiry has been applied against a real disposable PostgreSQL instance with synthetic data; it has not run against production data and has no schedule. |
+| Optional content tools | Implemented, opt-in | Gaps, opportunities, ideas, and briefs; failure preserves research. |
+| Planner with report import | Implemented | `idea`/`working`, archive/restore, origin tracking. |
+| Auth and membership | Implemented | Supabase JWT verification plus active-membership checks. |
+| AI request deadline | Implemented | One shared monotonic budget bounds in-flight I/O; see section 5. |
+| Token or cost visibility | Planned | No reporting of AI input/output size or spend per request. |
+| Input compaction | Implemented | Bounded, source-fair selection (24 references) with blank-safe truncation. Stored material is untouched. |
+| HN, Stack Exchange, GitHub research | Declared but not wired | Capability declarations exist; no retrievers in the topic-research flow, so they report as skipped. |
+| Ingestion, analytics, forecasting | Secondary | Still in the code. Not part of the research journey and not required for it. |
+| Enterprise tenancy, billing | Out of scope | Not planned. Multi-team administration is not a goal. |
+| Planner calendar/board, review/approval step, published URL, actual publication date | Requested, unimplemented | Agreed requests for the small shared workflow. They are not enterprise features and are not cancelled. No work is authorized in this pass. |
+| Automatic publishing | Out of scope | Not planned; nothing publishes. |
+| General web crawler, full-page extraction | Out of scope | Public-web work is indexed search results only. |
+| Authenticated social scraping, complete feeds | Out of scope | No login-based scraping, and no complete-platform coverage is claimed. |
+| Trend or growth scores | Out of scope | Requires time-series evidence the product does not collect. |
 
-## 6. Verification and remaining release checks
+## 5. Reliability, privacy, and evidence requirements
 
-| Check | Result and evidence |
-| --- | --- |
-| Application tests | PASSED for this correction pass: 1,443 offline backend unit checks, 131 frontend tests, and 30 maintained isolated mocked browser scenarios; zero failures or skips. Frontend lint, typecheck, Webpack build, and diff whitespace check passed. Each confirmed defect first had a failing focused regression. Database/live integration checks were not run; fictional accounts and mocked responses only. |
-| Grounding and failure paths | Targeted checks cover research-only interpretation without content calls, topic/timeframe context, exact excerpt fallback, invalid citations, bounded malformed-response retry, insufficient text, optional-stage failure, API saving, and unchanged canonical snapshot projection. Citation resolution does not verify real-world claims. [Focused tests](../tests/unit/test_research_final.py), [API tests](../tests/unit/test_research_report_api.py). |
-| Retention logic | PASSED synthetic ORM tests for fresh generation/recovery/cleanup/read, original expiry, forged dates/proofs, expired independent keys, old-key acknowledgment, legacy behavior, and authored fields/activity/time. Receipt binding and new migration construction were checked offline. Read-lock SQL construction passed; actual PostgreSQL concurrency is NOT RUN. [Tests](../tests/unit/test_retention.py), [receipt tests](../tests/unit/test_report_recovery_receipt.py). |
-| Migration/access review | Existing migration source through 0007 remains unchanged by this pass. New 0008 adds a nullable trusted expiry with no default or backfill and remains unapplied. Actual migrations, schema, privileges, defaults, concurrency, and two-account database behavior: NOT RUN; fresh explicit target authorization required. Dedicated recovery-key provisioning is also pending. |
-| Request budgets | Application checks cover the frontend 64 KiB generation cap, 180-second upstream/response deadline, save 8 MiB cap, and planner 128 KiB cap. Direct backend generation has no equivalent body cap. Actual host upload/response/duration limits and backend cancellation: NOT RUN. [Deployment guide](DEPLOYMENT.md). |
-| Operational retention | Dry-run/apply command exists; no database execution or scheduler activation. Elapsed deadlines are enforced by cleanup; detail/import rejects the resulting tombstone, not an unswept row solely because its deadline elapsed. NOT RUN until an operator approves a target, cadence, and deployment-compatible execution mechanism. History visibility is not deletion. |
-| Live source/provider/deployment | Access, policy eligibility, quotas, real latency, TLS, deployed auth/configuration, storage/backups, and recovery after actual outages: NOT RUN. Separate approval required. Provider/9router work remains separate. |
+**Deadline and retries.** One monotonic AI-phase budget is shared by the
+interpretation request, its single malformed-output retry, and the optional
+content stages. It bounds in-flight HTTP I/O, and expiry cancels the request.
+It is **not** a whole-report completion guarantee: collection, persistence, and
+rendering sit outside it, and the frontend proxy has its own separate deadline.
+Parsing, validation, and cleanup are not interrupted.
 
-Policy review used official public documentation on 2026-10-05. YouTube generally requires applicable non-authorized API data refreshed or deleted within 30 calendar days. Its additional-metrics amendment permits longer statistics retention only for accepted use cases; metadata remains subject to 30 days. Eligibility for derived-data/aggregation use and required privacy/Terms/user-requested deletion processes remain release blockers, not claims of compliance. [Developer policies](https://developers.google.com/youtube/terms/developer-policies), [amendment](https://developers.google.com/youtube/terms/derived-metrics-policy).
+**Failure behaviour.** Synthesis that is unavailable, malformed, empty, or
+rejected by grounding falls back to exact source excerpts labelled with their
+extractive provenance. Optional content failure leaves research intact and
+savable. Fallback never invents text.
 
-The existing conservative 30-day application TTL for other report sources is not a claimed Meta or Serper policy. Current Meta terms could not be retrieved and remain unverified. Serper's inspected terms establish attribution/third-party-rights and accuracy limitations, not a universal 30-day TTL. [Meta terms](https://developers.facebook.com/terms/), [Serper terms](https://serper.dev/terms).
+**Evidence honesty.** Citation validation proves the cited evidence exists in
+the supplied set. It does not prove the statement is entailed, true, or
+significant. Text support is structural, not semantic. Source text is treated as
+untrusted data, never as instructions to the model.
 
-The repository contains an optional Render Free template and Vercel deployment guidance, not evidence of the actual host or plan. Free Render cannot supply an assumed persistent scheduler; Vercel's 4.5 MB request/response limit is below the 8 MiB application save cap. Verify the selected deployment and operating retention mechanism before release. [Render limits](https://render.com/docs/free), [Vercel limits](https://vercel.com/docs/functions/limitations).
+**Freshness honesty.** The requested window, publication date, and collection
+timestamp are separate. A recent publication does not prove an event happened
+then. Public-web collection does not enforce the requested window, so its
+results stay marked as unverified for timeframe.
 
-Stop for owner review. Application implementation and mock verification do not establish production readiness.
+**Privacy and secrets.** Provider credentials and signing keys stay server-side.
+The browser never receives provider keys, recovery signing secrets, or database
+credentials.
+
+**Shared visibility.** This is a small shared workspace, not a private
+per-owner store. Any active member can read reports inside the history window,
+and planner records are visible and editable by members. Assignment lists show
+member emails to authenticated members. Do not describe reports or drafts as
+owner-private.
+
+**Stored data.** Compaction applies only to the model request. Stored reports,
+snapshots, fingerprints, and references keep the original, full source material.
+
+## 6. Known gaps and defects
+
+Verified against the current source, not assumed fixed.
+
+1. **Findings may add unsupported specifics.** Mocked tests prove the citation
+   contract, not prose quality. Whether live findings introduce unsupported
+   detail or drop a source's qualifications is unverified and needs human review
+   of a live run.
+2. **Public-web freshness is unenforced.** The window is not applied to indexed
+   results, and publication dates are usually unavailable, so a public-web result
+   cannot substantiate an in-period digest on its own.
+3. **No token or cost visibility.** Request size is controlled but never
+   reported, so cost cannot be reviewed per report.
+4. **Retention is unexercised in production, but it has run once against a real
+   database.** The expiry command exists and is covered by offline synthetic
+   tests. It was also applied against a disposable PostgreSQL instance with
+   synthetic data, as recorded in the dated evidence in
+   [DEPLOYMENT.md](DEPLOYMENT.md) section F; that run's temporary artifacts are
+   no longer available, which does not undo the reported result. It has not run
+   against production data, has no schedule, and visibility is not deletion.
+5. **Facebook coverage is narrow.** Public Page collection only, opt-in, no
+   keyword search, and mocked in tests.
+
+Two earlier compaction defects are fixed and covered by regressions:
+
+- **Source starvation is fixed.** Selection is now source-fair: references are
+  taken round-robin across sources in first-seen order, and inside a source
+  round-robin across domains in first-seen order, skipping exhausted groups and
+  redistributing their slots. The
+  guarantee is bounded by the cap, so a limit below the source count fills in
+  first-seen source order and does not claim full coverage.
+- **Whitespace-only text can no longer become evidence.** Over-limit text is
+  trimmed before clipping, whitespace-only text stays blank, and the truncation
+  marker appears only when real text is kept and content was omitted. Blank
+  evidence is rejected by text support and falls back to labelled excerpts.
+
+## 7. Release prerequisites
+
+- Owner review of a live research run, including human assessment of whether
+  findings are supported by their cited text.
+- An approved database target for migrations, taken with a backup plan.
+- Provider and retention policy review before any public deployment.
+- An explicit retention execution decision: target, cadence, and mechanism.
+- Deployment prerequisites per [DEPLOYMENT.md](DEPLOYMENT.md). Local operation
+  is not public deployment, and local-first is not offline operation.
+
+## 8. Prioritized next work
+
+Small and ordered. Everything here is **PROPOSED** unless already agreed.
+
+1. **Research quality, live.** One owner-approved live acceptance run with
+   human review of factual support, qualified claims, duplicates, and
+   unsupported recency.
+2. **Freshness quality.** Keep public-web timeframes labelled as unverified, and
+   state the limitation where a reader would otherwise assume in-window results.
+3. **Cost visibility.** Report the compacted input size and, where the provider
+   returns them, token counts per request, without exposing prompts.
+4. **Manual publication tracking.** Let a planner post record where it was
+   published, as a manual field. No automatic publishing.
+
+Out of scope for this list: tenancy, billing, crawlers, trend scoring, and any
+automatic publishing.

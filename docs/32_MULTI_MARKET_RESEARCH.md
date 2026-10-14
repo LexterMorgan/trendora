@@ -1,5 +1,15 @@
 # 32 — Multi-Market Research (M26C / M26D)
 
+> **Status: partially superseded.** The M26C backend contract described here is
+> still in force: `markets` remains the canonical ordered field, and per-market
+> YouTube targeting and reference provenance still behave as documented. The
+> **M26D frontend market controls are gone**: the current form has no country
+> selection and always submits a global request. Later validation and failure
+> behaviour has also moved on, so read the frontend and validation sections as
+> historical. Current scope:
+> [14_PRODUCT_ARCHITECTURE_REBASELINE.md](14_PRODUCT_ARCHITECTURE_REBASELINE.md);
+> current architecture: [01_ARCHITECTURE.md](01_ARCHITECTURE.md).
+
 ## Status
 
 **M26C (backend) + M26D (frontend), this document:** the research/report contract accepts an ordered list of SEA markets as the canonical query field, and the workspace form lets users select one or more markets. Everything is fully mocked in tests; no live Meta verification, no persistence, no new dependencies.

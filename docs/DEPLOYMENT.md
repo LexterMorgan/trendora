@@ -30,8 +30,13 @@ From the repository root in Terminal 1:
 
 ```bash
 .venv/bin/python -m uvicorn trendora.api.app:create_app --factory \
-  --reload --host 127.0.0.1 --port 8000
+  --host 127.0.0.1 --port 8000
 ```
+
+Add `--reload` only when you are actively editing backend code; it is a
+development convenience, not the default. Startup does not migrate the database.
+Do not run migrations or cleanup as a startup step; either operation needs
+approval for its exact database target.
 
 Backend: <http://127.0.0.1:8000>; public liveness probe: `/health`.
 Startup does not migrate the database. Do not run migrations or cleanup as a
@@ -50,9 +55,28 @@ Frontend: <http://127.0.0.1:3000>. Keep existing private `.env` and
 `web/.env.local` files intact. The example files list names and placeholders;
 they are not working credentials. Configure missing values privately rather
 than overwriting an existing environment file.
-Webpack works with the installed WASM compiler; Turbopack requires the missing
-native SWC binding on this machine. No compiler installation is needed for
-this startup path.
+Use the Webpack path. Turbopack needs a native SWC binding that may be absent;
+no compiler installation is required to build and run with Webpack.
+
+### Stopping servers
+
+Run each server in a foreground terminal and stop it with Ctrl+C in that
+terminal. Do not use pattern-based process kills such as `pkill -f "next dev"`;
+the pattern can match unrelated projects on the machine. Do not kill by a PID
+recorded in an older note, because the PID may now belong to a different process.
+
+### Separately managed dependencies
+
+The public-web search container (SearXNG) and the optional AI router are
+separate services you start and stop yourself. They are not part of this
+application's process tree.
+
+- If you use a container runtime such as Colima, stopping that instance stops
+  every container in it, not only the search container. Do not stop or restart
+  an instance you did not start.
+- Restarting the search container or the AI router is outside this guide. If a
+  run fails because one of them is down, report it rather than silently
+  recreating it.
 
 | Process | Variable names | Requirement |
 | --- | --- | --- |
@@ -92,18 +116,23 @@ by an actual session remains unverified. Auth redirects are not exposed by
 the available read-only tools, so the Site URL and callback allowlist above
 still need dashboard confirmation.
 
-The application schema is `0002_research_reports`, not 0008. Membership and
-planner tables and report recovery/expiry columns are absent. Report RLS is
-disabled and `anon`/`authenticated` have SELECT access. The identified user's
-Auth record exists, but there is no local membership table yet. Public signup
-is enabled; the invitation-only setting documented in the frontend guide is
-not applied. Schema, grants, memberships and auth settings require separately
-approved operations on this exact project. No private report content was read.
+Schema state is target-specific and must be checked, not assumed. The
+authoritative schema is the set of Alembic revisions in `alembic/versions/`
+(`0001` through `0008` at the time of writing). A target database is only ready
+when its applied revision matches the intended one and its grants, row-level
+security, membership rows, and auth settings match the deployment's needs.
 
-Local recovery signing and Serper keys are missing. The configured 9router
-endpoint is `http://localhost:20128/v1/chat/completions`; its current alias
-has not been confirmed as the intended free-only combo. Health/configuration
-observations do not prove the protected application flow works live.
+Dated evidence: an earlier read-only inspection of one hosted project found that
+project at revision `0002` with membership, planner, and expiry objects absent
+and signup open. That observation describes that project at that moment. Do not
+treat it as the current state of any database, including your own.
+
+Any operation that changes schema, grants, memberships, or auth settings needs a
+separately approved target and a backup strategy. See section F.
+
+Configuration observations do not prove the protected application flow works
+live. Verify the intended provider, model, and endpoint against your own private
+configuration rather than a note in this file.
 
 ### Isolated acceptance versus live integrations
 
@@ -166,7 +195,9 @@ provider calls.
 5. Deploy. Pushes to the default branch auto-deploy.
 
 Vercel's free tier requires no credit card. The backend still needs a host
-(below) or you can point the frontend at a local backend for testing.
+(below). A deployed frontend cannot reach a laptop's loopback backend:
+`http://127.0.0.1:8000` on the visitor's machine is not your machine. Point the
+frontend at a reachable backend URL instead.
 
 ### Option 2 — Render (backend, optional)
 
@@ -205,10 +236,16 @@ not start a local PostgreSQL.
 
 ```bash
 docker build -t trendora-api .
-docker run --env-file .env -p 8000:8000 trendora-api
+docker run --env-file .env -p 127.0.0.1:8000:8000 trendora-api
 # or
 docker compose up --build
 ```
+
+Publish to loopback only, as shown. The published Compose template in
+`docker-compose.yml` maps `8000:8000`, which binds on every interface and would
+expose the backend to your network. That template is unchanged by this guide;
+either edit it yourself or run the loopback `docker run` form above. Treat a
+container that mounts `.env` as holding your real credentials.
 
 ---
 
@@ -242,7 +279,7 @@ not evidence that an existing deployment has this configuration.
 | Path | Application limit |
 | --- | --- |
 | Frontend report-generation proxy | 65,536 streamed request bytes; 180-second deadline for upstream fetch and full response reading, with client cancellation forwarded. The 180-second proxy deadline does not guarantee backend completion or backend-side cancellation. |
-| AI interpretation (backend) | One shared monotonic deadline (`TRENDORA_AI_TIMEOUT_SECONDS`, default 30 s) governs the remaining in-flight HTTP request budget across the interpretation call, its retry, and the optional content stages. In-flight I/O is cancellable at the deadline; JSON parsing, grounding validation, and cleanup are not strictly interrupted. |
+| AI interpretation (backend) | One shared monotonic deadline (`TRENDORA_AI_TIMEOUT_SECONDS`, default 30 s) governs the remaining in-flight HTTP request budget across the interpretation call, its retry, and the optional content stages. In-flight I/O is cancellable at the deadline; JSON parsing, grounding validation, and cleanup are not strictly interrupted. This bounds AI request I/O only. It is not a whole-report completion guarantee: collection, persistence, and rendering sit outside it. |
 | Report save/recovery | 8,388,608 request bytes in browser, frontend proxy, and backend route. |
 | Planner writes | 131,072 streamed request bytes in frontend proxy and backend route. |
 
@@ -251,9 +288,10 @@ request and response payloads at 4.5 MB, below the application save cap. Fluid
 compute on Hobby allows 300 seconds; the selected project/runtime settings must
 be inspected before relying on that duration. [Vercel limits](https://vercel.com/docs/functions/limitations).
 
-AI calls use a 30-second HTTP timeout per operation. This is not a total report
-budget: source requests, markets, optional serial stages, database writes, and
-cold starts add time. Proxy cancellation bounds the frontend wait; it does not
+Do not assume a short fixed timeout bounds a whole report. AI request I/O is
+bounded by the shared deadline described in the request-limits table above;
+source requests, markets, optional stages, database writes, and cold starts all
+add time beyond it. Proxy cancellation bounds the frontend wait; it does not
 prove backend execution or a database write stopped. Verify actual latency and
 lost-response recovery on the intended host before release.
 
@@ -276,7 +314,8 @@ resolve expired source material. Generated origin context and source links
 are hidden when their trusted bounds expire. Reads never delete stored data.
 Identity-only retries still acknowledge an existing report/post without
 restoring content or extending its original deadline. Physical deletion
-remains the explicit cleanup operation; history visibility is not retention.
+remains the explicit cleanup operation; history visibility is not retention, and
+an ageing-out or hidden report is not deleted.
 
 For local use, the smallest procedure is a manual dry-run and approved apply
 using a privately supplied `TRENDORA_RETENTION_DATABASE_URL` for the exact
@@ -308,6 +347,25 @@ require approval for the exact target.
 
 ## F. Ordered release operations
 
+### Migration and backup strategy
+
+Before applying any migration to a target that holds real data:
+
+1. Confirm the target's current revision with the Alembic history for that
+   database, and confirm it is the database you intend to change.
+2. Take a logical backup (for example `pg_dump`) and verify a restore into a
+   disposable database. An unverified backup is not a backup.
+3. Apply migrations from a checkout whose revisions you have reviewed.
+4. Post-migration checks must be explicitly non-destructive: confirm the applied
+   revision, exercise read paths, and re-run only read-only checks against the
+   target. The destructive and migration test suites are for a disposable
+   cluster only. Never point them at an application database, and never use a
+   schema-mutating suite as a verification step against one.
+
+Never run `--apply` retention, migrations, or cleanup against a target you have
+not explicitly identified and approved, and never against a shared database
+someone else may be using.
+
 As of 2026-10-07, disposable database verification is complete; no deployed
 Trendora environment is confirmed. Repository hosting identity files are
 absent, the connected Sites inventory returned no sites, and no Render/Vercel
@@ -317,15 +375,19 @@ The intended frontend/backend host, environment and service IDs are needed
 before host-specific settings or limits can be accepted. None of the operations
 below is activated by this guide.
 
-1. Completed evidence: 45 database checks and 55 focused offline checks pass on
-   the approved PostgreSQL 18.1 cluster at `127.0.0.1:65438`. Fresh migration,
-   0007-to-0008 upgrade, legacy NULL expiry, UUID defaults, RLS/grants,
-   membership/history, concurrent writes, signed replay and synthetic retention
-   dry-run/apply pass. Authored planner content survives cleanup. The owned
-   cluster was stopped and removed. See the
-   [verification report](/private/tmp/trendora-db-verification.GcbAMSSp/REPORT.md).
-   These results do not establish an application database's migration history.
-   Do not repeat completed local checks without a relevant change.
+1. Completed evidence (dated): on a disposable local PostgreSQL instance, 45
+   database checks and 55 focused offline checks passed, covering a fresh
+   migration, the `0007` to `0008` upgrade, legacy NULL expiry, UUID defaults,
+   row-level security and grants, membership and history behaviour, concurrent
+   writes, signed replay, and a synthetic retention dry-run and apply. Authored
+   planner content survived cleanup, and the owned instance was stopped and
+   removed afterwards. These results do not establish any application
+   database's migration history. Do not repeat completed local checks without a
+   relevant change.
+
+   Before migrating a real target, take a backup that you have verified can be
+   restored, and confirm the target's current revision. See the backup strategy
+   below.
 
 2. Identify and approve the intended backend/frontend service IDs, environment,
    database target and test accounts. Record plan/runtime, TLS URLs, backend

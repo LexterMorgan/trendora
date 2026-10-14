@@ -82,7 +82,7 @@ V1 status uses only decisions the repo supports. **Selected** means chosen for a
 
 | Model | Series it wants | Irregular timestamps | Resampling | Min history | Strengths | Weaknesses | Cost / explainability | Suitability | V1 status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Naive | any univariate level | M6A: uses values in M5 order; interval is explicit | not used | 1 obs | honest baseline; cheap; matches short, sticky cumulative levels | no trend/season; interval does not change the value | trivial; fully explainable | required comparison baseline ([10](10_TESTING_EVALUATION.md)) | **Selected** as evaluation baseline. **Implemented** (M6A). Not selected as the only product forecast. |
+| Naive | any univariate level | M6A: uses values in M5 order; interval is explicit | not used | 1 obs | honest baseline; cheap; matches short, sticky cumulative levels | no trend/season; interval does not change the value | trivial; fully explainable | required comparison baseline ([10](../10_TESTING_EVALUATION.md)) | **Selected** as evaluation baseline. **Implemented** (M6A). Not selected as the only product forecast. |
 | Moving average | local level | same as naive (order, not calendar spacing) | not used in M6A | `window` observations | smooths noise if `window` is set | `window` is a product/tuning choice; recursive multi-step drifts toward a mean | trivial; explainable | available today | **Implemented** (M6A). Production use **OPEN**. |
 | Simple exponential smoothing | local level | same as naive | not used in M6A | 1 obs | `alpha` explicit; last level is the forecast | no trend/season; `alpha` OPEN | trivial; explainable | available today | **Implemented** (M6A). Production use **OPEN**. |
 | Holt (linear trend) | roughly regular level + trend | poorly specified without regular spacing | would need a grid this repo does not define | more than SES | captures trend on cumulative counters | over-projects; needs interval regularity | low; explainable | only after OPEN resampling/interval policy | **Deferred** |
@@ -109,7 +109,7 @@ Do not install pandas/NumPy/scikit-learn/statsmodels for a model that is Deferre
 - Missing snapshots stay missing; do not score fabricated times.
 - Challenger fitting must use the same `forecast_series` path as production forecasts.
 
-[10_TESTING_EVALUATION.md](10_TESTING_EVALUATION.md) still lists “time-based holdouts; naive baseline comparison”. M6A implemented **observation-count** holdout and per-model MAE. It does **not** implement a calendar-time holdout or a combined naive-vs-challenger result object.
+[10_TESTING_EVALUATION.md](../10_TESTING_EVALUATION.md) still lists “time-based holdouts; naive baseline comparison”. M6A implemented **observation-count** holdout and per-model MAE. It does **not** implement a calendar-time holdout or a combined naive-vs-challenger result object.
 
 ### Proposed (not implemented; not product law)
 

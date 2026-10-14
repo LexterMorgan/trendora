@@ -1,7 +1,7 @@
 # 11 — Deployment
 
 Historical deployment outline. Hosting and deployment status are unverified.
-Use [DEPLOYMENT.md](DEPLOYMENT.md) for current templates and ordered release operations.
+Use [DEPLOYMENT.md](../DEPLOYMENT.md) for current templates and ordered release operations.
 
 ## Target shape
 
@@ -27,8 +27,8 @@ SQLAlchemy + Alembic remain the migration path in both environments.
 
 The repository now contains optional Docker/Render templates and a release
 runbook. Target-specific database verification, secret provisioning, cleanup
-scheduling and deployed acceptance remain pending in [DEPLOYMENT.md](DEPLOYMENT.md).
+scheduling and deployed acceptance remain pending in [DEPLOYMENT.md](../DEPLOYMENT.md).
 
 ## Related
 
-MCP setup for developers: [../PROJECT_PREP.md](../PROJECT_PREP.md) and `.cursor/mcp.json.example`.
+MCP setup for developers: [../PROJECT_PREP.md](../../PROJECT_PREP.md) and `.cursor/mcp.json.example`.

@@ -1,5 +1,14 @@
 # 30 — Facebook Frontend Research Mode (M25E)
 
+> **Status: partially superseded.** The backend Facebook mechanism described
+> here still exists (public Page client, normalization, execution, API wiring).
+> The **frontend single-source selector is gone**: the current form has no
+> country, source, or depth controls and always submits a global request over
+> the configured topic sources. Read the selector section as historical
+> frontend rationale, not current UI. Current scope:
+> [14_PRODUCT_ARCHITECTURE_REBASELINE.md](14_PRODUCT_ARCHITECTURE_REBASELINE.md);
+> current frontend: [../web/README.md](../web/README.md).
+
 ## Status
 
 **M25E (this document + implementation):** the research workspace frontend can submit single-source Facebook Page research requests through the existing M23A report pipeline and M25D API wiring. Fully mocked; no live Meta verification.

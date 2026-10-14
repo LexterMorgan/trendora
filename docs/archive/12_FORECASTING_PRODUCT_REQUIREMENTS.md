@@ -6,7 +6,7 @@
 
 **Decision authority:** This document is the M9 product-requirements decision. Decisions here are **product decisions made in M9**, not facts inferred from the repository. The repository establishes mechanical capability and constraints; this document chooses which of those become the V1 product promise. Where the repository genuinely cannot support a decision, the decision is marked **OPEN** with the exact evidence that is missing.
 
-The rule from M8 still governs: **engineering convenience is not a product requirement.** A choice here is REQUIRED only when it is (a) mechanically supported by M1–M8 code/schema, (b) consistent with documented source/data policy, and (c) a defensible reading of the documented product goal ([00_PROJECT_OVERVIEW.md](00_PROJECT_OVERVIEW.md), [README.md](../README.md), [08_DASHBOARD_SPEC.md](08_DASHBOARD_SPEC.md)). Every REQUIRED choice below is labeled either as repository-established or as a **provisional product choice**; provisional choices are explicit decisions by the product owner, not observed facts, and are flagged for re-review when real series accumulate.
+The rule from M8 still governs: **engineering convenience is not a product requirement.** A choice here is REQUIRED only when it is (a) mechanically supported by M1–M8 code/schema, (b) consistent with documented source/data policy, and (c) a defensible reading of the documented product goal (originally `00_PROJECT_OVERVIEW.md`, a historical document deleted before this archive existed, [README.md](../README.md), [08_DASHBOARD_SPEC.md](08_DASHBOARD_SPEC.md)). Every REQUIRED choice below is labeled either as repository-established or as a **provisional product choice**; provisional choices are explicit decisions by the product owner, not observed facts, and are flagged for re-review when real series accumulate.
 
 This document resolves the open decisions recorded in [11_FORECASTING_PRODUCT_SPEC.md](11_FORECASTING_PRODUCT_SPEC.md) (M8). [06_ML_FORECASTING.md](06_ML_FORECASTING.md) remains the technical forecasting/evaluation reference and is unchanged in substance.
 
@@ -14,7 +14,7 @@ This document resolves the open decisions recorded in [11_FORECASTING_PRODUCT_SP
 
 ## 2. Product objective
 
-Trendora's core question ([00](00_PROJECT_OVERVIEW.md)) includes **“what is likely to happen next.”** The [08_DASHBOARD_SPEC.md](08_DASHBOARD_SPEC.md) “What is likely next” view is the intended user surface for forecasts: Python-computed forecasts shown **with interval and sample-size caveats**, never mislabeled as official source data.
+Trendora's core question (originally stated in `00_PROJECT_OVERVIEW.md`, a historical document since deleted) includes **“what is likely to happen next.”** The [08_DASHBOARD_SPEC.md](08_DASHBOARD_SPEC.md) “What is likely next” view is the intended user surface for forecasts: Python-computed forecasts shown **with interval and sample-size caveats**, never mislabeled as official source data.
 
 M9 therefore defines the smallest credible V1 forecasting product that:
 
@@ -37,7 +37,7 @@ Facts the decision below relies on (all verified against the current repository)
 
 | Area | Fact | Evidence |
 | --- | --- | --- |
-| Architecture | connectors → persistence → `metric_snapshots` → M5 → `MetricSeries` → M6A/M6C/M7. No second SQL read path. | [06](06_ML_FORECASTING.md) §1; [01_ARCHITECTURE.md](01_ARCHITECTURE.md) |
+| Architecture | connectors → persistence → `metric_snapshots` → M5 → `MetricSeries` → M6A/M6C/M7. No second SQL read path. | [06](06_ML_FORECASTING.md) §1; [01_ARCHITECTURE.md](../01_ARCHITECTURE.md) |
 | M6A | naive / moving average / simple exponential smoothing; explicit positive `interval` and `horizon`; in-memory; no resampling/imputation/fabrication. Forecast points at `latest observed_at + n*interval`. | `src/trendora/forecasting/service.py`, `models.py`; [06](06_ML_FORECASTING.md) §1 |
 | M6C | naive vs one caller-selected challenger; `challenger_beats_naive = challenger_mae < naive_mae`; evaluation artifact only. | [06](06_ML_FORECASTING.md) §1 |
 | M7 | deterministic diagnostics: `observation_count`, gaps, cadence, duplicate `observed_at`, deltas, monotonicity. No score, no recommendation. | `src/trendora/diagnostics/`; [06](06_ML_FORECASTING.md) §9 |
@@ -178,8 +178,8 @@ Statuses used: **REQUIRED V1**, **DEFERRED**, **DEFERRED (policy-gated)**, **REJ
 **Decision:** **naive** is the V1 production model for the level-forecast slice.
 
 - **Status:** REQUIRED V1.
-- **Rationale:** naive is the only model with (a) a fully specified product meaning (last observed level repeated forward), (b) no free hyperparameters to invent, and (c) established standing as the evaluation baseline ([10_TESTING_EVALUATION.md](10_TESTING_EVALUATION.md)). It is the honest, explainable default for sticky cumulative levels and cannot be accused of overfitting short series.
-- **Evidence:** M6A implements naive with no window/alpha; docs already treat naive as the required comparison baseline ([10](10_TESTING_EVALUATION.md); [06](06_ML_FORECASTING.md) §3).
+- **Rationale:** naive is the only model with (a) a fully specified product meaning (last observed level repeated forward), (b) no free hyperparameters to invent, and (c) established standing as the evaluation baseline ([10_TESTING_EVALUATION.md](../10_TESTING_EVALUATION.md)). It is the honest, explainable default for sticky cumulative levels and cannot be accused of overfitting short series.
+- **Evidence:** M6A implements naive with no window/alpha; docs already treat naive as the required comparison baseline ([10](../10_TESTING_EVALUATION.md); [06](06_ML_FORECASTING.md) §3).
 - **Consequence:** moving average and SES remain implemented and usable for evaluation research via M6A/M6C, but are **not** V1 production models because their `window`/`alpha` are unspecified (Decisions 12–13).
 
 ### 8.2 Model selection rule
@@ -218,7 +218,7 @@ No dependency is installed in M9. Advanced models are not “bad,” they are un
 **Decision:** V1 evaluation uses the existing **chronological observation-count holdout + MAE**, on **levels**, with no random split and no calendar-time holdout.
 
 - **Status:** REQUIRED V1 (existing M6A/M6C behavior becomes the V1 evaluation baseline).
-- **Rationale:** this is the implemented, documented protocol ([06](06_ML_FORECASTING.md) §4; [10](10_TESTING_EVALUATION.md)); observation-count holdout is the only split the data can support today (series are too short for calendar windows or rolling-origin validation).
+- **Rationale:** this is the implemented, documented protocol ([06](06_ML_FORECASTING.md) §4; [10](../10_TESTING_EVALUATION.md)); observation-count holdout is the only split the data can support today (series are too short for calendar windows or rolling-origin validation).
 - **Evidence:** `evaluate_series` / `compare_series` in `forecasting/service.py`; [06](06_ML_FORECASTING.md) §4.
 - **Consequences:**
   - Calendar-time holdout: **DEFERRED** (requires a defined cadence).

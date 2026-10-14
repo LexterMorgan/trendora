@@ -1,5 +1,11 @@
 # Trendora — Research Workspace (web)
 
+Shared setup, testing, and deployment instructions live outside this component:
+see [../docs/README.md](../docs/README.md) for the documentation index,
+[../docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md) for startup and environment
+names, and [../docs/10_TESTING_EVALUATION.md](../docs/10_TESTING_EVALUATION.md)
+for test commands. This file describes only the frontend.
+
 Next.js (App Router) + React + TypeScript frontend for the Trendora research
 workflow. It consumes the research/report API; collection and analysis remain
 in the backend. The authoritative [product PRD](../docs/14_PRODUCT_ARCHITECTURE_REBASELINE.md)
