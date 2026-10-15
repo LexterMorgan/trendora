@@ -511,6 +511,28 @@ class TestMalformedResponseRetry:
         assert "raw body" not in caplog.text
         assert "malformed output" not in caplog.text
 
+    def test_retry_and_fallback_logs_carry_the_rejection_reason_code(self, caplog) -> None:
+        class BoundedInterp:
+            def interpret(self, pack):
+                raise ResearchAIResponseError(
+                    "AI provider returned more than 6 findings",
+                    reason_code="bounds_findings",
+                )
+
+        service, _http = self._service_with_counts(
+            BoundedInterp(),
+            RecordingStrategyProvider([]),
+            RecordingIdeationProvider([]),
+        )
+        with caplog.at_level(logging.WARNING, logger="trendora.research.reporting"):
+            report = service.build_report(**_query(), include_content_tools=False)
+
+        # Retried once, then the labelled excerpt fallback was kept.
+        assert "research.report.ai_retry stage=interpretation" in caplog.text
+        assert "reason=bounds_findings" in caplog.text
+        assert "research.report.interpretation_unavailable" in caplog.text
+        assert report.interpretation_result.model_provenance.provider == "source_evidence"
+
 
 class TestValidation:
     def _completed_run(self, references) -> ResearchRun:

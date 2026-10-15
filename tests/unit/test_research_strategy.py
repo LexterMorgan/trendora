@@ -475,6 +475,17 @@ class TestStrategyStrictParsing:
         with pytest.raises(ResearchAIResponseError):
             _parse_strategy_output(json.dumps({"content_gaps": [], "opportunities": [], "extra": 1}))
 
+    def test_explicit_length_stop_is_rejected(self) -> None:
+        # The shared provider-envelope parser refuses output the provider cut
+        # off at the token limit, so a truncated strategy is never used.
+        def handler(request: httpx.Request) -> httpx.Response:
+            envelope = _envelope(_model_output([_gap()], [_opp()]))
+            envelope["choices"][0]["finish_reason"] = "length"
+            return httpx.Response(200, json=envelope)
+
+        with pytest.raises(ResearchAIResponseError):
+            _strategy_provider(handler).generate(_context())
+
 
 class TestEndToEnd:
     def test_full_pipeline(self) -> None:

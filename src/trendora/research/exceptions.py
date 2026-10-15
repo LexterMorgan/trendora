@@ -51,4 +51,14 @@ class ResearchAITimeoutError(ResearchAIProviderError):
 
 
 class ResearchAIResponseError(ResearchError):
-    """Malformed provider/model response or invalid model output."""
+    """Malformed provider/model response or invalid model output.
+
+    ``reason_code`` is a small fixed vocabulary identifier for the rejection
+    category, so sanitized logs can separate truncation, invalid JSON, schema
+    mismatch, citation failures, and research-synthesis bound violations
+    without logging response content.
+    """
+
+    def __init__(self, message: str, *, reason_code: str = "unspecified") -> None:
+        super().__init__(message)
+        self.reason_code = reason_code

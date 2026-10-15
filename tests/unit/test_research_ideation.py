@@ -484,6 +484,17 @@ class TestStrictParsing:
         with pytest.raises(ResearchAIResponseError):
             _provider(handler).generate(_ideation_context())
 
+    def test_explicit_length_stop_is_rejected(self) -> None:
+        # The shared provider-envelope parser refuses output the provider cut
+        # off at the token limit, so truncated ideation is never used.
+        def handler(request: httpx.Request) -> httpx.Response:
+            envelope = _envelope(_model_output([_idea()], [_brief()]))
+            envelope["choices"][0]["finish_reason"] = "length"
+            return httpx.Response(200, json=envelope)
+
+        with pytest.raises(ResearchAIResponseError):
+            _provider(handler).generate(_ideation_context())
+
 
 class TestEndToEnd:
     def test_full_chain(self) -> None:

@@ -22,7 +22,11 @@ from trendora.research.exceptions import (
     ResearchAIResponseError, ResearchAITimeoutError, ResearchInterpretationError,
 )
 from trendora.research.ai_execution import GroundedInterpretationService
-from trendora.research.ai_provider import AIProviderConfig, OpenAICompatibleInterpretationProvider
+from trendora.research.ai_provider import (
+    AIProviderConfig,
+    MAX_RESEARCH_FINDINGS,
+    OpenAICompatibleInterpretationProvider,
+)
 from trendora.research.interpretation import (
     AIInterpretation, EvidencePack, FactCitation, InterpretationResult,
     ModelProvenance, ObservationCitation, PatternCitation, has_text_support,
@@ -191,6 +195,77 @@ def test_research_synthesis_uses_existing_http_adapter_with_topic_timeframe_and_
     snapshot = _snapshot(report)
     assert set(snapshot["evidence"]) == {"analyses", "patterns"}
     assert snapshot_fingerprint(snapshot) == snapshot_fingerprint(ReportSnapshot.model_validate(snapshot).model_dump(mode="json"))
+
+
+def _service_with_responder(respond):
+    """Report service whose interpretation stage is the real HTTP adapter.
+
+    The research run executes once up front so the mocked transport sees the
+    same compacted research input the live provider would.
+    """
+    service = _report_service([])
+    run = service._research.execute(**_query())
+    service._research = SimpleNamespace(execute=lambda **kwargs: run)
+    config = AIProviderConfig(
+        "fictional", "fictional-model", "https://fictional.invalid/chat", "fictional-test-key"
+    )
+    service._interpretation = GroundedInterpretationService(
+        OpenAICompatibleInterpretationProvider(config, transport=httpx.MockTransport(respond))
+    )
+    return service
+
+
+def _respond_with_findings(
+    count: int, *, finish_reason: str | None = None, statement: str | None = None
+):
+    attempts: list[httpx.Request] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        attempts.append(request)
+        payload = json.loads(request.content)
+        evidence = json.loads(payload["messages"][1]["content"].split("\n\n", 1)[1])
+        reference = evidence["references"][0]["reference_id"]
+        content = {
+            "interpretations": [
+                {
+                    "statement": statement or f"finding {index}",
+                    "citations": [{"kind": "fact", "reference": reference, "field": "title"}],
+                }
+                for index in range(count)
+            ]
+        }
+        choice: dict = {"message": {"content": json.dumps(content)}}
+        if finish_reason is not None:
+            choice["finish_reason"] = finish_reason
+        return httpx.Response(200, json={"choices": [choice]})
+
+    respond.attempts = attempts
+    return respond
+
+
+def test_over_count_research_synthesis_retries_once_then_falls_back_to_exact_excerpts():
+    # The provider boundary refuses more findings than a research request asked
+    # for; the caller keeps its single bounded retry and its labelled fallback.
+    respond = _respond_with_findings(MAX_RESEARCH_FINDINGS + 1)
+    report = _service_with_responder(respond).build_report(**_query(), include_content_tools=False)
+    assert len(respond.attempts) == 2
+    assert report.status is ResearchReportStatus.RESEARCH_COMPLETED
+    assert report.interpretation_result == source_summaries(report.evidence_pack)
+    assert report.interpretation_result.model_provenance.provider == "source_evidence"
+
+
+def test_length_stopped_valid_json_is_retried_and_never_published_as_synthesis():
+    # A response the provider cut off at the token limit must not be published
+    # even when the fragment parses as valid synthesis JSON.
+    statement = "Truncated model finding that must not be published"
+    respond = _respond_with_findings(1, finish_reason="length", statement=statement)
+    report = _service_with_responder(respond).build_report(**_query(), include_content_tools=False)
+    assert len(respond.attempts) == 2
+    assert report.interpretation_result == source_summaries(report.evidence_pack)
+    assert all(
+        finding.statement != statement
+        for finding in report.interpretation_result.interpretations
+    )
 
 
 @pytest.mark.parametrize("error", [ResearchAIProviderError, ResearchAIProviderNotConfiguredError, ResearchAIResponseError, ResearchInterpretationError, ResearchAITimeoutError])

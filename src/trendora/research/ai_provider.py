@@ -50,8 +50,31 @@ from trendora.research.patterns import PatternAggregate
 
 DEFAULT_TIMEOUT_SECONDS = 30.0
 MAX_TOKENS = 4096
+# Research-context synthesis asks for a small set of short findings. These bound
+# the request and the accepted response; they do not change the shared output
+# allowance, which also serves the legacy interpretation, strategy, and ideation
+# stages.
+MAX_RESEARCH_FINDINGS = 6
+MAX_FINDING_CHARS = 500
 
 OPENROUTER_PROVIDER = "openrouter"
+# Providers whose upstream serves OpenAI-style reasoning. 9router routes its
+# ``openrouter/*`` members to the OpenRouter chat-completions API with
+# ``thinkingFormat: "openai"``, so the same low-effort/excluded-reasoning
+# control applies there. Structured-output and provider-routing controls stay
+# OpenRouter-only.
+REASONING_CONTROLLED_PROVIDERS = frozenset({OPENROUTER_PROVIDER, "9router"})
+
+# Fixed rejection-reason codes for ResearchAIResponseError. They reach logs
+# through the exception attribute; response content never does.
+RESPONSE_REASON_ENVELOPE = "envelope"
+RESPONSE_REASON_OUTPUT_LENGTH = "output_length"
+RESPONSE_REASON_INVALID_JSON = "invalid_json"
+RESPONSE_REASON_SCHEMA = "schema_mismatch"
+RESPONSE_REASON_STATEMENT = "statement"
+RESPONSE_REASON_CITATION = "citation"
+RESPONSE_REASON_BOUNDS_COUNT = "bounds_findings"
+RESPONSE_REASON_BOUNDS_CHARS = "bounds_statement_chars"
 
 _COMMON_REQUEST_CONTROLS = {
     "max_tokens": MAX_TOKENS,
@@ -68,30 +91,38 @@ def request_controls(
 ) -> dict[str, Any]:
     """JSON controls attached to every AI Chat Completions request.
 
-    Common controls bound output size and force strict JSON. OpenRouter
-    additionally gets low/excluded reasoning (DeepSeek-v4-flash default high
-    reasoning caused the response hang) and, when a stage DTO is supplied,
+    Common controls bound output size and force strict JSON. Providers in
+    ``REASONING_CONTROLLED_PROVIDERS`` (OpenRouter itself and 9router, which
+    routes OpenRouter members upstream) additionally get low, excluded
+    reasoning: an unconstrained reasoning model can spend the whole
+    ``max_tokens`` allowance on reasoning and return an empty or truncated
+    completion. OpenRouter alone, when a stage DTO is supplied, also gets
     strict structured outputs: the exact Pydantic schema is sent as a
     ``json_schema`` response_format plus ``provider.require_parameters`` so a
     provider that cannot honor the controls fails instead of silently
-    degrading to syntax-only JSON. Non-OpenRouter providers keep
-    ``json_object`` mode and never receive OpenRouter provider routing.
+    degrading to syntax-only JSON. Other providers keep ``json_object`` mode and
+    never receive OpenRouter provider routing.
     Provider match is trimmed and case-insensitive; OpenRouter-only fields are
     never sent to other providers.
     """
     controls = dict(_COMMON_REQUEST_CONTROLS)
-    if provider.strip().lower() == OPENROUTER_PROVIDER:
+    normalized = provider.strip().lower()
+    if normalized in REASONING_CONTROLLED_PROVIDERS:
         controls["reasoning"] = {"effort": "low", "exclude": True}
-        if schema_name is not None and schema_model is not None:
-            controls["response_format"] = {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": schema_name,
-                    "strict": True,
-                    "schema": schema_model.model_json_schema(),
-                },
-            }
-            controls["provider"] = {"require_parameters": True}
+    if (
+        normalized == OPENROUTER_PROVIDER
+        and schema_name is not None
+        and schema_model is not None
+    ):
+        controls["response_format"] = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": schema_name,
+                "strict": True,
+                "schema": schema_model.model_json_schema(),
+            },
+        }
+        controls["provider"] = {"require_parameters": True}
     return controls
 
 SYSTEM_PROMPT = """You are Trendora's grounded research-interpretation assistant.
@@ -128,7 +159,9 @@ Rules:
 27. If the supplied text cannot support a useful synthesis, return an empty interpretations list. Structural citation validity does not prove factual correctness.
 28. When research_context is supplied, write one distinct finding per interpretation. Lead with the specific development or source claim and name the relevant entity when supplied. Group overlapping coverage rather than repeating the same finding for each reference. Do not pad the report to a target number of findings.
 29. Cite the specific title or description supporting each development claim, and each source contributing to a combined finding. Counts and title-format observations alone cannot support a development claim. Repeated coverage is not independent corroboration.
-30. If supplied sources disagree, attribute the conflicting claims separately without deciding which is true. Preserve uncertainty and source attribution; do not turn promotional language into an established fact."""
+30. If supplied sources disagree, attribute the conflicting claims separately without deciding which is true. Preserve uncertainty and source attribution; do not turn promotional language into an established fact.
+31. When research_context is supplied, return at most 6 distinct findings of at most 500 characters each. Fewer findings are fine. Never pad a report to fill that count and never shorten a finding just to fit the limit; keep every citation a finding needs, and return an empty interpretations list when the supplied evidence cannot support a useful synthesis.
+32. Cite the exact field that carries each detail. When a detail comes from a description, cite a description fact, and add the title fact too when the title supports the finding as well. A title citation alone does not support a detail that only the description states."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -365,6 +398,8 @@ class OpenAICompatibleInterpretationProvider:
         content = _parse_envelope_content(response)
         item_list = _parse_model_output(content)
         interpretations = tuple(_to_domain_interpretation(item) for item in item_list)
+        if pack.research_query is not None:
+            _enforce_research_synthesis_bounds(interpretations)
         return InterpretationResult(
             model_provenance=ModelProvenance(
                 provider=self._config.provider,
@@ -474,25 +509,51 @@ def _post_chat_request(
     try:
         payload = json.loads(body)
     except ValueError as exc:
-        raise ResearchAIResponseError("AI provider returned non-JSON HTTP body") from exc
+        raise ResearchAIResponseError(
+            "AI provider returned non-JSON HTTP body",
+            reason_code=RESPONSE_REASON_ENVELOPE,
+        ) from exc
     if not isinstance(payload, dict):
-        raise ResearchAIResponseError("AI provider returned non-object JSON")
+        raise ResearchAIResponseError(
+            "AI provider returned non-object JSON",
+            reason_code=RESPONSE_REASON_ENVELOPE,
+        )
     return payload
 
 
 def _parse_envelope_content(payload: dict[str, Any]) -> str:
     choices = payload.get("choices")
     if not isinstance(choices, list) or not choices:
-        raise ResearchAIResponseError("AI provider envelope has no usable choices")
+        raise ResearchAIResponseError(
+            "AI provider envelope has no usable choices",
+            reason_code=RESPONSE_REASON_ENVELOPE,
+        )
     first = choices[0]
     if not isinstance(first, dict):
-        raise ResearchAIResponseError("AI provider envelope first choice is not an object")
+        raise ResearchAIResponseError(
+            "AI provider envelope first choice is not an object",
+            reason_code=RESPONSE_REASON_ENVELOPE,
+        )
+    # A response the provider cut off at its output limit is incomplete even when
+    # the fragment parses, so it is refused before any content is read. Providers
+    # that omit finish_reason are unaffected.
+    if first.get("finish_reason") == "length":
+        raise ResearchAIResponseError(
+            "AI provider response stopped at the output token limit",
+            reason_code=RESPONSE_REASON_OUTPUT_LENGTH,
+        )
     message = first.get("message")
     if not isinstance(message, dict):
-        raise ResearchAIResponseError("AI provider envelope message is missing")
+        raise ResearchAIResponseError(
+            "AI provider envelope message is missing",
+            reason_code=RESPONSE_REASON_ENVELOPE,
+        )
     content = message.get("content")
     if not isinstance(content, str) or not content.strip():
-        raise ResearchAIResponseError("AI provider envelope content is missing or blank")
+        raise ResearchAIResponseError(
+            "AI provider envelope content is missing or blank",
+            reason_code=RESPONSE_REASON_ENVELOPE,
+        )
     return content
 
 
@@ -500,21 +561,61 @@ def _parse_model_output(content: str) -> list[ProviderInterpretationItem]:
     try:
         decoded = json.loads(content)
     except ValueError as exc:
-        raise ResearchAIResponseError("AI provider model output is not valid JSON") from exc
+        raise ResearchAIResponseError(
+            "AI provider model output is not valid JSON",
+            reason_code=RESPONSE_REASON_INVALID_JSON,
+        ) from exc
     try:
         parsed = ProviderInterpretationResponse.model_validate(decoded)
     except ValidationError as exc:
-        raise ResearchAIResponseError("AI provider model output failed strict validation") from exc
+        raise ResearchAIResponseError(
+            "AI provider model output failed strict validation",
+            reason_code=RESPONSE_REASON_SCHEMA,
+        ) from exc
     return parsed.interpretations
 
 
 def _to_domain_interpretation(item: ProviderInterpretationItem) -> AIInterpretation:
     if not item.statement.strip():
-        raise ResearchAIResponseError("AI provider returned a blank interpretation statement")
+        raise ResearchAIResponseError(
+            "AI provider returned a blank interpretation statement",
+            reason_code=RESPONSE_REASON_STATEMENT,
+        )
     if not item.citations:
-        raise ResearchAIResponseError("AI provider returned an interpretation with no citations")
+        raise ResearchAIResponseError(
+            "AI provider returned an interpretation with no citations",
+            reason_code=RESPONSE_REASON_CITATION,
+        )
     citations = tuple(_to_domain_citation(citation) for citation in item.citations)
     return AIInterpretation(statement=item.statement, citations=citations)
+
+
+def _enforce_research_synthesis_bounds(
+    interpretations: tuple[AIInterpretation, ...],
+) -> None:
+    """Refuse an oversized research synthesis instead of trimming it.
+
+    A research-context request asks the model for at most
+    ``MAX_RESEARCH_FINDINGS`` findings of at most ``MAX_FINDING_CHARS``
+    characters each. A response outside those limits is rejected so the caller
+    keeps its existing bounded retry and labelled excerpt fallback. Slicing the
+    findings or cutting a statement would silently change model output and leave
+    citations unattached.
+
+    Statements are measured as returned, without trimming whitespace, so the
+    accepted length is exactly the one the prompt states.
+    """
+    if len(interpretations) > MAX_RESEARCH_FINDINGS:
+        raise ResearchAIResponseError(
+            f"AI provider returned more than {MAX_RESEARCH_FINDINGS} findings",
+            reason_code=RESPONSE_REASON_BOUNDS_COUNT,
+        )
+    for interpretation in interpretations:
+        if len(interpretation.statement) > MAX_FINDING_CHARS:
+            raise ResearchAIResponseError(
+                f"AI provider finding exceeds {MAX_FINDING_CHARS} characters",
+                reason_code=RESPONSE_REASON_BOUNDS_CHARS,
+            )
 
 
 def _to_domain_citation(citation: ProviderCitation):
@@ -531,7 +632,10 @@ def _to_domain_citation(citation: ProviderCitation):
             )
         return PatternCitation(observation_type=ObservationType(citation.observation_type))
     except ValueError as exc:
-        raise ResearchAIResponseError("AI provider returned an unknown citation value") from exc
+        raise ResearchAIResponseError(
+            "AI provider returned an unknown citation value",
+            reason_code=RESPONSE_REASON_CITATION,
+        ) from exc
 
 
 def _to_reference_id(value: ProviderReferenceId) -> ReferenceId:

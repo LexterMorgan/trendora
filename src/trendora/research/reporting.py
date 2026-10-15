@@ -304,7 +304,10 @@ class ResearchReportService:
                 )
                 raise
             logger.warning(
-                "research.report.ai_retry stage=%s error=%s", stage, type(exc).__name__
+                "research.report.ai_retry stage=%s error=%s reason=%s",
+                stage,
+                type(exc).__name__,
+                getattr(exc, "reason_code", "unspecified"),
             )
             return call()
 
@@ -397,9 +400,15 @@ class ResearchReportService:
                     ResearchAIProviderError, ResearchAIProviderNotConfiguredError,
                     ResearchAIResponseError, ResearchInterpretationError,
                 ) as exc:
-                    # Log the exact class so a timeout is distinguishable from a
-                    # connection/non-2xx failure without exposing provider text.
-                    logger.warning("research.report.interpretation_unavailable error=%s", type(exc).__name__)
+                    # Log the exact class and rejection reason so a timeout is
+                    # distinguishable from a connection/non-2xx failure, and a
+                    # truncated or invalid response from a bound violation,
+                    # without exposing provider text.
+                    logger.warning(
+                        "research.report.interpretation_unavailable error=%s reason=%s",
+                        type(exc).__name__,
+                        getattr(exc, "reason_code", "unspecified"),
+                    )
             if interpretation_result.interpretations and include_content_tools:
                 try:
                     if self._strategy is None or self._ideation is None:
