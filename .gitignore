@@ -45,3 +45,4 @@ alembic/versions/*.pyc
 .cursor/mcp.json
 .playwright-mcp/
 .opencode/
+.next/

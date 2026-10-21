@@ -47,6 +47,9 @@ Everything after saving is optional.
 | Content ideas and briefs | Optional and off by default. Their failure never discards the research. |
 | Planner and report import | Works. Statuses are `idea` and `working`; a planned date is a date, and nothing publishes automatically. |
 | Auth and membership | Works. Session verification plus active-membership checks gate every read. |
+| Grounded report Q&A | Answers must cite references the saved report already holds; uncited answers are refused. |
+| Run-over-run diff | Compares findings with the nearest older report of the same topic. Exact match only. |
+| Discover search | Public-web gateway only, no YouTube, no AI. Results link out; no research handoff yet. |
 
 Older ingestion, analytics, and forecasting capabilities still exist in the code.
 They are secondary to the research journey and are not required by it.
