@@ -253,8 +253,8 @@ container that mounts `.env` as holding your real credentials.
 
 | File | Purpose |
 | --- | --- |
-| `.env.example.backend` | Backend template; configure `DATABASE_URL`, `SUPABASE_URL`, and the selected source/AI credentials separately. |
-| `.env.example.frontend` | Frontend template; configure `TRENDORA_API_BASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, and the public `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Never use a service-role key here. |
+| `.env.example` | Backend and shared template; configure `DATABASE_URL`, `SUPABASE_URL`, and the selected source/AI credentials separately. |
+| `web/.env.example` | Frontend template; configure `TRENDORA_API_BASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, and the public `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Never use a service-role key here. |
 
 Never commit the populated `.env` / `.env.local`.
 
