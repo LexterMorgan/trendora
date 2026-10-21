@@ -1,4 +1,0 @@
-- generic [active] [ref=e1]:
-  - main [ref=e2]:
-    - status [ref=e3]: Checking your session…
-  - button "Open Next.js Dev Tools" [ref=e9] [cursor=pointer]
