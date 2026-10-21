@@ -1,0 +1,216 @@
+- generic [active] [ref=f1e1]:
+  - main [ref=f1e13]:
+    - generic [ref=f1e14]:
+      - link "Trendora home" [ref=f1e16] [cursor=pointer]:
+        - /url: /
+        - generic [aria-hidden] [ref=f1e17]: T
+        - generic [ref=f1e18]: Trendora
+      - navigation "Primary" [ref=f1e19]:
+        - link "Research" [ref=f1e20] [cursor=pointer]:
+          - /url: /
+        - link "Reports" [ref=f1e21] [cursor=pointer]:
+          - /url: /past-reports
+        - link "Planner" [ref=f1e22] [cursor=pointer]:
+          - /url: /planner
+      - button "Sign out" [ref=f1e24] [cursor=pointer]
+    - list [ref=f1e25]:
+      - listitem [ref=f1e26]:
+        - link "Oct 15, 2026 AI tools for education research_completed" [ref=f1e27] [cursor=pointer]:
+          - /url: /report/456626b6-e605-4f1b-940f-75a0bbbad28f
+          - generic [ref=f1e28]: Oct 15, 2026
+          - generic [ref=f1e29]: AI tools for education
+          - generic [ref=f1e30]: research_completed
+      - listitem [ref=f1e31]:
+        - link "Oct 14, 2026 AI tools for education research_completed" [ref=f1e32] [cursor=pointer]:
+          - /url: /report/fdd59353-14c7-43d2-a1e7-0a7ad359681b
+          - generic [ref=f1e33]: Oct 14, 2026
+          - generic [ref=f1e34]: AI tools for education
+          - generic [ref=f1e35]: research_completed
+      - listitem [ref=f1e36]:
+        - link "Oct 14, 2026 AI tools for education research_completed" [ref=f1e37] [cursor=pointer]:
+          - /url: /report/55b5b8f4-94e8-4c6a-995a-d30c8ded0848
+          - generic [ref=f1e38]: Oct 14, 2026
+          - generic [ref=f1e39]: AI tools for education
+          - generic [ref=f1e40]: research_completed
+      - listitem [ref=f1e41]:
+        - link "Oct 13, 2026 AI tools for education research_completed" [ref=f1e42] [cursor=pointer]:
+          - /url: /report/b7cf1692-5cf6-4813-9afd-967ffd8908b2
+          - generic [ref=f1e43]: Oct 13, 2026
+          - generic [ref=f1e44]: AI tools for education
+          - generic [ref=f1e45]: research_completed
+      - listitem [ref=f1e46]:
+        - link "Oct 11, 2026 AI education tools for students content_unavailable" [ref=f1e47] [cursor=pointer]:
+          - /url: /report/4f655eee-bd84-436b-8e22-23fcb35f8cc0
+          - generic [ref=f1e48]: Oct 11, 2026
+          - generic [ref=f1e49]: AI education tools for students
+          - generic [ref=f1e50]: content_unavailable
+      - listitem [ref=f1e51]:
+        - link "Oct 11, 2026 artificial intelligence research_completed" [ref=f1e52] [cursor=pointer]:
+          - /url: /report/a3ae2e14-7005-42de-8cbb-62b0d5751158
+          - generic [ref=f1e53]: Oct 11, 2026
+          - generic [ref=f1e54]: artificial intelligence
+          - generic [ref=f1e55]: research_completed
+      - listitem [ref=f1e56]:
+        - link "Oct 10, 2026 AI tools for education research_completed" [ref=f1e57] [cursor=pointer]:
+          - /url: /report/345fdfc8-8211-47b9-9c67-f2222589f724
+          - generic [ref=f1e58]: Oct 10, 2026
+          - generic [ref=f1e59]: AI tools for education
+          - generic [ref=f1e60]: research_completed
+      - listitem [ref=f1e61]:
+        - link "Oct 9, 2026 AI tools for education research_completed" [ref=f1e62] [cursor=pointer]:
+          - /url: /report/8552cc4b-6094-41b8-9d58-dbdc46a11e45
+          - generic [ref=f1e63]: Oct 9, 2026
+          - generic [ref=f1e64]: AI tools for education
+          - generic [ref=f1e65]: research_completed
+      - listitem [ref=f1e66]:
+        - link "Oct 9, 2026 AI education tools for students content_unavailable" [ref=f1e67] [cursor=pointer]:
+          - /url: /report/641fe40c-8cb4-4061-b986-38a996a82b32
+          - generic [ref=f1e68]: Oct 9, 2026
+          - generic [ref=f1e69]: AI education tools for students
+          - generic [ref=f1e70]: content_unavailable
+      - listitem [ref=f1e71]:
+        - link "Sep 15, 2026 AI education SG No evidence" [ref=f1e72] [cursor=pointer]:
+          - /url: /report/2c2c3a46-68a8-4879-a928-236c3e6467eb
+          - generic [ref=f1e73]: Sep 15, 2026
+          - generic [ref=f1e74]: AI education
+          - generic [ref=f1e75]: SG
+          - generic [ref=f1e76]: No evidence
+      - listitem [ref=f1e77]:
+        - link "Sep 15, 2026 AI education SG source_data_expired" [ref=f1e78] [cursor=pointer]:
+          - /url: /report/fea779ae-7b40-4e40-ba6e-6c9dc0ff4ca3
+          - generic [ref=f1e79]: Sep 15, 2026
+          - generic [ref=f1e80]: AI education
+          - generic [ref=f1e81]: SG
+          - generic [ref=f1e82]: source_data_expired
+      - listitem [ref=f1e83]:
+        - link "Sep 15, 2026 AI education SG source_data_expired" [ref=f1e84] [cursor=pointer]:
+          - /url: /report/6872b9de-e4db-441b-9372-0df29edf61a5
+          - generic [ref=f1e85]: Sep 15, 2026
+          - generic [ref=f1e86]: AI education
+          - generic [ref=f1e87]: SG
+          - generic [ref=f1e88]: source_data_expired
+      - listitem [ref=f1e89]:
+        - link "Sep 15, 2026 AI education SG source_data_expired" [ref=f1e90] [cursor=pointer]:
+          - /url: /report/88fe8ff5-91b2-4735-bd4e-d20442af2482
+          - generic [ref=f1e91]: Sep 15, 2026
+          - generic [ref=f1e92]: AI education
+          - generic [ref=f1e93]: SG
+          - generic [ref=f1e94]: source_data_expired
+      - listitem [ref=f1e95]:
+        - link "Sep 15, 2026 AI education SG source_data_expired" [ref=f1e96] [cursor=pointer]:
+          - /url: /report/2dcb5874-75dc-4c3e-9359-a3d711751e29
+          - generic [ref=f1e97]: Sep 15, 2026
+          - generic [ref=f1e98]: AI education
+          - generic [ref=f1e99]: SG
+          - generic [ref=f1e100]: source_data_expired
+      - listitem [ref=f1e101]:
+        - link "Sep 15, 2026 AI education SG No evidence" [ref=f1e102] [cursor=pointer]:
+          - /url: /report/55b2fcd5-6d5f-4784-a856-b9f4dc4d9012
+          - generic [ref=f1e103]: Sep 15, 2026
+          - generic [ref=f1e104]: AI education
+          - generic [ref=f1e105]: SG
+          - generic [ref=f1e106]: No evidence
+      - listitem [ref=f1e107]:
+        - link "Sep 15, 2026 AI education SG source_data_expired" [ref=f1e108] [cursor=pointer]:
+          - /url: /report/05bb52bf-d347-4e01-8160-a34beb3ef7b9
+          - generic [ref=f1e109]: Sep 15, 2026
+          - generic [ref=f1e110]: AI education
+          - generic [ref=f1e111]: SG
+          - generic [ref=f1e112]: source_data_expired
+      - listitem [ref=f1e113]:
+        - link "Sep 15, 2026 AI education SG source_data_expired" [ref=f1e114] [cursor=pointer]:
+          - /url: /report/fd79b1f7-f41b-4a96-90b4-cc2e4f3da216
+          - generic [ref=f1e115]: Sep 15, 2026
+          - generic [ref=f1e116]: AI education
+          - generic [ref=f1e117]: SG
+          - generic [ref=f1e118]: source_data_expired
+      - listitem [ref=f1e119]:
+        - link "Sep 15, 2026 AI education SG source_data_expired" [ref=f1e120] [cursor=pointer]:
+          - /url: /report/14539625-026c-4e8f-a8fa-b30b6f5687e4
+          - generic [ref=f1e121]: Sep 15, 2026
+          - generic [ref=f1e122]: AI education
+          - generic [ref=f1e123]: SG
+          - generic [ref=f1e124]: source_data_expired
+      - listitem [ref=f1e125]:
+        - link "Sep 15, 2026 AI education SG No evidence" [ref=f1e126] [cursor=pointer]:
+          - /url: /report/841b0833-3776-49bc-80aa-670b406ffd0a
+          - generic [ref=f1e127]: Sep 15, 2026
+          - generic [ref=f1e128]: AI education
+          - generic [ref=f1e129]: SG
+          - generic [ref=f1e130]: No evidence
+      - listitem [ref=f1e131]:
+        - link "Sep 15, 2026 AI education SG source_data_expired" [ref=f1e132] [cursor=pointer]:
+          - /url: /report/eaa3592d-3868-4959-8eef-86240a890582
+          - generic [ref=f1e133]: Sep 15, 2026
+          - generic [ref=f1e134]: AI education
+          - generic [ref=f1e135]: SG
+          - generic [ref=f1e136]: source_data_expired
+      - listitem [ref=f1e137]:
+        - link "Sep 15, 2026 AI education SG source_data_expired" [ref=f1e138] [cursor=pointer]:
+          - /url: /report/2884a224-c371-4ca5-9d03-d3ea27ec02d6
+          - generic [ref=f1e139]: Sep 15, 2026
+          - generic [ref=f1e140]: AI education
+          - generic [ref=f1e141]: SG
+          - generic [ref=f1e142]: source_data_expired
+      - listitem [ref=f1e143]:
+        - link "Sep 15, 2026 AI education SG source_data_expired" [ref=f1e144] [cursor=pointer]:
+          - /url: /report/a4cf608f-8ac6-429b-a897-7fe47a6e6908
+          - generic [ref=f1e145]: Sep 15, 2026
+          - generic [ref=f1e146]: AI education
+          - generic [ref=f1e147]: SG
+          - generic [ref=f1e148]: source_data_expired
+      - listitem [ref=f1e149]:
+        - link "Sep 15, 2026 AI education SG source_data_expired" [ref=f1e150] [cursor=pointer]:
+          - /url: /report/3cab2470-caab-48e9-ba7c-5007cce73be0
+          - generic [ref=f1e151]: Sep 15, 2026
+          - generic [ref=f1e152]: AI education
+          - generic [ref=f1e153]: SG
+          - generic [ref=f1e154]: source_data_expired
+      - listitem [ref=f1e155]:
+        - link "Sep 15, 2026 AI education SG No evidence" [ref=f1e156] [cursor=pointer]:
+          - /url: /report/e44439b0-5c3e-4b57-a266-b3ae321864eb
+          - generic [ref=f1e157]: Sep 15, 2026
+          - generic [ref=f1e158]: AI education
+          - generic [ref=f1e159]: SG
+          - generic [ref=f1e160]: No evidence
+      - listitem [ref=f1e161]:
+        - link "Sep 15, 2026 AI education SG source_data_expired" [ref=f1e162] [cursor=pointer]:
+          - /url: /report/88b413ff-fe2a-4bcf-9b93-c0ecef890a3a
+          - generic [ref=f1e163]: Sep 15, 2026
+          - generic [ref=f1e164]: AI education
+          - generic [ref=f1e165]: SG
+          - generic [ref=f1e166]: source_data_expired
+      - listitem [ref=f1e167]:
+        - link "Sep 15, 2026 AI education SG source_data_expired" [ref=f1e168] [cursor=pointer]:
+          - /url: /report/98f7f5c4-e559-4a8a-af28-2473926928e1
+          - generic [ref=f1e169]: Sep 15, 2026
+          - generic [ref=f1e170]: AI education
+          - generic [ref=f1e171]: SG
+          - generic [ref=f1e172]: source_data_expired
+      - listitem [ref=f1e173]:
+        - link "Sep 15, 2026 AI education SG source_data_expired" [ref=f1e174] [cursor=pointer]:
+          - /url: /report/9414ac49-f44b-4753-8d28-daa0126ca369
+          - generic [ref=f1e175]: Sep 15, 2026
+          - generic [ref=f1e176]: AI education
+          - generic [ref=f1e177]: SG
+          - generic [ref=f1e178]: source_data_expired
+      - listitem [ref=f1e179]:
+        - link "Sep 12, 2026 AI education tools for students SG source_data_expired" [ref=f1e180] [cursor=pointer]:
+          - /url: /report/803af80d-8fdd-490b-853c-2c5870c0f2ac
+          - generic [ref=f1e181]: Sep 12, 2026
+          - generic [ref=f1e182]: AI education tools for students
+          - generic [ref=f1e183]: SG
+          - generic [ref=f1e184]: source_data_expired
+      - listitem [ref=f1e185]:
+        - link "Sep 12, 2026 artificial intelligence ID source_data_expired" [ref=f1e186] [cursor=pointer]:
+          - /url: /report/aeb7e79e-bf66-479f-aacd-9567cbd96545
+          - generic [ref=f1e187]: Sep 12, 2026
+          - generic [ref=f1e188]: artificial intelligence
+          - generic [ref=f1e189]: ID
+          - generic [ref=f1e190]: source_data_expired
+    - navigation "Pagination" [ref=f1e191]:
+      - button "Previous" [disabled] [ref=f1e192]
+      - generic [ref=f1e193]: Page 1
+      - button "Next" [disabled] [ref=f1e194]
+  - button "Open Next.js Dev Tools" [ref=f1e9] [cursor=pointer]
+  - alert [ref=f1e195]

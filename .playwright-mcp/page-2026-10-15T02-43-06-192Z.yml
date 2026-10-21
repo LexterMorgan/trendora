@@ -1,0 +1,61 @@
+- generic [active] [ref=e1]:
+  - button "Open Next.js Dev Tools" [ref=e9] [cursor=pointer]
+  - alert [ref=e13]
+  - main [ref=e14]:
+    - generic [ref=e15]:
+      - link "Trendora home" [ref=e17] [cursor=pointer]:
+        - /url: /
+        - generic [aria-hidden] [ref=e18]: T
+        - generic [ref=e19]: Trendora
+      - navigation "Primary" [ref=e20]:
+        - link "Research" [ref=e21] [cursor=pointer]:
+          - /url: /
+        - link "Reports" [ref=e22] [cursor=pointer]:
+          - /url: /past-reports
+        - link "Planner" [ref=e23] [cursor=pointer]:
+          - /url: /planner
+      - button "Sign out" [ref=e25] [cursor=pointer]
+    - generic [ref=e26]:
+      - region "Research request" [ref=e59]:
+        - heading "New research" [level=2] [ref=e60]
+        - generic [ref=e61]:
+          - generic [ref=e62]:
+            - generic [ref=e63]: Topic
+            - textbox "Topic" [disabled] [ref=e64]:
+              - /placeholder: What topic do you want to research?
+          - generic "Example topics" [ref=e65]:
+            - generic [ref=e67]:
+              - button "AI education tools for students" [disabled] [ref=e68]
+              - button "Online learning platform trends" [disabled] [ref=e69]
+              - button "STEM scholarships in Southeast Asia" [disabled] [ref=e70]
+          - group "Timeframe" [ref=e71]:
+            - generic [ref=e73]:
+              - generic [ref=e74]: Preset
+              - combobox "Preset" [disabled] [ref=e75]:
+                - option "Last 7 days"
+                - option "Last 30 days"
+                - option "Last 90 days"
+                - option "Last 12 months"
+                - option "Custom" [selected]
+            - paragraph [ref=e76]: Presets update both dates. Editing either date switches to Custom. Leave blank to use the default last-30-days window.
+            - generic [ref=e77]:
+              - generic [ref=e78]:
+                - generic [ref=e79]: From
+                - textbox "From" [disabled] [ref=e80]
+              - generic [ref=e81]:
+                - generic [ref=e82]: To
+                - textbox "To" [disabled] [ref=e83]
+          - generic [ref=e84] [cursor=pointer]:
+            - checkbox "Generate content ideas and briefs" [disabled] [ref=e85]
+            - generic [ref=e86]: Generate content ideas and briefs
+          - button "Generating report…" [disabled] [ref=e87]
+          - paragraph [ref=e88]: Searches YouTube and the public web globally, with no country restriction. This is not comprehensive worldwide coverage. Public-web results are indexed titles and snippets; the timeframe is not enforced and publication dates are unverified, so undated results remain context.
+      - article [ref=e90]:
+        - generic [ref=e91]:
+          - generic [ref=e92]: You
+          - paragraph [ref=e93]: AI tools for education
+          - generic [ref=e94]: Global · 2026-09-16 to 2026-10-15 · up to 50 references · YouTube, Public web · Research only
+          - button "Edit and rerun" [ref=e95] [cursor=pointer]
+        - generic [ref=e96]:
+          - text: Trendora
+          - status [ref=e97]: Searching YouTube and Public web for AI tools for education (2026-09-16 to 2026-10-15). Findings appear here when the run finishes.

@@ -1,8 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import type { ResearchReportResponse } from "@/lib/report-api";
+import {
+  previousReportChanges,
+  type PreviousReportChangesJson,
+  type ResearchReportResponse,
+} from "@/lib/report-api";
 import type { ChainLink, ResolvedCitation } from "@/lib/report-provenance";
 import {
   buildProvenanceMaps,
@@ -13,13 +17,22 @@ import {
   resolveCitation,
   resolveUpstreamChain,
 } from "@/lib/report-provenance";
-import { briefMarkdown, copyToClipboard, downloadReportJson, ideaMarkdown } from "@/lib/report-actions";
+import {
+  briefMarkdown,
+  copyToClipboard,
+  downloadReportJson,
+  ideaMarkdown,
+  printReport,
+  reportMarkdown,
+} from "@/lib/report-actions";
 import { formatDate, sourceLabel } from "@/lib/format";
 import { CitationDrawer } from "./CitationDrawer";
+import { AskPanel } from "./AskPanel";
 import { COVERAGE_REASON_TEXT, CoveragePanel } from "./CoveragePanel";
 import { MarketCaveat } from "./MarketCaveat";
 import { ReferenceList } from "./ReferenceList";
 import { ReportPersistencePanel } from "./ReportPersistencePanel";
+import { RunDiagnostics } from "./RunDiagnostics";
 import { SaveToPlanner } from "./SaveToPlanner";
 
 interface DrawerSelection {
@@ -31,6 +44,7 @@ interface DrawerSelection {
 
 interface ReportViewProps {
   report: ResearchReportResponse;
+  clientElapsedMs?: number;
 }
 
 function citationsButton(
@@ -89,15 +103,66 @@ function emptyFindingsMessage(status: string): string {
   return "No research findings are available in this report.";
 }
 
-export function ReportView({ report }: ReportViewProps) {
+function plural(count: number, singular: string, pluralForm = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : pluralForm}`;
+}
+
+export function ReportView({ report, clientElapsedMs }: ReportViewProps) {
   const [drawer, setDrawer] = useState<DrawerSelection | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const printState = useRef<boolean[] | null>(null);
+
+  // Native Ctrl+P bypasses the print button. Open every disclosure for the
+  // print, then restore the reader's state even when printing is cancelled.
+  useEffect(() => {
+    const before = () => {
+      if (document.body.hasAttribute("data-print-open")) return;
+      const details = Array.from(document.querySelectorAll<HTMLDetailsElement>(".report details"));
+      printState.current = details.map((detail) => detail.open);
+      details.forEach((detail) => {
+        detail.open = true;
+      });
+    };
+    const after = () => {
+      if (!printState.current) return;
+      const details = Array.from(document.querySelectorAll<HTMLDetailsElement>(".report details"));
+      details.forEach((detail, index) => {
+        if (printState.current?.[index] !== undefined) detail.open = printState.current[index];
+      });
+      printState.current = null;
+    };
+    window.addEventListener("beforeprint", before);
+    window.addEventListener("afterprint", after);
+    return () => {
+      window.removeEventListener("beforeprint", before);
+      window.removeEventListener("afterprint", after);
+    };
+  }, []);
   // The canonical report id is shared here so a successful recovery reaches
   // every import button. It starts from the generation outcome and is updated
   // once by the persistence panel after a confirmed save.
   const [reportId, setReportId] = useState<string | null>(
     report.persistence?.report_id ?? null,
   );
+  const [previousChanges, setPreviousChanges] = useState<PreviousReportChangesJson | null>(null);
+
+  useEffect(() => {
+    if (!reportId) return;
+    let active = true;
+    const controller = new AbortController();
+    previousReportChanges(reportId, { signal: controller.signal })
+      .then((data) => {
+        if (active) setPreviousChanges(data);
+      })
+      .catch(() => {
+        if (active) setPreviousChanges(null);
+      });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [reportId]);
+
   const maps = buildProvenanceMaps(report);
   const sourceBacked = hasSourceBackedSummaries(report);
   const references = report.research.references ?? [];
@@ -287,6 +352,8 @@ export function ReportView({ report }: ReportViewProps) {
   const observationFindings = findings.filter((entry) => entry.bucket === "observation");
   const limitedFindings = findings.filter((entry) => entry.bucket === "limited");
   const hasPrimaryFindings = primaryFindings.length > 0;
+  const gapCount = report.strategy?.content_gaps?.length ?? 0;
+  const opportunityCount = report.strategy?.opportunities?.length ?? 0;
 
   function finding({ item, index, citations, scope, bucket, unresolved }: (typeof findings)[number]) {
     const chain = resolveUpstreamChain(report, { kind: "interpretation", item });
@@ -309,6 +376,38 @@ export function ReportView({ report }: ReportViewProps) {
   return (
     <div className="report rise-in">
       <ReportPersistencePanel report={report} onResolved={setReportId} />
+      <section className="report-brief" aria-label="Report brief">
+        <p className="report-brief-line">
+          {plural(primaryFindings.length, "source-backed finding")}
+          {" · "}
+          {plural(references.length, "source")}
+          {gapCount > 0 && <>{" · "}{plural(gapCount, "content gap")}</>}
+          {opportunityCount > 0 && <>{" · "}{plural(opportunityCount, "opportunity", "opportunities")}</>}
+          {ideas.length > 0 && <>{" · "}{plural(ideas.length, "content idea")}</>}
+        </p>
+        {(limitedFindings.length > 0 || observationFindings.length > 0) && (
+          <p className="report-brief-note">
+            {[
+              limitedFindings.length > 0
+                ? `${plural(limitedFindings.length, "interpretation")} with limited evidence`
+                : null,
+              observationFindings.length > 0
+                ? `${plural(observationFindings.length, "observation")} about the sample`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        )}
+        {previousChanges?.previous_report_id &&
+          previousChanges.previous_created_at &&
+          previousChanges.new_findings.length > 0 && (
+            <p className="report-brief-note">
+              {plural(previousChanges.new_findings.length, "new finding")} since the
+              previous run · {formatDate(previousChanges.previous_created_at)}
+            </p>
+          )}
+      </section>
       <section className="report-primary-section" aria-labelledby="findings-title">
         <h3 className="section-title" id="findings-title">Research findings</h3>
         {hasPrimaryFindings && (sourceBacked ? (
@@ -372,6 +471,18 @@ export function ReportView({ report }: ReportViewProps) {
           <p className="drawer-muted">No source references are available in this report.</p>
         )}
       </section>
+
+      <AskPanel
+        reportId={reportId}
+        onTrace={(answer, citations) =>
+          setDrawer({
+            targetLabel: "Report answer",
+            title: answer,
+            citations: citations.map((citation) => resolveCitation(citation, maps)),
+            chain: [],
+          })
+        }
+      />
 
       {(report.evidence?.patterns?.length ?? 0) > 0 && (
         <details className="report-section report-secondary-details">
@@ -470,9 +581,9 @@ export function ReportView({ report }: ReportViewProps) {
 
       </details>
 
-      <button type="button" className="secondary-button" onClick={() => downloadReportJson(report)}>
-        Download report JSON
-      </button>
+      <RunDiagnostics report={report} clientElapsedMs={clientElapsedMs} />
+
+      <ReportActions report={report} />
 
       {drawer && (
         <CitationDrawer
@@ -581,9 +692,50 @@ function NoEvidenceView({ report }: { report: ResearchReportResponse }) {
       {(report.research.references?.length ?? 0) > 0 && (
         <ReferenceList references={report.research.references} window={report.research.query} />
       )}
+      <RunDiagnostics report={report} />
+      <ReportActions report={report} />
+    </div>
+  );
+}
+
+/** Copy the whole report, print/Save as PDF, or download the exact JSON. */
+function ReportActions({ report }: { report: ResearchReportResponse }) {
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+
+  async function copyReport() {
+    try {
+      await copyToClipboard(reportMarkdown(report));
+      setCopyState("copied");
+    } catch {
+      setCopyState("failed");
+    }
+  }
+
+  return (
+    <div className="report-actions">
+      <button type="button" className="secondary-button" onClick={copyReport}>
+        Copy full report as Markdown
+      </button>
+      <button
+        type="button"
+        className="secondary-button"
+        onClick={() => printReport(document.body)}
+      >
+        Print or save as PDF
+      </button>
       <button type="button" className="secondary-button" onClick={() => downloadReportJson(report)}>
         Download report JSON
       </button>
+      {copyState === "copied" && (
+        <span className="copy-feedback" role="status">
+          Report copied
+        </span>
+      )}
+      {copyState === "failed" && (
+        <span className="copy-feedback copy-failed" role="status">
+          Clipboard unavailable. Allow clipboard access or use a secure page, then try again.
+        </span>
+      )}
     </div>
   );
 }

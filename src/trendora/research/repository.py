@@ -9,7 +9,7 @@ same rule, so a listed row is fetchable and a hidden row is not.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -193,21 +193,45 @@ def get_report_records(
     offset: int = 0,
     visible_from: datetime | None = None,
     now: datetime | None = None,
+    q: str | None = None,
+    status: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
 ) -> tuple[list[dict[str, Any]], int]:
     """List persisted report records with metadata only.
 
     Returns two values:
     - list of summary dicts (id, created_at, status, topic, markets,
       source_codes, date range)
-    - total count of *visible* records across all pages (for pagination)
+    - total count of matching *visible* records across all pages (for pagination)
+
+    All filters run before counting and pagination, across creators. ``q`` is
+    a trimmed, case-insensitive literal topic substring (maximum 200 characters,
+    including surrounding whitespace); blank means no topic filter. ``status``
+    matches the persisted outcome, not the effective status from ``_read_status``.
+    Retention can overwrite the persisted outcome with ``source_data_expired``;
+    a prior outcome is then unavailable. Dates match inclusive overlap with the
+    report's requested window, not its save date: ``record.date_to >= date_from``
+    and ``record.date_from <= date_to``. Either bound may be omitted. The API
+    validates status values, dates and date order before calling this function.
 
     Ordered by ``created_at`` DESC (newest first), ``id`` DESC as the
     tiebreak for identical timestamps.
     """
+    if q is not None and len(q) > 200:
+        raise ValueError("history search q must be at most 200 characters")
     now = now if now is not None else datetime.now(timezone.utc)
     query = session.query(ResearchReportRecord)
     if visible_from is not None:
         query = query.filter(ResearchReportRecord.created_at >= visible_from)
+    if q and q.strip():
+        query = query.filter(ResearchReportRecord.topic.icontains(q.strip(), autoescape=True))
+    if status is not None:
+        query = query.filter(ResearchReportRecord.status == status)
+    if date_from is not None:
+        query = query.filter(ResearchReportRecord.date_to >= date_from)
+    if date_to is not None:
+        query = query.filter(ResearchReportRecord.date_from <= date_to)
     total_count = query.count()
     records = (
         query.order_by(
@@ -279,4 +303,39 @@ def get_report_record_by_id(
         "snapshot_origin": record.snapshot_origin,
         "source_expires_at": getattr(record, "source_expires_at", None),
         "report": {"status": EXPIRED_STATUS} if status == EXPIRED_STATUS else record.report,
+    }
+
+
+def get_previous_report_record(
+    session: Session,
+    *,
+    topic: str,
+    before_created_at: datetime,
+    visible_from: datetime | None = None,
+) -> dict[str, Any] | None:
+    """Nearest older visible report with the exact same topic.
+
+    Older means strictly earlier ``created_at``; equal timestamps are not
+    earlier. Ordering matches the history list: newest first, id descending as
+    the tiebreak for identical timestamps.
+    """
+    query = session.query(ResearchReportRecord).filter(
+        ResearchReportRecord.topic == topic,
+        ResearchReportRecord.created_at < before_created_at,
+    )
+    if visible_from is not None:
+        query = query.filter(ResearchReportRecord.created_at >= visible_from)
+    record = (
+        query.order_by(
+            ResearchReportRecord.created_at.desc(), ResearchReportRecord.id.desc()
+        )
+        .first()
+    )
+    if record is None:
+        return None
+    return {
+        "id": str(record.id),
+        "created_at": record.created_at.isoformat(),
+        "topic": record.topic,
+        "report": record.report,
     }

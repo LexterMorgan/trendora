@@ -123,11 +123,26 @@ export function CitationDrawer({
         )}
 
         <h4 className="drawer-subheading">Citations</h4>
+        <p className="drawer-muted">
+          Cited text is the value stored in this report’s evidence map.
+          A citation identifies evidence; it does not independently verify the claim.
+        </p>
         <ul className="citation-list">
           {citations.map((citation, index) => (
             <li key={index} className={citation.resolved ? "" : "citation-unresolved"}>
               <span className="chain-label">{citation.kind}</span>
               <span className="chain-value">{citation.detail}</span>
+
+              {citation.textEvidence && (
+                <div className="citation-text-evidence">
+                  <span className="chain-label">Cited {citation.targetId} value</span>
+                  {citation.textEvidence.value !== null ? (
+                    <blockquote className="citation-text-value">{citation.textEvidence.value}</blockquote>
+                  ) : (
+                    <p className="drawer-muted">{citation.textEvidence.unavailableReason}</p>
+                  )}
+                </div>
+              )}
 
               {citation.references.length > 0 && (
                 <ul className="reference-trace-list">

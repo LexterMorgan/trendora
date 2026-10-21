@@ -130,7 +130,10 @@ class TestAuthenticatedRequests:
     def test_active_member_reaches_handler(self, monkeypatch) -> None:
         captured: dict = {}
 
-        def fake_records(session, *, limit=50, offset=0, visible_from=None, now=None):
+        def fake_records(
+            session, *, limit=50, offset=0, visible_from=None, now=None,
+            q=None, status=None, date_from=None, date_to=None,
+        ):
             captured.update(limit=limit, offset=offset, visible_from=visible_from)
             return [], 0
 

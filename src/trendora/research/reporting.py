@@ -28,6 +28,7 @@ from trendora.research.application import (
     build_research_application_service,
 )
 from trendora.research.deadline import AIPhaseDeadline, call_with_deadline
+from trendora.research.run_details import measure_stage, record_retry
 from trendora.research.evidence import EvidenceField, analyze_references, reference_id
 from trendora.research.exceptions import (
     ResearchAIResponseError,
@@ -294,22 +295,24 @@ class ResearchReportService:
         the original malformed-output error is re-raised so the caller's
         labeled fallback still applies.
         """
-        try:
-            return call()
-        except ResearchAIResponseError as exc:
-            if deadline is not None and deadline.expired():
+        with measure_stage(stage):
+            try:
+                return call()
+            except ResearchAIResponseError as exc:
+                if deadline is not None and deadline.expired():
+                    logger.warning(
+                        "research.report.ai_retry_skipped stage=%s reason=budget_exhausted",
+                        stage,
+                    )
+                    raise
                 logger.warning(
-                    "research.report.ai_retry_skipped stage=%s reason=budget_exhausted",
+                    "research.report.ai_retry stage=%s error=%s reason=%s",
                     stage,
+                    type(exc).__name__,
+                    getattr(exc, "reason_code", "unspecified"),
                 )
-                raise
-            logger.warning(
-                "research.report.ai_retry stage=%s error=%s reason=%s",
-                stage,
-                type(exc).__name__,
-                getattr(exc, "reason_code", "unspecified"),
-            )
-            return call()
+                record_retry()
+                return call()
 
     def build_report(
         self,
@@ -324,16 +327,17 @@ class ResearchReportService:
         facebook_page_id: str | None = None,
         include_content_tools: bool | None = None,
     ) -> ResearchReport:
-        run = self._research.execute(
-            topic=topic,
-            market=market,
-            markets=markets,
-            date_from=date_from,
-            date_to=date_to,
-            sources=sources,
-            result_limit=result_limit,
-            facebook_page_id=facebook_page_id,
-        )
+        with measure_stage("collection"):
+            run = self._research.execute(
+                topic=topic,
+                market=market,
+                markets=markets,
+                date_from=date_from,
+                date_to=date_to,
+                sources=sources,
+                result_limit=result_limit,
+                facebook_page_id=facebook_page_id,
+            )
         if run.status is ResearchRunStatus.BLOCKED:
             raise ResearchNoCoverageError(
                 "no requested source can satisfy the required capability"
@@ -363,7 +367,7 @@ class ResearchReportService:
         if include_content_tools is not None:
             # One shared budget for the whole AI phase: interpretation + its
             # malformed-output retry + optional strategy/ideation. Collection
-            # and persistence have already run and are outside this budget.
+            # has already run; persistence follows outside this budget.
             deadline = self._ai_deadline()
             interpretation_result = source_summaries(pack)
             strategic_result = None

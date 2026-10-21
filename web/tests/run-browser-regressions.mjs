@@ -147,10 +147,6 @@ export default function FormFixture() {
   }
   for (const name of ["home", "runtime"]) fs.mkdirSync(path.join(root, name), { mode: 0o700 });
 
-  const fontMock = path.join(root, "font-mock.cjs");
-  fs.writeFileSync(fontMock, `module.exports = new Proxy({}, { get(_, url) {
-    return "@font-face { font-family: '" + (String(url).includes('Geist+Mono') ? 'Geist Mono' : 'Geist') + "'; src: local('Arial'); font-weight: 100 900; }";
-  }});`, { mode: 0o600 });
   const guard = path.join(root, "network-guard.cjs");
   fs.writeFileSync(guard, `const net = require('node:net');
 const fs = require('node:fs');
@@ -187,7 +183,6 @@ net.Socket.prototype.connect = function(...args) {
     NODE_OPTIONS: `--require=${JSON.stringify(guard)}`,
     TRENDORA_BROWSER_PORTS: `${frontPort},${mockUrl.port}`,
     TRENDORA_BROWSER_NETWORK_LOG: path.join(root, "network.jsonl"),
-    NEXT_FONT_GOOGLE_MOCKED_RESPONSES: fontMock,
     NEXT_PUBLIC_SUPABASE_URL: mock.origin,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: "fictional-browser-public-key",
     TRENDORA_API_BASE_URL: mock.origin,
@@ -197,7 +192,7 @@ net.Socket.prototype.connect = function(...args) {
     childEnv.NEXT_TEST_WASM = "1";
     childEnv.NEXT_TEST_WASM_DIR = fs.realpathSync(installedWasm);
   }
-  output("isolation.json", { source, root, origin, mockOrigin: mock.origin, driver: driver.name, environmentKeys: Object.keys(childEnv), dotenvFilesCopied: false, font: "Installed Next font mock; local Arial, no download" });
+  output("isolation.json", { source, root, origin, mockOrigin: mock.origin, driver: driver.name, environmentKeys: Object.keys(childEnv), dotenvFilesCopied: false, font: "Bundled Manrope variable font; no font mock or external download" });
   const probe = spawnOwned(["--eval", `const assert = require('node:assert/strict');
 const net = require('node:net');
 for (const endpoint of [{host:'198.51.100.9',port:443}, {host:'127.0.0.1',port:5432}]) {

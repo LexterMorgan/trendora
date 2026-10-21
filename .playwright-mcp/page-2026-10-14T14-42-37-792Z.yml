@@ -1,0 +1,272 @@
+- generic [ref=f4e1]:
+  - main [ref=f4e2]:
+    - generic [ref=f4e3]:
+      - link "Trendora home" [ref=f4e5] [cursor=pointer]:
+        - /url: /
+        - generic [aria-hidden] [ref=f4e6]: T
+        - generic [ref=f4e7]: Trendora
+      - navigation "Primary" [ref=f4e8]:
+        - link "Research" [ref=f4e9] [cursor=pointer]:
+          - /url: /
+        - link "Reports" [ref=f4e10] [cursor=pointer]:
+          - /url: /past-reports
+        - link "Planner" [ref=f4e11] [cursor=pointer]:
+          - /url: /planner
+      - button "Sign out" [ref=f4e13] [cursor=pointer]
+    - generic [ref=f4e25]:
+      - status [ref=f4e26]:
+        - generic [ref=f4e27]: Saved to history.
+      - region [ref=f4e28]:
+        - heading "Research findings" [level=3] [ref=f4e29]
+        - generic [ref=f4e30]: Source-attributed excerpt
+        - paragraph [ref=f4e31]: These are source-attributed excerpts, not synthesized findings. A source’s statement and publication date do not independently verify an event or its date. Event dates are unavailable.
+        - region "Source published within requested timeframe" [ref=f4e32]:
+          - heading "Source published within requested timeframe" [level=4] [ref=f4e33]
+          - article [ref=f4e34]:
+            - blockquote [ref=f4e35]: "“Padhle Akshay is a community for Backbenchers turning into Toppers; join now for free materials and more: ✨ Finally, Luminary AI is available on mobile! 📱 In this video, I’m exploring Luminary AI — an AI-powered Exploration & Understanding Engine designed to help you search, learn, explore and”"
+            - button "Trace 1 citation" [ref=f4e36] [cursor=pointer]
+          - article [ref=f4e37]:
+            - blockquote [ref=f4e38]: “See how Dajiao Geometry AI turns geometry concepts into dynamic animations. Just type what you want, and AI builds the animation for you. Pythagorean triples become visual.The hand-in-hand model becomes clear.Complex number-and-shape problems become easier to understand. No complicated”
+            - button "Trace 1 citation" [ref=f4e39] [cursor=pointer]
+          - article [ref=f4e40]:
+            - blockquote [ref=f4e41]: “*SUCCESSFUL COMPLETION - AI TOOLS IN EDUCATION!* ✨ *SkillVeda* successfully completed its most awaited session on *AI TOOLS IN EDUCATION* - The Grand Finale of our Train The Trainer Series! A heartfelt thanks to our Expert Trainer Upasna Malhotra- CBSE Resource Person, Educationist & AI”
+            - button "Trace 1 citation" [ref=f4e42] [cursor=pointer]
+          - article [ref=f4e43]:
+            - blockquote [ref=f4e44]: “See how Dajiao Geometry AI turns math problems into visual, interactive animations. Just type what you want — or upload a problem. AI turns it into an animation in seconds. Geometry becomes visual.Patterns become clear.Hard problems become easier to understand. No complicated drawing.Just”
+            - button "Trace 1 citation" [ref=f4e45] [cursor=pointer]
+          - article [ref=f4e46]:
+            - blockquote [ref=f4e47]: “How Students Can Get Claude AI Pro For Free (Claude for Education) 2026 Are you a student looking to get Claude Pro for free? In this guide, I'll show you how Claude for Education works and how students can access Claude through participating universities. Anthropic offers Claude for Education as”
+            - button "Trace 1 citation" [ref=f4e48] [cursor=pointer]
+          - article [ref=f4e49]:
+            - blockquote [ref=f4e50]: “Want to learn Artificial Intelligence from scratch but don’t know where to start? This complete AI crash course is designed for absolute beginners who want to understand AI in a simple and practical way. In this video, you'll learn the fundamentals of AI, Machine Learning, Generative AI, AI”
+            - button "Trace 1 citation" [ref=f4e51] [cursor=pointer]
+          - article [ref=f4e52]:
+            - blockquote [ref=f4e53]: "“Discover the best AI tools and free study websites for students in 2026! From Maths and Science to English and Geography, these useful websites will help you study smarter, understand concepts faster, and boost productivity. 📚✨ Save this video for your next study session! #AIToolsForStudents”"
+            - button "Trace 1 citation" [ref=f4e54] [cursor=pointer]
+          - article [ref=f4e55]:
+            - blockquote [ref=f4e56]: “Being a student doesn't mean you need expensive software to study smarter. ChatGPT → Explain difficult topics in simple terms Grammarly → Improve essays, grammar, and clarity Otter → Turn lectures and discussions into notes Quizlet AI → Create flashcards and study materials The real advantage is”
+            - button "Trace 1 citation" [ref=f4e57] [cursor=pointer]
+          - article [ref=f4e58]:
+            - blockquote [ref=f4e59]: “This worksheet was completely boring… 😭 So I gave it to AI and asked it to turn it into a modern, attractive educational worksheet. 🤖📚 Same questions. Completely different presentation. But would you actually give an AI-generated worksheet to your students? Welcome to MOIZA AI LAB 🤖 BUILD |”
+            - button "Trace 1 citation" [ref=f4e60] [cursor=pointer]
+          - article [ref=f4e61]:
+            - blockquote [ref=f4e62]: “AI is changing education, but how can schools move beyond simply using AI tools to creating more meaningful learning experiences? In this episode of AIFE Live, educators share practical approaches to integrating AI into teaching, learning, curriculum design, and student creativity. 🎙️ **Featured”
+            - button "Trace 1 citation" [ref=f4e63] [cursor=pointer]
+          - article [ref=f4e64]:
+            - blockquote [ref=f4e65]: “Best free AI tools for students”
+            - button "Trace 1 citation" [ref=f4e66] [cursor=pointer]
+          - article [ref=f4e67]:
+            - blockquote [ref=f4e68]: "“في ورشة المعلم الرقمي هتتعلمي خطوة بخطوة إزاي تعملي عروض تقديمية، وخرائط ذهنية، وإنفوجرافيك، وبنوك أسئلة، وألعاب تفاعلية، وفيديوهات تعليمية باستخدام أدوات ذكاء اصطناعي مجانية. 🎯 ورشة عملية بالكامل، تساعدك توفّري وقتك وتطوّري أسلوب تدريسك. 💰 الاشتراك: 350 جنيه 📩 للحجز والاستفسار، ابعتي رسالة”"
+            - button "Trace 1 citation" [ref=f4e69] [cursor=pointer]
+          - article [ref=f4e70]:
+            - blockquote [ref=f4e71]: “Google has FREE AI courses that can help you learn AI, generative AI, and essential AI skills. If you want to level up your AI knowledge without paying for expensive courses, these Google AI courses are worth checking out.”
+            - button "Trace 1 citation" [ref=f4e72] [cursor=pointer]
+          - article [ref=f4e73]:
+            - blockquote [ref=f4e74]: “Want to study smarter with AI? 🤯 Here are 5 useful ChatGPT prompts for students that can help with understanding difficult topics, making notes, revision, practice questions, homework, and exam preparation. ChatGPT Student”
+            - button "Trace 1 citation" [ref=f4e75] [cursor=pointer]
+          - article [ref=f4e76]:
+            - blockquote [ref=f4e77]: “Are you a student in Pakistan? 🇵🇰 In this video, I’m sharing **5 FREE AI tools** that can help you study smarter, save time, improve your English, research faster, and create better assignments and presentations. 🤖 **The 5 AI tools:** 1. **ChatGPT** — Understand difficult topics, create practice”
+            - button "Trace 1 citation" [ref=f4e78] [cursor=pointer]
+          - article [ref=f4e79]:
+            - blockquote [ref=f4e80]: "“5 Best AI Tools for Teachers 🤖 | Smart Teaching Made Easy | AI Tools #shortsdiscovery 5 powerful AI tools that can help teachers save time and create better lessons, presentations, quizzes and educational content. ChatGPT • Canva AI • MagicSchool AI • Gemini • Gamma”"
+            - button "Trace 1 citation" [ref=f4e81] [cursor=pointer]
+          - article [ref=f4e82]:
+            - blockquote [ref=f4e83]: "“Five practical AI tools for five student jobs: ChatGPT Study mode for understanding a topic, NotebookLM for reviewing your own notes, Elicit for finding papers, DeepL Write for improving a draft, and Canva Magic Design for starting a presentation. Check sources, review AI output, and follow your”"
+            - button "Trace 1 citation" [ref=f4e84] [cursor=pointer]
+          - article [ref=f4e85]:
+            - blockquote [ref=f4e86]: “NURSPAN.in 🇮🇳 | Teaching Is Evolving! 🤖 AI Is Transforming Education 🚀 Education is evolving faster than ever! 🤖 Discover how Artificial Intelligence is transforming teaching, learning, and the future of students. From smart classrooms to personalized learning, AI is opening new doors for India's”
+            - button "Trace 1 citation" [ref=f4e87] [cursor=pointer]
+          - article [ref=f4e88]:
+            - blockquote [ref=f4e89]: "“Want to study smarter and save hours of preparation time? Discover two powerful AI tools for students: NoteGPT and Quizgecko. 1. NoteGPT — Turn YouTube videos, podcasts, and PDF documents into clear, easy-to-understand notes. Save time summarizing long lectures, educational videos, and study”"
+            - button "Trace 1 citation" [ref=f4e90] [cursor=pointer]
+          - article [ref=f4e91]:
+            - blockquote [ref=f4e92]: "“Students, you don't need expensive tools! 🎓 Here are 3 free AI tools that can save you hours: 📚 NotebookLM: study from your own notes and PDFs 🔍 Perplexity: research with sources you can check 🎨 Canva: make slides and posters in minutes ⚠️ Always double-check AI answers, and use AI to learn, not”"
+            - button "Trace 1 citation" [ref=f4e93] [cursor=pointer]
+          - article [ref=f4e94]:
+            - blockquote [ref=f4e95]: "“Video title: शिक्षकले AI बाट शैक्षिक सामग्री बनाउने सही तरिका | AI for Education | AI | Teacher | Nepali Book About this video: यस भिडियोमा शिक्षकले AI को प्रयोग गरेर गुणस्तरीय र उपयोगी शैक्षिक सामग्री कसरी तयार गर्न सक्छन्? भन्ने विषयमा व्यावहारिक रूपमा चर्चा गरिएको छ। 📌 यस भिडियोमा तपाईंले”"
+            - button "Trace 1 citation" [ref=f4e96] [cursor=pointer]
+          - article [ref=f4e97]:
+            - blockquote [ref=f4e98]: "“Top 40 Best AI Tools 🤖(2026) #ai #education#aitools #prompt#growth#learn#best”"
+            - button "Trace 1 citation" [ref=f4e99] [cursor=pointer]
+          - article [ref=f4e100]:
+            - blockquote [ref=f4e101]: "“This is how Dajiao Geometry AI turns abstract geometry into dynamic animations. Just describe what you want, and AI creates interactive visuals for ellipses, parabolas, hyperbolas, and more. No coding. No complicated drawing. Make geometry easier to teach — and easier to understand. #geometry ”"
+            - button "Trace 1 citation" [ref=f4e102] [cursor=pointer]
+          - article [ref=f4e103]:
+            - blockquote [ref=f4e104]: “Is AI Taking Over Classrooms? 🤖📚 What if your classroom adapted to the exact way you learn? EdTech and Artificial Intelligence are completely changing the game for students and teachers—from smart learning tools to real-time feedback. But does adding tech actually mean better learning? Here’s”
+            - button "Trace 1 citation" [ref=f4e105] [cursor=pointer]
+          - article [ref=f4e106]:
+            - blockquote [ref=f4e107]: “Best AI tools for Doctors 2026🤯🚀🔥”
+            - button "Trace 1 citation" [ref=f4e108] [cursor=pointer]
+        - region "Undated source context" [ref=f4e109]:
+          - heading "Undated source context" [level=4] [ref=f4e110]
+          - article [ref=f4e111]:
+            - blockquote [ref=f4e112]: “8 Jun 2026 ... Best AI Teaching Tools for Teachers in 2026 (Tested and Ranked) · 1. Edcafe AI · 2. MagicSchool AI · 3. Brisk Teaching · 4. Eduaide AI · 5.”
+            - button "Trace 1 citation" [ref=f4e113] [cursor=pointer]
+          - article [ref=f4e114]:
+            - blockquote [ref=f4e115]: "“23 Jul 2025 ... MagicSchool.ai: built specifically for educators, it generates rubrics, quizzes, and creative lesson ideas quickly. #8. Canva Magic Write: helps ...”"
+            - button "Trace 1 citation" [ref=f4e116] [cursor=pointer]
+          - article [ref=f4e117]:
+            - blockquote [ref=f4e118]: “18 Agu 2025 ... Discover how these 4 free AI tools can help you study smarter and reduce stress. Perfect for students looking to optimize their learning!”
+            - button "Trace 1 citation" [ref=f4e119] [cursor=pointer]
+          - article [ref=f4e120]:
+            - blockquote [ref=f4e121]: "“8 Des 2024 ... Here's how these AI platforms can revolutionize education: 1️⃣ @teachertool.ai : All-in-one AI tools for grading, lesson planning, and ...”"
+            - button "Trace 1 citation" [ref=f4e122] [cursor=pointer]
+          - article [ref=f4e123]:
+            - blockquote [ref=f4e124]: “Helping teachers and schools unlock their full potential through AI.”
+            - button "Trace 1 citation" [ref=f4e125] [cursor=pointer]
+          - article [ref=f4e126]:
+            - blockquote [ref=f4e127]: “4 Jan 2026 ... A teacher who knows how to use AI will always stay ahead — ethically, creatively, and professionally. Teaching is no longer about working ...”
+            - button "Trace 1 citation" [ref=f4e128] [cursor=pointer]
+          - article [ref=f4e129]:
+            - blockquote [ref=f4e130]: “Imagine technology that works with you while you teach. You speak. You teach. You interact with your pupils. And in the background, the technology listens to ...”
+            - button "Trace 1 citation" [ref=f4e131] [cursor=pointer]
+          - article [ref=f4e132]:
+            - blockquote [ref=f4e133]: “Create personalized classroom materials with AI tools for teachers on Canva. Save time crafting quizzes, activities, and lesson plans so you can have more ...”
+            - button "Trace 1 citation" [ref=f4e134] [cursor=pointer]
+          - article [ref=f4e135]:
+            - blockquote [ref=f4e136]: “22 Sep 2025 ... AI tutor app · 2nd Brain AI app · Creating Practice Tests AI app · Scheduling App · AI summarizer · Visual AI mindmapper · AI simulation · AI feedback.”
+            - button "Trace 1 citation" [ref=f4e137] [cursor=pointer]
+          - article [ref=f4e138]:
+            - blockquote [ref=f4e139]: "“3 Mei 2025 ... AI Tools to Make Learning Fun & Efficient ... Keywords: AI learning tools,efficient learning,engaging education,AI in education,study tips.”"
+            - button "Trace 1 citation" [ref=f4e140] [cursor=pointer]
+          - article [ref=f4e141]:
+            - blockquote [ref=f4e142]: “21 Sep 2025 ... If you're a student, these are 6 AI tools that can really help you with your research, writing and learning process 1️⃣ @voicepal.app”
+            - button "Trace 1 citation" [ref=f4e143] [cursor=pointer]
+          - article [ref=f4e144]:
+            - blockquote [ref=f4e145]: “Students want AI integration in education, but 73% want universities to effectively train faculty on AI tools (Digital Education Council). KEATH.ai is ...”
+            - button "Trace 1 citation" [ref=f4e146] [cursor=pointer]
+          - article [ref=f4e147]:
+            - blockquote [ref=f4e148]: "“Build AI confidence: Encourage teachers and students to explore AI tools and develop practical skills so everyone can navigate and benefit from new classroom ...”"
+            - button "Trace 1 citation" [ref=f4e149] [cursor=pointer]
+          - article [ref=f4e150]:
+            - blockquote [ref=f4e151]: “9 Agu 2026 ... 6. Canva AI – Create lesson presentations, worksheets, posters, visuals, quizzes and lesson plans. 9w · 23 likes.”
+            - button "Trace 1 citation" [ref=f4e152] [cursor=pointer]
+          - article [ref=f4e153]:
+            - blockquote [ref=f4e154]: "“29 Jan 2026 ... Top 10 AI Education Tools for 2026 · 1. Disco: The Premier AI-Powered Social Learning Platform · 2. Khanmigo by Khan Academy · 3. ChatGPT Edu.”"
+            - button "Trace 1 citation" [ref=f4e155] [cursor=pointer]
+      - region "Research scope" [ref=f4e156]:
+        - heading "Research scope" [level=3] [ref=f4e157]
+        - list [ref=f4e158]:
+          - listitem [ref=f4e159]: "Requested timeframe: 2026-09-15 to 2026-10-14"
+          - listitem [ref=f4e160]: "Sources searched: YouTube, Public web"
+          - listitem [ref=f4e161]: "References: 40"
+        - paragraph [ref=f4e162]: Timeframe coverage is unverified. Publication dates are source metadata; collection dates do not establish when a development happened.
+        - paragraph [ref=f4e163]: Public web search did not enforce the requested timeframe. Publication dates are unverified; undated results are context.
+        - group [ref=f4e164]:
+          - generic "▶ Scope and coverage details" [ref=f4e165] [cursor=pointer]
+      - region [ref=f4e166]:
+        - heading "Sources and evidence (40)" [level=3] [ref=f4e167]
+        - paragraph [ref=f4e168]: Titles and descriptions are source material, not verified event summaries. No measured trend evidence is available in this report.
+        - region "Research references" [ref=f4e169]:
+          - generic [ref=f4e170]:
+            - article [ref=f4e171]:
+              - img "YouTube thumbnail for This FREE A.I. finished my entire Syllabus in 1 hour😱 (proof inside)" [ref=f4e173]
+              - generic [ref=f4e174]:
+                - generic [ref=f4e175]: YouTube
+                - generic [ref=f4e176]: Padhle
+              - heading "This FREE A.I. finished my entire Syllabus in 1 hour😱 (proof inside)" [level=3] [ref=f4e177]
+              - paragraph [ref=f4e178]:
+                - text: Published
+                - time [ref=f4e179]: Oct 12, 2026
+              - link "Open source" [ref=f4e180] [cursor=pointer]:
+                - /url: https://www.youtube.com/watch?v=aoZLawWW7fw
+              - group [ref=f4e181]:
+                - generic "Details" [ref=f4e182] [cursor=pointer]
+            - article [ref=f4e183]:
+              - 'img "YouTube thumbnail for AI Turns Geometry into Dynamic Animations in Seconds#geometry #aitools #education" [ref=f4e185]'
+              - generic [ref=f4e186]:
+                - generic [ref=f4e187]: YouTube
+                - generic [ref=f4e188]: Dajiao Geometry AI
+              - 'heading "AI Turns Geometry into Dynamic Animations in Seconds#geometry #aitools #education" [level=3] [ref=f4e189]'
+              - paragraph [ref=f4e190]:
+                - text: Published
+                - time [ref=f4e191]: Sep 28, 2026
+              - link "Open source" [ref=f4e192] [cursor=pointer]:
+                - /url: https://www.youtube.com/watch?v=4ihZu7_LDcc
+              - group [ref=f4e193]:
+                - generic "Details" [ref=f4e194] [cursor=pointer]
+            - article [ref=f4e195]:
+              - img "YouTube thumbnail for AI TOOLS IN EDUCATION" [ref=f4e197]
+              - generic [ref=f4e198]:
+                - generic [ref=f4e199]: YouTube
+                - generic [ref=f4e200]: Skillveda
+              - heading "AI TOOLS IN EDUCATION" [level=3] [ref=f4e201]
+              - paragraph [ref=f4e202]:
+                - text: Published
+                - time [ref=f4e203]: Sep 27, 2026
+              - link "Open source" [ref=f4e204] [cursor=pointer]:
+                - /url: https://www.youtube.com/watch?v=GfaVdIrwQao
+              - group [ref=f4e205]:
+                - generic "Details" [ref=f4e206] [cursor=pointer]
+            - article [ref=f4e207]:
+              - 'img "YouTube thumbnail for AI Turns Geometry Problems into Visuals in Seconds#geometry #aitools #education" [ref=f4e209]'
+              - generic [ref=f4e210]:
+                - generic [ref=f4e211]: YouTube
+                - generic [ref=f4e212]: Dajiao Geometry AI
+              - 'heading "AI Turns Geometry Problems into Visuals in Seconds#geometry #aitools #education" [level=3] [ref=f4e213]'
+              - paragraph [ref=f4e214]:
+                - text: Published
+                - time [ref=f4e215]: Sep 24, 2026
+              - link "Open source" [ref=f4e216] [cursor=pointer]:
+                - /url: https://www.youtube.com/watch?v=goiTu4luDyk
+              - group [ref=f4e217]:
+                - generic "Details" [ref=f4e218] [cursor=pointer]
+            - article [ref=f4e219]:
+              - img "YouTube thumbnail for How Students Can Get Claude AI Pro For Free (Claude for Education)" [ref=f4e221]
+              - generic [ref=f4e222]:
+                - generic [ref=f4e223]: YouTube
+                - generic [ref=f4e224]: Shax Finds
+              - heading "How Students Can Get Claude AI Pro For Free (Claude for Education)" [level=3] [ref=f4e225]
+              - paragraph [ref=f4e226]:
+                - text: Published
+                - time [ref=f4e227]: Sep 15, 2026
+              - link "Open source" [ref=f4e228] [cursor=pointer]:
+                - /url: https://www.youtube.com/watch?v=yv8iF6tE1j0
+              - group [ref=f4e229]:
+                - generic "Details" [ref=f4e230] [cursor=pointer]
+            - article [ref=f4e231]:
+              - img "YouTube thumbnail for Complete AI Crash Course for Beginners | Learn AI from Scratch" [ref=f4e233]
+              - generic [ref=f4e234]:
+                - generic [ref=f4e235]: YouTube
+                - generic [ref=f4e236]: The iScale
+              - heading "Complete AI Crash Course for Beginners | Learn AI from Scratch" [level=3] [ref=f4e237]
+              - paragraph [ref=f4e238]:
+                - text: Published
+                - time [ref=f4e239]: Sep 24, 2026
+              - link "Open source" [ref=f4e240] [cursor=pointer]:
+                - /url: https://www.youtube.com/watch?v=MJNDGJdqW7s
+              - group [ref=f4e241]:
+                - generic "Details" [ref=f4e242] [cursor=pointer]
+          - group [ref=f4e243]:
+            - generic "Show all 40 sources" [ref=f4e244] [cursor=pointer]
+      - group [ref=f4e245]:
+        - generic "▶ Evidence patterns (4)" [ref=f4e246] [cursor=pointer]
+      - group [ref=f4e247]:
+        - generic "▶ Content tools (optional)" [ref=f4e248] [cursor=pointer]
+      - button "Download report JSON" [ref=f4e249] [cursor=pointer]
+      - dialog "Citation trace" [ref=f4e250]:
+        - generic [ref=f4e251]:
+          - generic [ref=f4e252]:
+            - heading "Citation trace" [level=3] [ref=f4e253]
+            - button "Close citation trace" [active] [ref=f4e254] [cursor=pointer]: ✕
+          - paragraph [ref=f4e255]:
+            - strong [ref=f4e256]: "Source-backed summary #0"
+            - text: ": Padhle Akshay is a community for Backbenchers turning into Toppers; join now for free materials and more: ✨ Finally, Luminary AI is available on mobile! 📱 In this video, I’m exploring Luminary AI — an AI-powered Exploration & Understanding Engine designed to help you search, learn, explore and"
+          - heading "Upstream chain" [level=4] [ref=f4e257]
+          - list [ref=f4e258]:
+            - listitem [ref=f4e259]:
+              - generic [ref=f4e260]: Interpretation
+              - generic [ref=f4e261]: "Padhle Akshay is a community for Backbenchers turning into Toppers; join now for free materials and more: ✨ Finally, Luminary AI is available on mobile! 📱 In this video, I’m exploring Luminary AI — an AI-powered Exploration & Understanding Engine designed to help you search, learn, explore and"
+          - heading "Citations" [level=4] [ref=f4e262]
+          - list [ref=f4e263]:
+            - listitem [ref=f4e264]:
+              - generic [ref=f4e265]: fact
+              - generic [ref=f4e266]: Fact description on youtube:aoZLawWW7fw
+              - list [ref=f4e267]:
+                - listitem [ref=f4e268]:
+                  - generic [ref=f4e269]: youtube:aoZLawWW7fw
+                  - generic [ref=f4e270]: This FREE A.I. finished my entire Syllabus in 1 hour😱 (proof inside)
+                  - link "View original" [ref=f4e271] [cursor=pointer]:
+                    - /url: https://www.youtube.com/watch?v=aoZLawWW7fw
+  - button "Open Next.js Dev Tools" [ref=f4e20] [cursor=pointer]
+  - alert [ref=f4e24]

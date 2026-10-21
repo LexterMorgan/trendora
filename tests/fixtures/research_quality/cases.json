@@ -1,0 +1,946 @@
+{
+  "cases": [
+    {
+      "name": "exact_description_citation",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "solar microgrids in rural schools",
+            "markets": [
+              "SG"
+            ],
+            "market": "SG",
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "solar-vid-001",
+              "url": "https://example.test/watch?v=solar-vid-001",
+              "title": "Solar microgrids reach rural schools",
+              "description": "Three provinces pilot solar microgrids for rural schools, with results expected next year.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": "northstar-learning",
+              "channel_title": "Northstar Learning",
+              "market_contexts": [
+                "SG"
+              ],
+              "market_context": "SG",
+              "market_basis": "youtube_region_availability",
+              "source_rank": 1,
+              "metrics": {
+                "view_count": 1200,
+                "like_count": 90,
+                "comment_count": 11,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "solar-vid-001"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/watch?v=solar-vid-001"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Solar microgrids reach rural schools"
+                },
+                {
+                  "field": "description",
+                  "value": "Three provinces pilot solar microgrids for rural schools, with results expected next year."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Northstar Learning"
+                },
+                {
+                  "field": "view_count",
+                  "value": 1200
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": {
+          "model_provenance": {
+            "provider": "openai-compatible",
+            "model": "fictional-model-1"
+          },
+          "interpretations": [
+            {
+              "statement": "Three provinces pilot solar microgrids for rural schools, with results expected next year.",
+              "citations": [
+                {
+                  "kind": "fact",
+                  "reference": {
+                    "source_code": "youtube",
+                    "content_external_id": "solar-vid-001"
+                  },
+                  "field": "description"
+                }
+              ]
+            }
+          ]
+        },
+        "strategy": null,
+        "ideation": null,
+        "persistence": {
+          "status": "saved",
+          "request_id": "req-fiction-1",
+          "report_id": "rep-fiction-1",
+          "snapshot_origin": "server_generated",
+          "error_code": null,
+          "recovery_receipt": null
+        },
+        "run_details": {
+          "elapsed_ms": 1234,
+          "stage_durations_ms": {
+            "collection": 500,
+            "interpretation": 600
+          },
+          "ai_requests": [],
+          "retry_count": 0,
+          "finding_mode": "ai"
+        }
+      }
+    },
+    {
+      "name": "title_description_mismatch",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "solar microgrids in rural schools",
+            "markets": [
+              "SG"
+            ],
+            "market": "SG",
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "solar-vid-001",
+              "url": "https://example.test/watch?v=solar-vid-001",
+              "title": "Solar microgrids reach rural schools",
+              "description": "Three provinces pilot solar microgrids for rural schools, with results expected next year.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": "northstar-learning",
+              "channel_title": "Northstar Learning",
+              "market_contexts": [
+                "SG"
+              ],
+              "market_context": "SG",
+              "market_basis": "youtube_region_availability",
+              "source_rank": 1,
+              "metrics": {
+                "view_count": 1200,
+                "like_count": 90,
+                "comment_count": 11,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "solar-vid-001"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/watch?v=solar-vid-001"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Solar microgrids reach rural schools"
+                },
+                {
+                  "field": "description",
+                  "value": "Three provinces pilot solar microgrids for rural schools, with results expected next year."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Northstar Learning"
+                },
+                {
+                  "field": "view_count",
+                  "value": 1200
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": {
+          "model_provenance": {
+            "provider": "openai-compatible",
+            "model": "fictional-model-1"
+          },
+          "interpretations": [
+            {
+              "statement": "The pilot reported results expected next year.",
+              "citations": [
+                {
+                  "kind": "fact",
+                  "reference": {
+                    "source_code": "youtube",
+                    "content_external_id": "solar-vid-001"
+                  },
+                  "field": "title"
+                }
+              ]
+            }
+          ]
+        },
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "name": "unsupported_specific_claim",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "solar microgrids in rural schools",
+            "markets": [
+              "SG"
+            ],
+            "market": "SG",
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "solar-vid-001",
+              "url": "https://example.test/watch?v=solar-vid-001",
+              "title": "Solar microgrids reach rural schools",
+              "description": "Three provinces pilot solar microgrids for rural schools, with results expected next year.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": "northstar-learning",
+              "channel_title": "Northstar Learning",
+              "market_contexts": [
+                "SG"
+              ],
+              "market_context": "SG",
+              "market_basis": "youtube_region_availability",
+              "source_rank": 1,
+              "metrics": {
+                "view_count": 1200,
+                "like_count": 90,
+                "comment_count": 11,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "solar-vid-001"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/watch?v=solar-vid-001"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Solar microgrids reach rural schools"
+                },
+                {
+                  "field": "description",
+                  "value": "Three provinces pilot solar microgrids for rural schools, with results expected next year."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Northstar Learning"
+                },
+                {
+                  "field": "view_count",
+                  "value": 1200
+                }
+              ],
+              "observations": [
+                {
+                  "observation_type": "description_present",
+                  "value": true,
+                  "evidence_fields": [
+                    "description"
+                  ],
+                  "analysis_basis": "description"
+                }
+              ]
+            }
+          ],
+          "patterns": [
+            {
+              "observation_type": "description_present",
+              "analyzed_count": 1,
+              "matching_count": 1,
+              "non_matching_count": 0,
+              "ratio": 1.0,
+              "matching_reference_ids": [
+                {
+                  "source_code": "youtube",
+                  "content_external_id": "solar-vid-001"
+                }
+              ],
+              "non_matching_reference_ids": []
+            }
+          ]
+        },
+        "interpretation": {
+          "model_provenance": {
+            "provider": "openai-compatible",
+            "model": "fictional-model-1"
+          },
+          "interpretations": [
+            {
+              "statement": "The program raised 40 percent more funding than any prior initiative.",
+              "citations": [
+                {
+                  "kind": "observation",
+                  "reference": {
+                    "source_code": "youtube",
+                    "content_external_id": "solar-vid-001"
+                  },
+                  "observation_type": "description_present"
+                },
+                {
+                  "kind": "pattern",
+                  "observation_type": "description_present"
+                }
+              ]
+            }
+          ]
+        },
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "name": "publication_event_date_confusion",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "solar microgrids in rural schools",
+            "markets": [
+              "SG"
+            ],
+            "market": "SG",
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "solar-vid-001",
+              "url": "https://example.test/watch?v=solar-vid-001",
+              "title": "Solar microgrids reach rural schools",
+              "description": "Three provinces pilot solar microgrids for rural schools, with results expected next year.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": "northstar-learning",
+              "channel_title": "Northstar Learning",
+              "market_contexts": [
+                "SG"
+              ],
+              "market_context": "SG",
+              "market_basis": "youtube_region_availability",
+              "source_rank": 1,
+              "metrics": {
+                "view_count": 1200,
+                "like_count": 90,
+                "comment_count": 11,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "solar-vid-001"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/watch?v=solar-vid-001"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Solar microgrids reach rural schools"
+                },
+                {
+                  "field": "description",
+                  "value": "Three provinces pilot solar microgrids for rural schools, with results expected next year."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Northstar Learning"
+                },
+                {
+                  "field": "view_count",
+                  "value": 1200
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": {
+          "model_provenance": {
+            "provider": "openai-compatible",
+            "model": "fictional-model-1"
+          },
+          "interpretations": [
+            {
+              "statement": "The school pilot launched on 1 March 2026.",
+              "citations": [
+                {
+                  "kind": "fact",
+                  "reference": {
+                    "source_code": "youtube",
+                    "content_external_id": "solar-vid-001"
+                  },
+                  "field": "published_at"
+                }
+              ]
+            }
+          ]
+        },
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "name": "promotional_attribution",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "solar microgrids in rural schools",
+            "markets": [
+              "SG"
+            ],
+            "market": "SG",
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "solar-vid-001",
+              "url": "https://example.test/watch?v=solar-vid-001",
+              "title": "Solar microgrids reach rural schools",
+              "description": "Three provinces pilot solar microgrids for rural schools, with results expected next year.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": "northstar-learning",
+              "channel_title": "Northstar Learning",
+              "market_contexts": [
+                "SG"
+              ],
+              "market_context": "SG",
+              "market_basis": "youtube_region_availability",
+              "source_rank": 1,
+              "metrics": {
+                "view_count": 1200,
+                "like_count": 90,
+                "comment_count": 11,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "solar-vid-001"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/watch?v=solar-vid-001"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Solar microgrids reach rural schools"
+                },
+                {
+                  "field": "description",
+                  "value": "Three provinces pilot solar microgrids for rural schools, with results expected next year."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Northstar Learning"
+                },
+                {
+                  "field": "view_count",
+                  "value": 1200
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": {
+          "model_provenance": {
+            "provider": "openai-compatible",
+            "model": "fictional-model-1"
+          },
+          "interpretations": [
+            {
+              "statement": "Northstar Learning is the program's official accreditation partner.",
+              "citations": [
+                {
+                  "kind": "fact",
+                  "reference": {
+                    "source_code": "youtube",
+                    "content_external_id": "solar-vid-001"
+                  },
+                  "field": "channel_title"
+                }
+              ]
+            }
+          ]
+        },
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "name": "missing_evidence",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "solar microgrids in rural schools",
+            "markets": [
+              "SG"
+            ],
+            "market": "SG",
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "solar-vid-001",
+              "url": "https://example.test/watch?v=solar-vid-001",
+              "title": "Solar microgrids reach rural schools",
+              "description": "Three provinces pilot solar microgrids for rural schools, with results expected next year.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": "northstar-learning",
+              "channel_title": "Northstar Learning",
+              "market_contexts": [
+                "SG"
+              ],
+              "market_context": "SG",
+              "market_basis": "youtube_region_availability",
+              "source_rank": 1,
+              "metrics": {
+                "view_count": 1200,
+                "like_count": 90,
+                "comment_count": 11,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "solar-vid-001"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/watch?v=solar-vid-001"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Solar microgrids reach rural schools"
+                },
+                {
+                  "field": "description",
+                  "value": "Three provinces pilot solar microgrids for rural schools, with results expected next year."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Northstar Learning"
+                },
+                {
+                  "field": "view_count",
+                  "value": 1200
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": {
+          "model_provenance": {
+            "provider": "openai-compatible",
+            "model": "fictional-model-1"
+          },
+          "interpretations": [
+            {
+              "statement": "A second cohort begins in April.",
+              "citations": [
+                {
+                  "kind": "fact",
+                  "reference": {
+                    "source_code": "youtube",
+                    "content_external_id": "solar-vid-missing"
+                  },
+                  "field": "title"
+                }
+              ]
+            }
+          ]
+        },
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "name": "extractive_fallback",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "solar microgrids in rural schools",
+            "markets": [
+              "SG"
+            ],
+            "market": "SG",
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "solar-vid-002",
+              "url": "https://example.test/watch?v=solar-vid-002",
+              "title": "Northstar Learning announces Solar Scholars program",
+              "description": "Northstar Learning said the Solar Scholars program is sponsored by GridWorks.",
+              "published_at": "2026-02-20T00:00:00Z",
+              "channel_external_id": "northstar-learning",
+              "channel_title": null,
+              "market_contexts": [
+                "SG"
+              ],
+              "market_context": "SG",
+              "market_basis": "youtube_region_availability",
+              "source_rank": 1,
+              "metrics": {
+                "view_count": 1200,
+                "like_count": 90,
+                "comment_count": 11,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T10:00:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "solar-vid-002"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/watch?v=solar-vid-002"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T10:00:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Northstar Learning announces Solar Scholars program"
+                },
+                {
+                  "field": "description",
+                  "value": "Northstar Learning said the Solar Scholars program is sponsored by GridWorks."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-02-20T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": null
+                },
+                {
+                  "field": "view_count",
+                  "value": 1200
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": {
+          "model_provenance": {
+            "provider": "source_evidence",
+            "model": "extractive-v1"
+          },
+          "interpretations": [
+            {
+              "statement": "Northstar Learning said the Solar Scholars program is sponsored by GridWorks.",
+              "citations": [
+                {
+                  "kind": "fact",
+                  "reference": {
+                    "source_code": "youtube",
+                    "content_external_id": "solar-vid-002"
+                  },
+                  "field": "description"
+                }
+              ]
+            }
+          ]
+        },
+        "strategy": null,
+        "ideation": null
+      }
+    }
+  ]
+}

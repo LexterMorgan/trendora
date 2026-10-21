@@ -1,0 +1,19 @@
+- main [ref=f5e2]:
+  - region [ref=f5e3]:
+    - link "Trendora home" [ref=f5e4] [cursor=pointer]:
+      - /url: /
+      - generic [aria-hidden] [ref=f5e5]: T
+      - generic [ref=f5e6]: Trendora
+    - heading "Sign in" [level=1] [ref=f5e7]
+    - paragraph [ref=f5e8]: Use your workspace email and password.
+    - generic [ref=f5e9]:
+      - generic [ref=f5e10]:
+        - generic [ref=f5e11]: Email
+        - textbox "Email" [ref=f5e12]: lexiiceu@gmail.com
+      - generic [ref=f5e13]:
+        - generic [ref=f5e14]: Password
+        - generic [ref=f5e15]:
+          - textbox "Password" [ref=f5e16]: Tristan58*
+          - button "Show" [ref=f5e17] [cursor=pointer]
+      - button "Sign in" [ref=f5e18] [cursor=pointer]
+    - button "Forgot your password?" [ref=f5e20] [cursor=pointer]

@@ -99,16 +99,26 @@ export async function submitResearch(
   });
 }
 
+export interface ReportHistoryFilters {
+  q?: string;
+  /** Persisted outcome, which can differ from the current summary status. */
+  status?: string;
+  /** Inclusive overlap with the report's requested window, not its save date. */
+  date_from?: string;
+  date_to?: string;
+}
+
 export async function listReports(
-  params?: {
-    limit?: number;
-    offset?: number;
-  },
+  params?: ReportHistoryFilters & { limit?: number; offset?: number },
   options?: { signal?: AbortSignal },
 ): Promise<ReportSummaryResponse[]> {
   const query = new URLSearchParams();
   if (params?.limit !== undefined) query.append("limit", String(params.limit));
   if (params?.offset !== undefined) query.append("offset", String(params.offset));
+  if (params?.q?.trim()) query.append("q", params.q.trim());
+  if (params?.status) query.append("status", params.status);
+  if (params?.date_from) query.append("date_from", params.date_from);
+  if (params?.date_to) query.append("date_to", params.date_to);
   const suffix = query.size > 0 ? `?${query.toString()}` : "";
 
   return requestJson<ReportSummaryResponse[]>(`/api/reports${suffix}`, {

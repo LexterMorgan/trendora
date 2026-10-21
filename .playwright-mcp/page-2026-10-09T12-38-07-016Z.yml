@@ -1,0 +1,1226 @@
+- generic [ref=f1e1]:
+  - main [ref=f1e13]:
+    - generic [ref=f1e14]:
+      - link "Trendora home" [ref=f1e16] [cursor=pointer]:
+        - /url: /
+        - generic [aria-hidden] [ref=f1e17]: T
+        - generic [ref=f1e18]: Trendora
+      - navigation "Primary" [ref=f1e19]:
+        - link "Research" [ref=f1e20] [cursor=pointer]:
+          - /url: /
+        - link "Reports" [ref=f1e21] [cursor=pointer]:
+          - /url: /past-reports
+        - link "Planner" [ref=f1e22] [cursor=pointer]:
+          - /url: /planner
+      - generic [ref=f1e23]:
+        - link "Past reports" [ref=f1e24] [cursor=pointer]:
+          - /url: /past-reports
+        - button "Sign out" [ref=f1e25] [cursor=pointer]
+    - generic [ref=f1e26]:
+      - region "Research request" [ref=f1e60]:
+        - heading "New research" [level=2] [ref=f1e61]
+        - generic [ref=f1e62]:
+          - generic [ref=f1e63]:
+            - generic [ref=f1e64]: Topic
+            - textbox "Topic" [ref=f1e65]:
+              - /placeholder: What topic do you want to research?
+          - group "Timeframe" [ref=f1e66]:
+            - generic [ref=f1e68]:
+              - generic [ref=f1e69]: Preset
+              - combobox "Preset" [ref=f1e70]:
+                - option "Last 7 days"
+                - option "Last 30 days"
+                - option "Last 90 days"
+                - option "Last 12 months"
+                - option "Custom" [selected]
+            - paragraph [ref=f1e71]: Presets update both dates. Editing either date switches to Custom. Leave blank to use the default last-30-days window.
+            - generic [ref=f1e72]:
+              - generic [ref=f1e73]:
+                - generic [ref=f1e74]: From
+                - textbox "From" [ref=f1e75]
+              - generic [ref=f1e76]:
+                - generic [ref=f1e77]: To
+                - textbox "To" [ref=f1e78]
+          - paragraph [ref=f1e79]: Searches YouTube and the public web globally, with no country restriction. This is not comprehensive worldwide coverage. Public-web results are indexed titles and snippets; the timeframe is not enforced and publication dates are unverified, so undated results remain context.
+          - generic [ref=f1e80] [cursor=pointer]:
+            - checkbox "Generate content ideas and briefs" [ref=f1e81]
+            - generic [ref=f1e82]: Generate content ideas and briefs
+          - button "Generate research report" [ref=f1e92] [cursor=pointer]
+      - article [ref=f1e85]:
+        - generic [ref=f1e86]:
+          - generic [ref=f1e87]: You
+          - paragraph [ref=f1e88]: AI tools for education · Global · 2026-09-10 → 2026-10-09 · 50 references · YouTube, Public web · Research only
+          - button "Edit and rerun" [ref=f1e89] [cursor=pointer]
+        - generic [ref=f1e90]:
+          - text: Trendora
+          - generic [ref=f1e93]:
+            - status [ref=f1e94]:
+              - generic [ref=f1e95]: Saved to history.
+            - region [ref=f1e96]:
+              - heading "Research findings" [level=3] [ref=f1e97]
+              - paragraph [ref=f1e98]: These are source-attributed excerpts, not synthesized findings. A source’s statement and publication date do not independently verify an event or its date. Event dates are unavailable.
+              - region "Source published within requested timeframe" [ref=f1e99]:
+                - heading "Source published within requested timeframe" [level=4] [ref=f1e100]
+                - article [ref=f1e101]:
+                  - generic [ref=f1e102]: Source-attributed excerpt
+                  - paragraph [ref=f1e103]: “How to Use AI as a Student? – 10+ Powerful AI Tools & Hacks for Smart Study 🎯 AI can become a powerful study assistant when used correctly. This video explores practical ways students can use AI tools and smart study hacks to improve learning, productivity, revision, and academic work. 📌 How to”
+                  - button "Trace 1 citation" [ref=f1e104] [cursor=pointer]
+                - article [ref=f1e105]:
+                  - generic [ref=f1e106]: Source-attributed excerpt
+                  - paragraph [ref=f1e107]: “Discover 5 amazing AI tools every student should know! 🚀 ✅ Gamma AI – Create presentations ✅ Napkin AI – Turn text into visuals ✅ NotebookLM – Study notes and summaries ✅ Otter.ai ✅Perplexity AI – Transcription and research Use these AI tools to save time, improve productivity, and study”
+                  - button "Trace 1 citation" [ref=f1e108] [cursor=pointer]
+                - article [ref=f1e109]:
+                  - generic [ref=f1e110]: Source-attributed excerpt
+                  - paragraph [ref=f1e111]: “How Students Can Get Claude AI Pro For Free (Claude for Education) 2026 Are you a student looking to get Claude Pro for free? In this guide, I'll show you how Claude for Education works and how students can access Claude through participating universities. Anthropic offers Claude for Education as”
+                  - button "Trace 1 citation" [ref=f1e112] [cursor=pointer]
+                - article [ref=f1e113]:
+                  - generic [ref=f1e114]: Source-attributed excerpt
+                  - paragraph [ref=f1e115]: “3 free AI tools for students jo study, research aur assignments mein aapka time bacha sakte hain! 🎓🤖 Is video mein dekhein ChatGPT, Perplexity aur Canva ko students apni studies ke liye kaise use kar sakte hain. ✅ ChatGPT — notes aur difficult topics samajhne ke liye ✅ Perplexity — research aur”
+                  - button "Trace 1 citation" [ref=f1e116] [cursor=pointer]
+                - article [ref=f1e117]:
+                  - generic [ref=f1e118]: Source-attributed excerpt
+                  - paragraph [ref=f1e119]: "“🔥 Join Maker School & get customer #1 guaranteed: https://skool.com/makerschool/about 💎 Get all course resources 100% free: https://skool.com/maker-zero/about ➡️ If this is your first video: I'm Nick Saraev. I run LeftClick, an AI growth agency. We've done work for large brands you're likely”"
+                  - button "Trace 1 citation" [ref=f1e120] [cursor=pointer]
+                - article [ref=f1e121]:
+                  - generic [ref=f1e122]: Source-attributed excerpt
+                  - paragraph [ref=f1e123]: “Students, these 5 AI tools can help you study faster, research better, create presentations, understand difficult topics, and save hours every week. Whether you are in school, college, university, or preparing for competitive exams, these AI tools can make studying and everyday academic work much”
+                  - button "Trace 1 citation" [ref=f1e124] [cursor=pointer]
+                - article [ref=f1e125]:
+                  - generic [ref=f1e126]: Source-attributed excerpt
+                  - paragraph [ref=f1e127]: “Students ke liye 2026 ke Top 5 AI Apps! 🤖📚 Is short video mein humne popular AI tools compare kiye hain jo study, assignments, research, notes, presentations, coding aur learning mein help kar sakte hain. ✅ ChatGPT ✅ Google Gemini ✅ Microsoft Copilot ✅ Grok ✅ Perplexity Agar aap student hain aur AI”
+                  - button "Trace 1 citation" [ref=f1e128] [cursor=pointer]
+                - article [ref=f1e129]:
+                  - generic [ref=f1e130]: Source-attributed excerpt
+                  - paragraph [ref=f1e131]: “🚀 30 Best Free AI Apps You Need to Try in 2026 Looking for powerful AI apps that can save you time, improve productivity and make everyday tasks easier? In this video, AIWithAroon brings you 30 useful AI apps covering writing, design, research, video editing, audio, presentations, productivity and”
+                  - button "Trace 1 citation" [ref=f1e132] [cursor=pointer]
+                - article [ref=f1e133]:
+                  - generic [ref=f1e134]: Source-attributed excerpt
+                  - paragraph [ref=f1e135]: “Want to learn Artificial Intelligence from scratch but don’t know where to start? This complete AI crash course is designed for absolute beginners who want to understand AI in a simple and practical way. In this video, you'll learn the fundamentals of AI, Machine Learning, Generative AI, AI”
+                  - button "Trace 1 citation" [ref=f1e136] [cursor=pointer]
+                - article [ref=f1e137]:
+                  - generic [ref=f1e138]: Source-attributed excerpt
+                  - paragraph [ref=f1e139]: "“Ai tool for Exam Preparation 🚀📚 #aitools #aitool #exampreparation”"
+                  - button "Trace 1 citation" [ref=f1e140] [cursor=pointer]
+                - article [ref=f1e141]:
+                  - generic [ref=f1e142]: Source-attributed excerpt
+                  - paragraph [ref=f1e143]: “Being a student doesn't mean you need expensive software to study smarter. ChatGPT → Explain difficult topics in simple terms Grammarly → Improve essays, grammar, and clarity Otter → Turn lectures and discussions into notes Quizlet AI → Create flashcards and study materials The real advantage is”
+                  - button "Trace 1 citation" [ref=f1e144] [cursor=pointer]
+                - article [ref=f1e145]:
+                  - generic [ref=f1e146]: Source-attributed excerpt
+                  - paragraph [ref=f1e147]: “In this episode, hosted by the FIT Section Early Career Professional subcommittee, panelists explored how generative AI is transforming education and extension programs, highlighting both its potential benefits and its limitations. The discussion focuses on responsible AI adoption, the importance”
+                  - button "Trace 1 citation" [ref=f1e148] [cursor=pointer]
+                - article [ref=f1e149]:
+                  - generic [ref=f1e150]: Source-attributed excerpt
+                  - paragraph [ref=f1e151]: “This worksheet was completely boring… 😭 So I gave it to AI and asked it to turn it into a modern, attractive educational worksheet. 🤖📚 Same questions. Completely different presentation. But would you actually give an AI-generated worksheet to your students? Welcome to MOIZA AI LAB 🤖 BUILD |”
+                  - button "Trace 1 citation" [ref=f1e152] [cursor=pointer]
+                - article [ref=f1e153]:
+                  - generic [ref=f1e154]: Source-attributed excerpt
+                  - paragraph [ref=f1e155]: “One Best AI Tool for Every Task 🔥 Stop wasting time searching for the right AI tool. In this video, I’m sharing some of the best AI tools for different tasks from studying and research to writing, coding, presentations and productivity. 🔗 PDF”
+                  - button "Trace 1 citation" [ref=f1e156] [cursor=pointer]
+                - article [ref=f1e157]:
+                  - generic [ref=f1e158]: Source-attributed excerpt
+                  - paragraph [ref=f1e159]: "“10 FREE AI tools you’ll actually find useful 🤯 #ytshorts #youtubeshorts #shortsfeed #aitools #shorts”"
+                  - button "Trace 1 citation" [ref=f1e160] [cursor=pointer]
+                - article [ref=f1e161]:
+                  - generic [ref=f1e162]: Source-attributed excerpt
+                  - paragraph [ref=f1e163]: “Planning learning support and individual education plans (IEPs) can be overwhelming and time-consuming. 🛑 Watch how you can use an AI teacher's tool to quickly generate draft frameworks, set goals, and structure student support data in seconds! Not sponsored • For educational use • Demo of an AI”
+                  - button "Trace 1 citation" [ref=f1e164] [cursor=pointer]
+                - article [ref=f1e165]:
+                  - generic [ref=f1e166]: Source-attributed excerpt
+                  - paragraph [ref=f1e167]: "“Students, you don't need expensive tools! 🎓 Here are 3 free AI tools that can save you hours: 📚 NotebookLM: study from your own notes and PDFs 🔍 Perplexity: research with sources you can check 🎨 Canva: make slides and posters in minutes ⚠️ Always double-check AI answers, and use AI to learn, not”"
+                  - button "Trace 1 citation" [ref=f1e168] [cursor=pointer]
+                - article [ref=f1e169]:
+                  - generic [ref=f1e170]: Source-attributed excerpt
+                  - paragraph [ref=f1e171]: “It’s not only our own minds that set metacognitive traps for us. The danger can come from where you least expect it, for example, from the tools you use for learning 😱 In particular, AI tools that are supposed to make learning faster and more effective can, under certain circumstances, have the”
+                  - button "Trace 1 citation" [ref=f1e172] [cursor=pointer]
+                - article [ref=f1e173]:
+                  - generic [ref=f1e174]: Source-attributed excerpt
+                  - paragraph [ref=f1e175]: “Still using one chatbot for everything? For almost every task on your list, there's a better AI tool that does that one job really well. This Short runs through 10 everyday tasks and the single best AI tool for each in 2026, plus the standout features that earn it the spot. Save it and use it as”
+                  - button "Trace 1 citation" [ref=f1e176] [cursor=pointer]
+                - article [ref=f1e177]:
+                  - generic [ref=f1e178]: Source-attributed excerpt
+                  - paragraph [ref=f1e179]: "“Top 40 Best AI Tools 🤖(2026) #ai #education#aitools #prompt#growth#learn#best”"
+                  - button "Trace 1 citation" [ref=f1e180] [cursor=pointer]
+                - article [ref=f1e181]:
+                  - generic [ref=f1e182]: Source-attributed excerpt
+                  - paragraph [ref=f1e183]: “For the first time ever, kids can be taught exactly the way they learn best. Remember getting a bad grade just because a teacher's style didn't click with you? AI is completely changing the game by tailoring education to fit every individual student's needs. Whether your child thrives on videos,”
+                  - button "Trace 1 citation" [ref=f1e184] [cursor=pointer]
+                - article [ref=f1e185]:
+                  - generic [ref=f1e186]: Source-attributed excerpt
+                  - paragraph [ref=f1e187]: "“Ai hack to make handwritten notes 📓... #ai #tools #ainotes #notes #education #study #students”"
+                  - button "Trace 1 citation" [ref=f1e188] [cursor=pointer]
+                - article [ref=f1e189]:
+                  - generic [ref=f1e190]: Source-attributed excerpt
+                  - paragraph [ref=f1e191]: “Professor Zhan Yiwen, Assistant Professor in the Department of Philosophy at Peking University, says being an AI-enabled teacher requires more than knowing how to use AI tools. Educators need the expertise to integrate the technology effectively into the learning process, making strong teaching”
+                  - button "Trace 1 citation" [ref=f1e192] [cursor=pointer]
+                - article [ref=f1e193]:
+                  - generic [ref=f1e194]: Source-attributed excerpt
+                  - paragraph [ref=f1e195]: “Don’t Learn Every AI Tool! 🚨 Learn the Right Ones with ACRY AI Welcome to ACRY AI — your destination for **AI learning, AI tools, and practical Artificial Intelligence education**. 🤖🚀 Learn how to use **ChatGPT, Generative AI, AI Tools, Prompt Engineering, AI Automation, and the latest AI”
+                  - button "Trace 1 citation" [ref=f1e196] [cursor=pointer]
+                - article [ref=f1e197]:
+                  - generic [ref=f1e198]: Source-attributed excerpt
+                  - paragraph [ref=f1e199]: "“What Is AI in Education? - explained clearly for Grade 9-12 Computer Science. Searches for AI in the classroom have grown 20 times in just five years. In this video, you'll learn: 1. AI in education uses tools like chatbots and adaptive software to support learning 2. It can personalize practice”"
+                  - button "Trace 1 citation" [ref=f1e200] [cursor=pointer]
+              - region "Undated source context" [ref=f1e201]:
+                - heading "Undated source context" [level=4] [ref=f1e202]
+                - article [ref=f1e203]:
+                  - generic [ref=f1e204]: Source-attributed excerpt
+                  - paragraph [ref=f1e205]: “8 Jun 2026 ... Best AI Teaching Tools for Teachers in 2026 (Tested and Ranked) · 1. Edcafe AI · 2. MagicSchool AI · 3. Brisk Teaching · 4. Eduaide AI · 5.”
+                  - button "Trace 1 citation" [ref=f1e206] [cursor=pointer]
+                - article [ref=f1e207]:
+                  - generic [ref=f1e208]: Source-attributed excerpt
+                  - paragraph [ref=f1e209]: “Eduaide helps K-12 teachers create worksheets, graphic organizers, and games built from your standards, your curriculum, and real learning science. With the ...”
+                  - button "Trace 1 citation" [ref=f1e210] [cursor=pointer]
+                - article [ref=f1e211]:
+                  - generic [ref=f1e212]: Source-attributed excerpt
+                  - paragraph [ref=f1e213]: "“29 Jan 2026 ... Top 10 AI Education Tools for 2026 · 1. Disco: The Premier AI-Powered Social Learning Platform · 2. Khanmigo by Khan Academy · 3. ChatGPT Edu.”"
+                  - button "Trace 1 citation" [ref=f1e214] [cursor=pointer]
+                - article [ref=f1e215]:
+                  - generic [ref=f1e216]: Source-attributed excerpt
+                  - paragraph [ref=f1e217]: “Discover how Google AI tools are revolutionizing education. Google has created a suite of powerful AI tools to transform teaching and learning at every level.”
+                  - button "Trace 1 citation" [ref=f1e218] [cursor=pointer]
+                - article [ref=f1e219]:
+                  - generic [ref=f1e220]: Source-attributed excerpt
+                  - paragraph [ref=f1e221]: “Create personalized classroom materials with AI tools for teachers on Canva. Save time crafting quizzes, activities, and lesson plans so you can have more ...”
+                  - button "Trace 1 citation" [ref=f1e222] [cursor=pointer]
+                - article [ref=f1e223]:
+                  - generic [ref=f1e224]: Source-attributed excerpt
+                  - paragraph [ref=f1e225]: “Research & Academic Writing 9 · NotebookLM · Elicit · Scholarcy · Scite · Grammarly · Otter.ai · Granola · Wispr Flow. Free + paid plansAI. Voice-to-text ...”
+                  - button "Trace 1 citation" [ref=f1e226] [cursor=pointer]
+                - article [ref=f1e227]:
+                  - generic [ref=f1e228]: Source-attributed excerpt
+                  - paragraph [ref=f1e229]: "“But with these tools come challenges: over-reliance, ethical concerns, and declining deep reading skills. Teachers are learning how to navigate this disruption, ...”"
+                  - button "Trace 1 citation" [ref=f1e230] [cursor=pointer]
+                - article [ref=f1e231]:
+                  - generic [ref=f1e232]: Source-attributed excerpt
+                  - paragraph [ref=f1e233]: "“20 Okt 2023 ... Eduaide.Ai: This is an AI-assisted lesson-development tool that provides educators with more than 100 resource types to choose from to create ...”"
+                  - button "Trace 1 citation" [ref=f1e234] [cursor=pointer]
+                - article [ref=f1e235]:
+                  - generic [ref=f1e236]: Source-attributed excerpt
+                  - paragraph [ref=f1e237]: “Slideshow maker for educators. Customize your presentations with zero effort using our online editor. Personalize your slides, add your content, and engage your ...”
+                  - button "Trace 1 citation" [ref=f1e238] [cursor=pointer]
+                - article [ref=f1e239]:
+                  - generic [ref=f1e240]: Source-attributed excerpt
+                  - paragraph [ref=f1e241]: “11 Mei 2026 ... AI Tools for Education · Home · AI Tools for Teaching Toggle Dropdown. Diffit · Magic School AI · Conker AI · AI Tools for Presentations Toggle ...”
+                  - button "Trace 1 citation" [ref=f1e242] [cursor=pointer]
+                - article [ref=f1e243]:
+                  - generic [ref=f1e244]: Source-attributed excerpt
+                  - paragraph [ref=f1e245]: “AI tools in higher education provide numerous advantages at the institutional, social, and instructional levels. Disruptive AI tools such as ChatGPT have ...”
+                  - button "Trace 1 citation" [ref=f1e246] [cursor=pointer]
+                - article [ref=f1e247]:
+                  - generic [ref=f1e248]: Source-attributed excerpt
+                  - paragraph [ref=f1e249]: “20 Des 2021 ... With the development of Artificial Intelligence (AI) in the field of education to help process daily activities including teaching and learning.”
+                  - button "Trace 1 citation" [ref=f1e250] [cursor=pointer]
+                - article [ref=f1e251]:
+                  - generic [ref=f1e252]: Source-attributed excerpt
+                  - paragraph [ref=f1e253]: "“23 Sep 2026 ... Artificial Intelligence (AI): AI Tools for Teaching and Learning · AI Tools for Teaching and Learning Comparison · ClassPoint · Eduaide.ai.”"
+                  - button "Trace 1 citation" [ref=f1e254] [cursor=pointer]
+                - article [ref=f1e255]:
+                  - generic [ref=f1e256]: Source-attributed excerpt
+                  - paragraph [ref=f1e257]: "“21 Apr 2023 ... In many ways, teaching with AI tools in mind relies on a familiar concept: assignments that support students in developing linked thinking and ...”"
+                  - button "Trace 1 citation" [ref=f1e258] [cursor=pointer]
+                - article [ref=f1e259]:
+                  - generic [ref=f1e260]: Source-attributed excerpt
+                  - paragraph [ref=f1e261]: “... In addition to supporting technical aspects of language learning, AI is also considered capable of increasing students' motivation and participation during ...”
+                  - button "Trace 1 citation" [ref=f1e262] [cursor=pointer]
+            - region "Research scope" [ref=f1e263]:
+              - heading "Research scope" [level=3] [ref=f1e264]
+              - list [ref=f1e265]:
+                - listitem [ref=f1e266]: "Topic: AI tools for education"
+                - listitem [ref=f1e267]: "Scope: Global (no country restriction)"
+                - listitem [ref=f1e268]: "Requested timeframe: 2026-09-10 to 2026-10-09"
+                - listitem [ref=f1e269]: "Requested sources: YouTube, Public web"
+                - listitem [ref=f1e270]: "Sources searched: YouTube, Public web"
+                - listitem [ref=f1e271]: "References: 40"
+                - listitem [ref=f1e272]: "Collection dates: Oct 9, 2026"
+              - paragraph [ref=f1e273]: Timeframe coverage is unverified. Publication dates are source metadata; collection dates do not establish when a development happened.
+              - paragraph [ref=f1e274]: Public web search did not enforce the requested timeframe. Publication dates are unverified; undated results are context.
+              - region "Source coverage" [ref=f1e275]:
+                - heading "Source coverage" [level=2] [ref=f1e276]
+                - paragraph [ref=f1e277]: "Capability coverage: complete"
+                - paragraph [ref=f1e278]: Coverage describes the listed sources and bounded sample, not the whole internet.
+                - list [ref=f1e279]:
+                  - listitem [ref=f1e280]:
+                    - generic [ref=f1e281]: YouTube
+                    - generic [ref=f1e282]: "Capability: available"
+                    - generic [ref=f1e283]: "Execution: Searched"
+                  - listitem [ref=f1e284]:
+                    - generic [ref=f1e285]: Public web
+                    - generic [ref=f1e286]: "Capability: available"
+                    - generic [ref=f1e287]: "Execution: Searched"
+              - complementary [ref=f1e288]:
+                - paragraph [ref=f1e289]:
+                  - strong [ref=f1e290]: Global search
+                  - text: ": no country restriction was applied. Results are not comprehensive worldwide coverage, and YouTube availability does not establish creator nationality or content origin."
+            - region [ref=f1e291]:
+              - heading "Sources and evidence (40)" [level=3] [ref=f1e292]
+              - paragraph [ref=f1e293]: Titles and descriptions are source material, not verified event summaries. No measured trend evidence is available in this report.
+              - region "Research references" [ref=f1e294]:
+                - generic [ref=f1e295]:
+                  - article [ref=f1e296]:
+                    - generic [ref=f1e297]:
+                      - generic [ref=f1e298]: YouTube
+                      - generic [ref=f1e299]: Dr.Gajendra Purohit
+                    - heading "How to Use AI as a Student? | 10+ Powerful AI Tools & Hacks for Smart Study" [level=3] [ref=f1e300]
+                    - paragraph [ref=f1e301]: "How to Use AI as a Student? – 10+ Powerful AI Tools & Hacks for Smart Study 🎯 AI can become a powerful study assistant when used correctly. This video explores practical ways students can use AI tools and smart study hacks to improve learning, productivity, revision, and academic work. 📌 How to Use AI as a Student 📌 10+ Powerful AI Tools 📌 AI Hacks for Smart Study 📌 AI for Learning and Revision 📌 AI for Notes and Summaries 📌 AI for Research and Study Planning 📌 AI for Productivity and Time Management 📌 Smart and Effective Use of AI The goal is not to replace learning with AI, but to use AI as a support system for better understanding, practice, organization, and productivity. Watch the complete video to discover practical AI tools and study hacks that can make your learning process smarter and more efficient. 0:00 Intro 2:01 Apna Study Plan Banao 2:54 NotebookLM — PDF se Complete Study System 5:04 Changeit — Padha Hua Express Karo 6:19 Presentation, Assignment & Resume — AI se Banao 9:57 5 Pro Tips — AI Master Bano 12:52 Outro 👍 Like, share, and subscribe for more student-focused technology, productivity, study strategies, and AI content. #aitools #artificialintelligence #aiforstudents #studenttools #smartstudy #studyhacks #aitoolsforstudents #studentproductivity #studytips #aihacks 🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹 💯 My Social Media Handles 💯 📌 GP Sir Instagram: https://www.instagram.com/dr.gajendrapurohit 📌 GP Sir Facebook Page: https://www.facebook.com/drgpsir 📌 Join GP Sir Telegram Group:- https://t.me/mathbygpsir 📚 Important Course Playlist 📚 📌 Link to B.Sc. Maths Playlist: https://bit.ly/3cAg1YI 📌 Link to Engineering Maths Playlist: https://bit.ly/3thNYUK 📌 Link to IIT-JAM Maths Playlist: https://bit.ly/3tiBpZl 📌 Link to GATE (Engg.) Maths Playlist: https://bit.ly/3eEI3VC 📌 Link to IAS Optional Maths Playlist: https://bit.ly/3vzHl2a 📌 Link To CSIR NET Maths Playlist: https://bit.ly/3rMHe0U 🔥 Motivational Videos & Tips For Students (Make Student Life Better) - https://bit.ly/3tdAGbM 📷 My Equipment & Gear 📷 ▶️My Phone - https://amzn.to/38Cfvsg ▶️My Primary Laptop - https://amzn.to/2PUW2MG ▶️My Secondary Laptop - https://amzn.to/38EHQy0 ▶️My Primary Camera - https://amzn.to/3eFl9NN ▶️My Secondary Camera - https://amzn.to/3vmBs8h ▶️Secondary Mic - https://amzn.to/2PSVffd ▶️Vlogging Mic - https://amzn.to/38EIz2g ▶️Tripod - https://amzn.to/3ctwJJn ▶️Secondary Screen - https://amzn.to/38FCYZw 📚 Following Topics Are Also Available 📚 📒Linear Algebra: https://bit.ly/3qMKgB0 📕Abstract Algebra Lectures: https://bit.ly/3rOh0uS 📗Real Analysis: https://bit.ly/3tetewY 📘Complex Analysis: https://bit.ly/3vnBk8D 📙Differential Equation: https://bit.ly/38FnAMH 📒Partial Differentiation: https://bit.ly/3tkNaOV 📕Numerical Analysis: https://bit.ly/3vrlEkA 📗Operation Research: https://bit.ly/3cvBxOq 📘Statistics & Probability: https://bit.ly/3qMf3hf 📙Integral Calculus: https://bit.ly/3qIOtFz 📒Differential Calculus: https://bit.ly/3bM9CKT 📕Multivariable Calculus: https://bit.ly/3qOsEEA 📗Vector Calculus: https://bit.ly/2OvpEjv Thanks For Watching My Video 🙏🏻 Like, Share & Subscribe 💯 Dr.Gajendra Purohit"
+                    - generic [ref=f1e302]:
+                      - generic [ref=f1e303]:
+                        - term [ref=f1e304]: Views
+                        - definition [ref=f1e305]: 9.1K
+                      - generic [ref=f1e306]:
+                        - term [ref=f1e307]: Likes
+                        - definition [ref=f1e308]: "144"
+                      - generic [ref=f1e309]:
+                        - term [ref=f1e310]: Comments
+                        - definition [ref=f1e311]: "8"
+                    - paragraph [ref=f1e312]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e313]:
+                      - generic [ref=f1e314]:
+                        - text: Published
+                        - time [ref=f1e315]: Oct 4, 2026
+                      - generic [ref=f1e316]:
+                        - text: Collected
+                        - time [ref=f1e317]: Oct 9, 2026
+                      - generic [ref=f1e318]: "Source position: 1"
+                    - paragraph [ref=f1e319]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e320] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=AskI6IQJBds
+                  - article [ref=f1e321]:
+                    - generic [ref=f1e322]:
+                      - generic [ref=f1e323]: YouTube
+                      - generic [ref=f1e324]: need data community
+                    - 'heading "5 Best AI Tools for Students 🤖📚 | Study Smarter! #Shorts" [level=3] [ref=f1e325]'
+                    - paragraph [ref=f1e326]: "Discover 5 amazing AI tools every student should know! 🚀 ✅ Gamma AI – Create presentations ✅ Napkin AI – Turn text into visuals ✅ NotebookLM – Study notes and summaries ✅ Otter.ai ✅Perplexity AI – Transcription and research Use these AI tools to save time, improve productivity, and study smarter! Subscribe to Need Data Community for more AI tools, tech tips, and career guidance. ❤️ 🔑 Keywords: best AI tools for students, AI tools for studying, free AI tools, AI tools 2026, AI for students, ChatGPT for students, NotebookLM tutorial, Gamma AI presentation, Napkin AI, Otter AI, Perplexity AI tutorial, AI study apps, AI tools for education, study smarter, student productivity tools, exam preparation tools, AI notes maker, AI research tools, AI presentation maker, college student tips, educational technology, productivity hacks, best study apps, artificial intelligence tools, Need Data Community #AITools #Students #StudyTips #AIForStudents #Shorts"
+                    - generic [ref=f1e327]:
+                      - generic [ref=f1e328]:
+                        - term [ref=f1e329]: Views
+                        - definition [ref=f1e330]: "9"
+                      - generic [ref=f1e331]:
+                        - term [ref=f1e332]: Likes
+                        - definition [ref=f1e333]: Unknown
+                      - generic [ref=f1e334]:
+                        - term [ref=f1e335]: Comments
+                        - definition [ref=f1e336]: "0"
+                    - paragraph [ref=f1e337]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e338]:
+                      - generic [ref=f1e339]:
+                        - text: Published
+                        - time [ref=f1e340]: Oct 9, 2026
+                      - generic [ref=f1e341]:
+                        - text: Collected
+                        - time [ref=f1e342]: Oct 9, 2026
+                      - generic [ref=f1e343]: "Source position: 2"
+                    - paragraph [ref=f1e344]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e345] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=hwZLwfIGwEQ
+                  - article [ref=f1e346]:
+                    - generic [ref=f1e347]:
+                      - generic [ref=f1e348]: YouTube
+                      - generic [ref=f1e349]: Shax Finds
+                    - heading "How Students Can Get Claude AI Pro For Free (Claude for Education)" [level=3] [ref=f1e350]
+                    - paragraph [ref=f1e351]: "How Students Can Get Claude AI Pro For Free (Claude for Education) 2026 Are you a student looking to get Claude Pro for free? In this guide, I'll show you how Claude for Education works and how students can access Claude through participating universities. Anthropic offers Claude for Education as a university-wide plan that can provide Claude access to students, faculty, and staff at participating institutions. I'll also show you how to check whether your university offers Claude for Education and what options are available if your school isn't participating. Follow these steps to find out if you're eligible for free Claude access as a student in 2026. #ClaudeAI #ClaudePro #ClaudeForEducation #Students #AIForStudents #Claude2026"
+                    - generic [ref=f1e352]:
+                      - generic [ref=f1e353]:
+                        - term [ref=f1e354]: Views
+                        - definition [ref=f1e355]: 138.3K
+                      - generic [ref=f1e356]:
+                        - term [ref=f1e357]: Likes
+                        - definition [ref=f1e358]: "996"
+                      - generic [ref=f1e359]:
+                        - term [ref=f1e360]: Comments
+                        - definition [ref=f1e361]: "23"
+                    - paragraph [ref=f1e362]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e363]:
+                      - generic [ref=f1e364]:
+                        - text: Published
+                        - time [ref=f1e365]: Sep 15, 2026
+                      - generic [ref=f1e366]:
+                        - text: Collected
+                        - time [ref=f1e367]: Oct 9, 2026
+                      - generic [ref=f1e368]: "Source position: 3"
+                    - paragraph [ref=f1e369]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e370] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=yv8iF6tE1j0
+                  - article [ref=f1e371]:
+                    - generic [ref=f1e372]:
+                      - generic [ref=f1e373]: YouTube
+                      - generic [ref=f1e374]: Smart AI Daily
+                    - 'heading "3 Free AI Tools for Students | Study Smarter with AI #Shorts" [level=3] [ref=f1e375]'
+                    - paragraph [ref=f1e376]: "3 free AI tools for students jo study, research aur assignments mein aapka time bacha sakte hain! 🎓🤖 Is video mein dekhein ChatGPT, Perplexity aur Canva ko students apni studies ke liye kaise use kar sakte hain. ✅ ChatGPT — notes aur difficult topics samajhne ke liye ✅ Perplexity — research aur sources find karne ke liye ✅ Canva — presentations aur assignment designs banane ke liye Smart AI Daily par AI tools, student productivity tips aur simple AI tutorials milte hain. Follow/Subscribe for more useful AI tips! #AITools #Students #ChatGPT #StudyTips #Shorts"
+                    - generic [ref=f1e377]:
+                      - generic [ref=f1e378]:
+                        - term [ref=f1e379]: Views
+                        - definition [ref=f1e380]: "221"
+                      - generic [ref=f1e381]:
+                        - term [ref=f1e382]: Likes
+                        - definition [ref=f1e383]: "8"
+                      - generic [ref=f1e384]:
+                        - term [ref=f1e385]: Comments
+                        - definition [ref=f1e386]: "3"
+                    - paragraph [ref=f1e387]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e388]:
+                      - generic [ref=f1e389]:
+                        - text: Published
+                        - time [ref=f1e390]: Oct 3, 2026
+                      - generic [ref=f1e391]:
+                        - text: Collected
+                        - time [ref=f1e392]: Oct 9, 2026
+                      - generic [ref=f1e393]: "Source position: 4"
+                    - paragraph [ref=f1e394]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e395] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=vu10trs2tu8
+                  - article [ref=f1e396]:
+                    - generic [ref=f1e397]:
+                      - generic [ref=f1e398]: YouTube
+                      - generic [ref=f1e399]: Nick Saraev
+                    - heading "How I Learn Complex Skills & Difficult Subjects So Fast with AI" [level=3] [ref=f1e400]
+                    - paragraph [ref=f1e401]: "🔥 Join Maker School & get customer #1 guaranteed: https://skool.com/makerschool/about 💎 Get all course resources 100% free: https://skool.com/maker-zero/about ➡️ If this is your first video: I'm Nick Saraev. I run LeftClick, an AI growth agency. We've done work for large brands you're likely familiar with, like Mr. Beast, Anthropic, OpenAI, and a few others. In plain English: I help people build systems that generate leads, close deals, and scale businesses, mostly using new AI models like Claude. I also make videos about how to do all of that here on YouTube. It hasn't always been this way. My family immigrated from a Soviet bloc country (People's Republic of Bulgaria) in the 90s. They worked extremely hard, and we were broke for a very long time. I grew up wishing for more security, stability, and freedom over my own life. I don't have a programming degree, and never took formal education for IT or workflows. I learned it all myself from YouTube videos like you're watching now. As for my path: I started my first business at 19 in college. We threw events (mostly parties) at campus bars, and charged people for entry. That failed to provide me enough money to pay my bills, so at 21, I started another business, a door-to-door marketing agency. From there, every year, I would start several companies, over 10 in total. I did this in a variety of industries, like e-commerce, photography, videography, SaaS, credit repair, etc. Each grew slightly more profitable, until, at 25, I would start 1SecondCopy, a content writing company. A friend and I eventually scaled that to over $90,000/m. It was my first taste of financial independence, and the reason I'm here today. Since starting my journey, I've grown a fair bit of capital. To diversify my income, at 30, I began investing in other businesses and advising companies on how to grow in the AI era. These include SaaS businesses, like Clairvo, agencies like Dental Connect, and more. Collectively, the businesses that I own outright or are a part of generate over $10 million per year. This returns far more than the 5-10% you would get in the stock market, but also requires a lot of my active time. There's a tradeoff there, but I greatly prefer active investing, where I have control over the entities I'm a part of. It wasn't easy to get here. But I did in the end! For anyone on their own entrepreneurial journey: I wish you luck, happiness, and perseverance. You can make it! Summary ⤵️ AI has upset nearly any and every industry out there, but for some reason education seems to be stuck in the dark ages In this video I show you how to learn complex skills and difficult subjects extremely fast with AI. You'll use thing AI roles like diagnosticians, examiners, listeners, mapmakers, and more. Chapters 0:00 AI Learning Principles 3:42 AI Learning Roles 6:04 Spaced Repetition Strategy 7:54 Interviewer and Map Maker 11:23 Explainer and Review 13:26 Socratic Learning Loop 14:36 Examiners and Checks 17:01 Listener and Diagnosis 19:56 Sparring for Practice 22:08 Clerk and Organization 23:05 Learning at the Right Level 25:33 Simulations and Practice Apps 27:02 When AI Hinders Learning"
+                    - generic [ref=f1e402]:
+                      - generic [ref=f1e403]:
+                        - term [ref=f1e404]: Views
+                        - definition [ref=f1e405]: 94.2K
+                      - generic [ref=f1e406]:
+                        - term [ref=f1e407]: Likes
+                        - definition [ref=f1e408]: 1.8K
+                      - generic [ref=f1e409]:
+                        - term [ref=f1e410]: Comments
+                        - definition [ref=f1e411]: "82"
+                    - paragraph [ref=f1e412]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e413]:
+                      - generic [ref=f1e414]:
+                        - text: Published
+                        - time [ref=f1e415]: Oct 3, 2026
+                      - generic [ref=f1e416]:
+                        - text: Collected
+                        - time [ref=f1e417]: Oct 9, 2026
+                      - generic [ref=f1e418]: "Source position: 5"
+                    - paragraph [ref=f1e419]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e420] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=FSXHk4hMrY8
+                  - article [ref=f1e421]:
+                    - generic [ref=f1e422]:
+                      - generic [ref=f1e423]: YouTube
+                      - generic [ref=f1e424]: AI Simplified
+                    - heading "5 AI Tools Every Student Should Know in 2026 | Study Smarter with AI" [level=3] [ref=f1e425]
+                    - paragraph [ref=f1e426]: "Students, these 5 AI tools can help you study faster, research better, create presentations, understand difficult topics, and save hours every week. Whether you are in school, college, university, or preparing for competitive exams, these AI tools can make studying and everyday academic work much easier. In this video, I cover 5 useful AI tools for students that can help with: • Research and assignments • Notes and summaries • Presentations • Learning difficult concepts • Student productivity Save this video and share it with a student who should be using AI smarter. #AITools #AIForStudents #StudentProductivity #StudyTools #StudyWithAI #ChatGPT #Education #StudyTips #CollegeStudents #ArtificialIntelligence #AISimplifiedDaily"
+                    - generic [ref=f1e427]:
+                      - generic [ref=f1e428]:
+                        - term [ref=f1e429]: Views
+                        - definition [ref=f1e430]: "732"
+                      - generic [ref=f1e431]:
+                        - term [ref=f1e432]: Likes
+                        - definition [ref=f1e433]: "21"
+                      - generic [ref=f1e434]:
+                        - term [ref=f1e435]: Comments
+                        - definition [ref=f1e436]: "2"
+                    - paragraph [ref=f1e437]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e438]:
+                      - generic [ref=f1e439]:
+                        - text: Published
+                        - time [ref=f1e440]: Sep 19, 2026
+                      - generic [ref=f1e441]:
+                        - text: Collected
+                        - time [ref=f1e442]: Oct 9, 2026
+                      - generic [ref=f1e443]: "Source position: 6"
+                    - paragraph [ref=f1e444]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e445] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=yOc6kxOarjE
+                  - article [ref=f1e446]:
+                    - generic [ref=f1e447]:
+                      - generic [ref=f1e448]: YouTube
+                      - generic [ref=f1e449]: The App Tester
+                    - heading "Top 5 AI Apps for Students 🤖📚 | Best AI Tools for Study in 2026 || best ai app for Android||#shorts" [level=3] [ref=f1e450]
+                    - paragraph [ref=f1e451]: "Students ke liye 2026 ke Top 5 AI Apps! 🤖📚 Is short video mein humne popular AI tools compare kiye hain jo study, assignments, research, notes, presentations, coding aur learning mein help kar sakte hain. ✅ ChatGPT ✅ Google Gemini ✅ Microsoft Copilot ✅ Grok ✅ Perplexity Agar aap student hain aur AI tools for students, best AI apps for study, ya AI tools for education search kar rahe hain, to ye video aapke liye hai. Video pasand aaye to Like 👍, Share 📲 aur Subscribe 🔔 zaroor karein. Your Queries top AI apps for students best AI tools for students AI apps for study best AI apps for students 2026 AI tools for education AI tools for studying best AI chatbot for students ChatGPT for students Gemini for students Perplexity for students AI tools for assignments AI tools for research AI tools for students in Pakistan free AI tools for students best study AI apps #AIForStudents #AITools #Students #StudyTools #ArtificialIntelligence #ChatGPT #Gemini #Perplexity #Grok #MicrosoftCopilot #Education #StudyTips #TechTips #StudentLife #Shorts"
+                    - generic [ref=f1e452]:
+                      - generic [ref=f1e453]:
+                        - term [ref=f1e454]: Views
+                        - definition [ref=f1e455]: 3.3K
+                      - generic [ref=f1e456]:
+                        - term [ref=f1e457]: Likes
+                        - definition [ref=f1e458]: "20"
+                      - generic [ref=f1e459]:
+                        - term [ref=f1e460]: Comments
+                        - definition [ref=f1e461]: "0"
+                    - paragraph [ref=f1e462]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e463]:
+                      - generic [ref=f1e464]:
+                        - text: Published
+                        - time [ref=f1e465]: Sep 22, 2026
+                      - generic [ref=f1e466]:
+                        - text: Collected
+                        - time [ref=f1e467]: Oct 9, 2026
+                      - generic [ref=f1e468]: "Source position: 7"
+                    - paragraph [ref=f1e469]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e470] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=8fsL1DkqxoU
+                  - article [ref=f1e471]:
+                    - generic [ref=f1e472]:
+                      - generic [ref=f1e473]: YouTube
+                      - generic [ref=f1e474]: AI with Aroon
+                    - heading "30 Best Free AI Apps You Need to Try in 2026 🤯 | AI Tools for Work, Study & Content | AIWithAroon" [level=3] [ref=f1e475]
+                    - paragraph [ref=f1e476]: "🚀 30 Best Free AI Apps You Need to Try in 2026 Looking for powerful AI apps that can save you time, improve productivity and make everyday tasks easier? In this video, AIWithAroon brings you 30 useful AI apps covering writing, design, research, video editing, audio, presentations, productivity and more. 🤖 Whether you’re a student, content creator, freelancer, professional, entrepreneur or business owner, there’s something here for you. 🔥 30 AI APPS FEATURED 🤖 AI Assistants & Productivity ChatGPT – Homework help, research & answers Canva – Design and content creation Google Gemini – AI assistant Microsoft Copilot – Productivity & assistance Notion AI – Notes, writing & organization ✍️ Writing & Research 6. Grammarly – Writing improvement 7. DeepL – Translation 8. QuillBot – Paraphrasing 9. Perplexity – AI-powered search 10. Claude – Writing, analysis & complex tasks 🎨 Image & Design Tools 11. Adobe Firefly – AI image generation 12. Microsoft Designer – Graphic design 13. PhotoRoom – Background removal & editing 14. Remove.bg – Remove image backgrounds 15. Lumen5 – Video creation 🎬 Video Creation & Editing 16. Kapwing – Video editing 17. Pictory – Text-to-video 18. Synthesia – AI video generation 19. Runway – AI video creation & editing 20. Descript – Audio & video editing 🎙️ Audio & Voice AI 21. Otter.ai – Transcription 22. Whisper – Speech-to-text 23. ElevenLabs – AI voice generation 24. Murf AI – Voiceovers 25. Soundraw – AI music creation 🎵 Music, Presentations & Learning 26. Suno – AI music creation 27. Tome – AI presentations 28. Gamma – Presentation & slide creation 29. Formulabot – AI-powered math help 30. Socratic – Study assistance 💡 WHAT CAN THESE AI APPS HELP YOU DO? ✅ Write and improve content ✅ Research topics faster ✅ Create images and graphics ✅ Edit and generate videos ✅ Convert speech into text ✅ Create AI voiceovers ✅ Make presentations ✅ Generate music ✅ Study more efficiently ✅ Automate repetitive work ✅ Save time and improve productivity 🎯 WHO SHOULD TRY THESE TOOLS? 📚 Students 🎥 YouTubers & Content Creators 💼 Professionals 🚀 Entrepreneurs 📈 Marketers ✍️ Writers 🎨 Designers 💻 Developers 📱 Social Media Creators 💰 Freelancers You don’t need to use all 30. Start with 2–3 tools that match your needs, learn them properly and build them into your daily workflow. ⚠️ IMPORTANT AI tools and their free plans can change over time. Some features may require an account or paid plan, so always check the current terms and pricing before relying on a tool for important work. 🚀 ABOUT AIWITHAROON AIWithAroon is all about making AI simple and useful. On this channel, you’ll find AI tools, ChatGPT tips, powerful prompts, AI websites, productivity hacks, automation ideas, tutorials and practical ways to use artificial intelligence. Subscribe to AIWithAroon and discover new ways to work smarter, create faster and learn more with AI. 🔔 👇 COMMENT BELOW: Which AI app from this list is your favorite? Which AI tool should AIWithAroon cover next? 👍 Like 📤 Share 🔔 Subscribe to AIWithAroon 🔎 SEO KEYWORDS best free AI apps 2026, free AI tools 2026, best AI tools, AI apps you need to try, AI tools for students, AI tools for productivity, AI tools for content creators, AI tools for business, AI writing tools, AI image generators, AI video tools, AI voice tools, AI presentation tools, AI research tools, ChatGPT, Claude, Gemini, Perplexity, Canva AI, Runway, ElevenLabs, Notion AI, free AI websites, AI tools list, AIWithAroon. #AIWithAroon #AITools #AIApps #AI2026 #ArtificialIntelligence #ChatGPT #AIProductivity #FreeAITools"
+                    - generic [ref=f1e477]:
+                      - generic [ref=f1e478]:
+                        - term [ref=f1e479]: Views
+                        - definition [ref=f1e480]: 2.7K
+                      - generic [ref=f1e481]:
+                        - term [ref=f1e482]: Likes
+                        - definition [ref=f1e483]: "19"
+                      - generic [ref=f1e484]:
+                        - term [ref=f1e485]: Comments
+                        - definition [ref=f1e486]: "0"
+                    - paragraph [ref=f1e487]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e488]:
+                      - generic [ref=f1e489]:
+                        - text: Published
+                        - time [ref=f1e490]: Sep 11, 2026
+                      - generic [ref=f1e491]:
+                        - text: Collected
+                        - time [ref=f1e492]: Oct 9, 2026
+                      - generic [ref=f1e493]: "Source position: 8"
+                    - paragraph [ref=f1e494]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e495] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=l9yeVHL-M8c
+                  - article [ref=f1e496]:
+                    - generic [ref=f1e497]:
+                      - generic [ref=f1e498]: YouTube
+                      - generic [ref=f1e499]: The iScale
+                    - heading "Complete AI Crash Course for Beginners | Learn AI from Scratch" [level=3] [ref=f1e500]
+                    - paragraph [ref=f1e501]: "Want to learn Artificial Intelligence from scratch but don’t know where to start? This complete AI crash course is designed for absolute beginners who want to understand AI in a simple and practical way. In this video, you'll learn the fundamentals of AI, Machine Learning, Generative AI, AI Agents, Large Language Models (LLMs), Prompt Engineering, and popular AI tools — all explained in an easy-to-understand way. 👉 Join our AI cohort now: https://www.theiscale.com/cohort/cohort-details/ai-for-everyone-complete-guide 🎯 What You'll Learn: 00:00:00 - Importance of AI in today’s job market 00:00:39 - Key pillars covered: Generative AI, AI Agents, and AI Tools 00:01:07 - AI Foundation 00:01:49 - Difference between an AI User vs. an AI Builder 00:03:06 - Detailed syllabus breakdown and project overview 00:04:21 - Accessing study resources, prompts, and notes 00:04:35 -Evolution & Foundations of AI 00:05:31- Introduction to Generative AI & LLMs 00:05:43 - Evolution of : Single-modal to Multi-modal AI 00:06:05 - Integration of third-party tools & APIs into AI models 00:07:55 - Machine Learning 00:08:20 - Pattern recognition & real-world ML 00:08:35 - Core AI Concepts & Architectural Layers 00:08:45 - Rule-based AI vs. Machine Learning 00:09:30 - Deep Learning fundamentals & Neural Networks explained 00:10:15- Introduction to Natural Language Processing (NLP) 00:11:00 - How Large Language Models (LLMs) process and predict text 00:12:10 - Understanding Tokenization, Embeddings, and Vectors 00:13:30 - What is Generative AI? (Text, Image, Audio, Code) 00:15:00 - Introduction to Prompt Engineering fundamentals 00:16:20 - Prompting Frameworks (Role, Context, Task, Constraints) 00:18:00]- Zero-shot, Few-shot, and Chain-of-Thought Prompting techniques 00:20:15 - Practical prompt demonstration for structured output 00:20:35 - Practical AI Tools & Practical Applications 00:22:00 - Overview of 15+ essential AI tools 00:24:10 - AI for Data Analysis 00:27:30- AI for Presentation Creation 00:31:00 - AI for Web & App Development 00:35:15 - AI for Research & Summarization 00:39:40 - AI Image Generation 00:44:00 - AI Video & Audio Creation 00:50:00 - What are AI Workflows and why automation matters 00:55:20 - Understanding Agentic AI vs. Traditional AI Models 01:02:10 - Architecture of AI Agents (Memory, Planning, Tools, Execution) 01:10:00 - Connecting APIs and Webhooks to AI Agents 01:18:30 - Building an Automated Customer Support AI Agent (Hands-on Project 1) 01:35:00 - Building a Sales & Lead Generation AI Agent (Hands-on Project 2) 01:50:00 - Testing, debugging, and deploying AI workflows 02:04:37 - How to position yourself as an AI Builder in the industry 02:04:52 - Monetization strategies: Freelancing, Career transition, and Business growth 02:05:54 - Final takeaways and wrap-up Download Notes for Free From here - https://www.theiscale.com/DataAnalytics/complete-ai-crash-course-for-beginners-learn-ai-from-scratch-notes 🔥 This AI crash course is perfect for: • Absolute beginners • Students & freshers • Working professionals • Content creators • Data & tech enthusiasts • Anyone who wants to learn AI from scratch By the end of this video, you'll have a clear understanding of what AI is, how modern AI works, which AI skills to learn, and how you can start your AI journey. ❇️ Explore our Job Oriented Courses: https://www.theiscale.com/explore-course ➖➖➖➖➖➖ 📱 For Any Further Query or Doubts? Contact- 7880-113-112 (Student Helpline Number) For any query connect in WhatsApp with us: https://wa.me/917880113112 ➖➖➖➖➖➖ ✳️ Join Telegram Channel- https://t.me/TheiScale ✳️ Join WhatsApp Channel- https://whatsapp.com/channel/0029VaB5ekEKQuJQV572vi2c ➖➖➖➖➖➖➖ 🔗 Download App Google Play : https://play.google.com/store/apps/details?id=com.logixhunt.ihhpet&pli=1"
+                    - generic [ref=f1e502]:
+                      - generic [ref=f1e503]:
+                        - term [ref=f1e504]: Views
+                        - definition [ref=f1e505]: 121.6K
+                      - generic [ref=f1e506]:
+                        - term [ref=f1e507]: Likes
+                        - definition [ref=f1e508]: 2.4K
+                      - generic [ref=f1e509]:
+                        - term [ref=f1e510]: Comments
+                        - definition [ref=f1e511]: "176"
+                    - paragraph [ref=f1e512]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e513]:
+                      - generic [ref=f1e514]:
+                        - text: Published
+                        - time [ref=f1e515]: Sep 24, 2026
+                      - generic [ref=f1e516]:
+                        - text: Collected
+                        - time [ref=f1e517]: Oct 9, 2026
+                      - generic [ref=f1e518]: "Source position: 9"
+                    - paragraph [ref=f1e519]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e520] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=MJNDGJdqW7s
+                  - article [ref=f1e521]:
+                    - generic [ref=f1e522]:
+                      - generic [ref=f1e523]: YouTube
+                      - generic [ref=f1e524]: Study Tools
+                    - 'heading "Ai tool for Exam Preparation 🚀📚 #aitools #aitool #exampreparation" [level=3] [ref=f1e525]'
+                    - generic [ref=f1e526]:
+                      - generic [ref=f1e527]:
+                        - term [ref=f1e528]: Views
+                        - definition [ref=f1e529]: 12.5K
+                      - generic [ref=f1e530]:
+                        - term [ref=f1e531]: Likes
+                        - definition [ref=f1e532]: "468"
+                      - generic [ref=f1e533]:
+                        - term [ref=f1e534]: Comments
+                        - definition [ref=f1e535]: "3"
+                    - paragraph [ref=f1e536]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e537]:
+                      - generic [ref=f1e538]:
+                        - text: Published
+                        - time [ref=f1e539]: Oct 6, 2026
+                      - generic [ref=f1e540]:
+                        - text: Collected
+                        - time [ref=f1e541]: Oct 9, 2026
+                      - generic [ref=f1e542]: "Source position: 10"
+                    - paragraph [ref=f1e543]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e544] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=4j3sxkHTivY
+                  - article [ref=f1e545]:
+                    - generic [ref=f1e546]:
+                      - generic [ref=f1e547]: YouTube
+                      - generic [ref=f1e548]: Dr Oluwaseun Ogunmola
+                    - heading "Free AI Tools Every Student Needs in 2026" [level=3] [ref=f1e549]
+                    - paragraph [ref=f1e550]: "Being a student doesn't mean you need expensive software to study smarter. ChatGPT → Explain difficult topics in simple terms Grammarly → Improve essays, grammar, and clarity Otter → Turn lectures and discussions into notes Quizlet AI → Create flashcards and study materials The real advantage is not having more tools. It is using AI to spend less time struggling with repetitive study tasks and more time actually learning. Pick one tool and make it part of your study routine this week. Which one would you use first? #AIForStudents #AITools #StudentLife #ChatGPT #StudyTips"
+                    - generic [ref=f1e551]:
+                      - generic [ref=f1e552]:
+                        - term [ref=f1e553]: Views
+                        - definition [ref=f1e554]: "169"
+                      - generic [ref=f1e555]:
+                        - term [ref=f1e556]: Likes
+                        - definition [ref=f1e557]: "0"
+                      - generic [ref=f1e558]:
+                        - term [ref=f1e559]: Comments
+                        - definition [ref=f1e560]: "1"
+                    - paragraph [ref=f1e561]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e562]:
+                      - generic [ref=f1e563]:
+                        - text: Published
+                        - time [ref=f1e564]: Oct 2, 2026
+                      - generic [ref=f1e565]:
+                        - text: Collected
+                        - time [ref=f1e566]: Oct 9, 2026
+                      - generic [ref=f1e567]: "Source position: 11"
+                    - paragraph [ref=f1e568]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e569] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=rg_zrOZFHVI
+                  - article [ref=f1e570]:
+                    - generic [ref=f1e571]:
+                      - generic [ref=f1e572]: YouTube
+                      - generic [ref=f1e573]: Entomological Society of America
+                    - 'heading "AI Tools in Education and Extension: Best Practices, Pitfalls, and Practical Applications" [level=3] [ref=f1e574]'
+                    - paragraph [ref=f1e575]: "In this episode, hosted by the FIT Section Early Career Professional subcommittee, panelists explored how generative AI is transforming education and extension programs, highlighting both its potential benefits and its limitations. The discussion focuses on responsible AI adoption, the importance of maintaining foundational knowledge and critical thinking skills, and the need for clear guidance for students, educators, and stakeholders. Panelists emphasized that AI can improve efficiency and support learning, but it cannot replace human expertise, judgment, or meaningful interaction. Ultimately, the conversation underscored the importance of preparing learners for an AI-enabled future while ensuring they can critically evaluate and appropriately use these emerging tools. Hosted by the FIT Section. Moderator: Melissa Reed Panelists: Alysia Ropp, Morgan Pinkerton, Jonathan Maletic Learn more about our panelists here: https://entsoc.org/events/webinars/ai-tools-in-education-and-extension"
+                    - generic [ref=f1e576]:
+                      - generic [ref=f1e577]:
+                        - term [ref=f1e578]: Views
+                        - definition [ref=f1e579]: "81"
+                      - generic [ref=f1e580]:
+                        - term [ref=f1e581]: Likes
+                        - definition [ref=f1e582]: "5"
+                      - generic [ref=f1e583]:
+                        - term [ref=f1e584]: Comments
+                        - definition [ref=f1e585]: "0"
+                    - paragraph [ref=f1e586]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e587]:
+                      - generic [ref=f1e588]:
+                        - text: Published
+                        - time [ref=f1e589]: Oct 8, 2026
+                      - generic [ref=f1e590]:
+                        - text: Collected
+                        - time [ref=f1e591]: Oct 9, 2026
+                      - generic [ref=f1e592]: "Source position: 12"
+                    - paragraph [ref=f1e593]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e594] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=_dMHv7l-Prc
+                  - article [ref=f1e595]:
+                    - generic [ref=f1e596]:
+                      - generic [ref=f1e597]: YouTube
+                      - generic [ref=f1e598]: MOIZA AI LAB
+                    - 'heading "I Gave AI a Boring Worksheet… 🤯 #ai #education #moizaialab #shorts" [level=3] [ref=f1e599]'
+                    - paragraph [ref=f1e600]: "This worksheet was completely boring… 😭 So I gave it to AI and asked it to turn it into a modern, attractive educational worksheet. 🤖📚 Same questions. Completely different presentation. But would you actually give an AI-generated worksheet to your students? Welcome to MOIZA AI LAB 🤖 BUILD | EXPERIMENT | LEARN #AI #AITools #Education #AIExperiment #MOIZAIALAB"
+                    - generic [ref=f1e601]:
+                      - generic [ref=f1e602]:
+                        - term [ref=f1e603]: Views
+                        - definition [ref=f1e604]: "12"
+                      - generic [ref=f1e605]:
+                        - term [ref=f1e606]: Likes
+                        - definition [ref=f1e607]: "1"
+                      - generic [ref=f1e608]:
+                        - term [ref=f1e609]: Comments
+                        - definition [ref=f1e610]: "0"
+                    - paragraph [ref=f1e611]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e612]:
+                      - generic [ref=f1e613]:
+                        - text: Published
+                        - time [ref=f1e614]: Sep 24, 2026
+                      - generic [ref=f1e615]:
+                        - text: Collected
+                        - time [ref=f1e616]: Oct 9, 2026
+                      - generic [ref=f1e617]: "Source position: 13"
+                    - paragraph [ref=f1e618]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e619] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=pTnF9V_-zfA
+                  - article [ref=f1e620]:
+                    - generic [ref=f1e621]:
+                      - generic [ref=f1e622]: YouTube
+                      - generic [ref=f1e623]: Ansh Soni
+                    - 'heading "One Best AI Tool for Every Task🔥| AI Tools for Students #shorts" [level=3] [ref=f1e624]'
+                    - paragraph [ref=f1e625]: "One Best AI Tool for Every Task 🔥 Stop wasting time searching for the right AI tool. In this video, I’m sharing some of the best AI tools for different tasks from studying and research to writing, coding, presentations and productivity. 🔗 PDF Link:- https://drive.google.com/file/d/1ggQKN-J9QL9J3N2TnPwRqAbiSHET3xxG/view?usp=sharing 🎓 Perfect for: • College & university students • School students • Creators • Anyone looking to work smarter with AI 🤖 AI Tools Covered: • AI for studying & learning • AI for research • AI for writing • AI for coding • AI for presentations • AI for notes & productivity #AITools #AIForStudents #AI #shorts"
+                    - generic [ref=f1e626]:
+                      - generic [ref=f1e627]:
+                        - term [ref=f1e628]: Views
+                        - definition [ref=f1e629]: "709"
+                      - generic [ref=f1e630]:
+                        - term [ref=f1e631]: Likes
+                        - definition [ref=f1e632]: "40"
+                      - generic [ref=f1e633]:
+                        - term [ref=f1e634]: Comments
+                        - definition [ref=f1e635]: "2"
+                    - paragraph [ref=f1e636]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e637]:
+                      - generic [ref=f1e638]:
+                        - text: Published
+                        - time [ref=f1e639]: Oct 9, 2026
+                      - generic [ref=f1e640]:
+                        - text: Collected
+                        - time [ref=f1e641]: Oct 9, 2026
+                      - generic [ref=f1e642]: "Source position: 14"
+                    - paragraph [ref=f1e643]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e644] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=RCg2xZG2HaM
+                  - article [ref=f1e645]:
+                    - generic [ref=f1e646]:
+                      - generic [ref=f1e647]: YouTube
+                      - generic [ref=f1e648]: Techno Teen 2.0
+                    - 'heading "10 FREE AI tools you’ll actually find useful 🤯 #ytshorts #youtubeshorts #shortsfeed #aitools #shorts" [level=3] [ref=f1e649]'
+                    - generic [ref=f1e650]:
+                      - generic [ref=f1e651]:
+                        - term [ref=f1e652]: Views
+                        - definition [ref=f1e653]: 807.8K
+                      - generic [ref=f1e654]:
+                        - term [ref=f1e655]: Likes
+                        - definition [ref=f1e656]: 50.9K
+                      - generic [ref=f1e657]:
+                        - term [ref=f1e658]: Comments
+                        - definition [ref=f1e659]: "124"
+                    - paragraph [ref=f1e660]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e661]:
+                      - generic [ref=f1e662]:
+                        - text: Published
+                        - time [ref=f1e663]: Sep 14, 2026
+                      - generic [ref=f1e664]:
+                        - text: Collected
+                        - time [ref=f1e665]: Oct 9, 2026
+                      - generic [ref=f1e666]: "Source position: 15"
+                    - paragraph [ref=f1e667]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e668] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=qUuuEZI3y5g
+                  - article [ref=f1e669]:
+                    - generic [ref=f1e670]:
+                      - generic [ref=f1e671]: YouTube
+                      - generic [ref=f1e672]: The AI Jasleen Show
+                    - heading "How to Simplify Individual Education Plans (IEP) Using AI Tools ⚡" [level=3] [ref=f1e673]
+                    - paragraph [ref=f1e674]: "Planning learning support and individual education plans (IEPs) can be overwhelming and time-consuming. 🛑 Watch how you can use an AI teacher's tool to quickly generate draft frameworks, set goals, and structure student support data in seconds! Not sponsored • For educational use • Demo of an AI tool 🔔 Subscribe for more smart workflow solutions, educational tech hacks, and digital tools! 👇 Drop a comment: How do you currently manage your learning support plans? #edtech #teacherhacks #aitools #educationtech #specialeducation"
+                    - generic [ref=f1e675]:
+                      - generic [ref=f1e676]:
+                        - term [ref=f1e677]: Views
+                        - definition [ref=f1e678]: "30"
+                      - generic [ref=f1e679]:
+                        - term [ref=f1e680]: Likes
+                        - definition [ref=f1e681]: "0"
+                      - generic [ref=f1e682]:
+                        - term [ref=f1e683]: Comments
+                        - definition [ref=f1e684]: "1"
+                    - paragraph [ref=f1e685]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e686]:
+                      - generic [ref=f1e687]:
+                        - text: Published
+                        - time [ref=f1e688]: Sep 27, 2026
+                      - generic [ref=f1e689]:
+                        - text: Collected
+                        - time [ref=f1e690]: Oct 9, 2026
+                      - generic [ref=f1e691]: "Source position: 16"
+                    - paragraph [ref=f1e692]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e693] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=GseR_wbch1k
+                  - article [ref=f1e694]:
+                    - generic [ref=f1e695]:
+                      - generic [ref=f1e696]: YouTube
+                      - generic [ref=f1e697]: Data Mind Notes
+                    - 'heading "Free AI Tools #shorts #education" [level=3] [ref=f1e698]'
+                    - paragraph [ref=f1e699]: "Students, you don't need expensive tools! 🎓 Here are 3 free AI tools that can save you hours: 📚 NotebookLM: study from your own notes and PDFs 🔍 Perplexity: research with sources you can check 🎨 Canva: make slides and posters in minutes ⚠️ Always double-check AI answers, and use AI to learn, not to copy. 💬 Which tool will you try first? Comment below! 🔔 Subscribe for simple AI & Data Science tips every week. #ai #shorts #aitools #studenttips #aiforbeginners #skills #youtubemonetization"
+                    - generic [ref=f1e700]:
+                      - generic [ref=f1e701]:
+                        - term [ref=f1e702]: Views
+                        - definition [ref=f1e703]: "52"
+                      - generic [ref=f1e704]:
+                        - term [ref=f1e705]: Likes
+                        - definition [ref=f1e706]: "3"
+                      - generic [ref=f1e707]:
+                        - term [ref=f1e708]: Comments
+                        - definition [ref=f1e709]: "1"
+                    - paragraph [ref=f1e710]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e711]:
+                      - generic [ref=f1e712]:
+                        - text: Published
+                        - time [ref=f1e713]: Oct 4, 2026
+                      - generic [ref=f1e714]:
+                        - text: Collected
+                        - time [ref=f1e715]: Oct 9, 2026
+                      - generic [ref=f1e716]: "Source position: 17"
+                    - paragraph [ref=f1e717]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e718] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=F1fwJMMLatU
+                  - article [ref=f1e719]:
+                    - generic [ref=f1e720]:
+                      - generic [ref=f1e721]: YouTube
+                      - generic [ref=f1e722]: JetBrains Academy
+                    - heading "Mind the AI traps when coding" [level=3] [ref=f1e723]
+                    - paragraph [ref=f1e724]: It’s not only our own minds that set metacognitive traps for us. The danger can come from where you least expect it, for example, from the tools you use for learning 😱 In particular, AI tools that are supposed to make learning faster and more effective can, under certain circumstances, have the opposite effect. Clara explains the cognitive traps introduced specifically by AI tools.
+                    - generic [ref=f1e725]:
+                      - generic [ref=f1e726]:
+                        - term [ref=f1e727]: Views
+                        - definition [ref=f1e728]: 7.8K
+                      - generic [ref=f1e729]:
+                        - term [ref=f1e730]: Likes
+                        - definition [ref=f1e731]: "612"
+                      - generic [ref=f1e732]:
+                        - term [ref=f1e733]: Comments
+                        - definition [ref=f1e734]: "15"
+                    - paragraph [ref=f1e735]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e736]:
+                      - generic [ref=f1e737]:
+                        - text: Published
+                        - time [ref=f1e738]: Oct 5, 2026
+                      - generic [ref=f1e739]:
+                        - text: Collected
+                        - time [ref=f1e740]: Oct 9, 2026
+                      - generic [ref=f1e741]: "Source position: 18"
+                    - paragraph [ref=f1e742]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e743] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=zTdwo82LLlE
+                  - article [ref=f1e744]:
+                    - generic [ref=f1e745]:
+                      - generic [ref=f1e746]: YouTube
+                      - generic [ref=f1e747]: GreatLearning AI
+                    - 'heading "Best AI Tool for Every Task 2026: Images, Video, Email, Notes and More" [level=3] [ref=f1e748]'
+                    - paragraph [ref=f1e749]: "Still using one chatbot for everything? For almost every task on your list, there's a better AI tool that does that one job really well. This Short runs through 10 everyday tasks and the single best AI tool for each in 2026, plus the standout features that earn it the spot. Save it and use it as your AI cheat sheet. What You'll Learn: 🖼️ Images (Nano Banana): faces stay consistent across edits, 4K output, and it is fast. 🎬 Video (Google Omni): cinematic camera moves, realistic motion, and sound effects included. 🎨 Graphic design (Canva AI): one-click background removal and brand templates that keep everything consistent. ✉️ Emails (Claude, or Gemini in Gmail): replies that sound like you, context across long threads, and thread summaries. 📝 Taking notes (Granola): jot rough notes, get polished ones back, and chat with past meetings. 📊 Presentations (Gamma): a full deck in under a minute that exports to PowerPoint and Google Slides. 🔎 Research (Perplexity): searches the live web, cites every claim, and keeps context on follow-ups. 📚 Learning (Gemini Notebook): turns documents into narrated video overviews, grounded in your own uploads. 🌐 Websites (Framer AI): wireframes from one sentence, designer-made type and motion, visual editing with no code. 🤖 Automation (Lindy): agents that handle email, scheduling, and follow-ups, and reason instead of following fixed steps. 💡 The twist: you don't need all ten. Fix your biggest time sink first, then add one tool a week. ⏱️ CHAPTERS: 0:00 Ten tasks, one best tool each 0:14 Images: Nano Banana 0:23 Video: Google Omni 0:31 Graphic Design: Canva AI 0:38 Emails: Claude and Gemini 0:48 Taking Notes: Granola 0:55 Presentations: Gamma 1:02 Research: Perplexity 1:10 Learning: Gemini Notebook 1:19 Building Websites: Framer AI 1:29 Automation: Lindy 1:37 The twist 1:45 Which one are you missing? About GreatLearning AI: Practical, no-fluff AI learning, powered by Great Learning. Tutorials, real-world use cases, AI tools and workflows built for working professionals. 👉 Subscribe for new practical AI videos every week: @GreatLearningAI #AITools #BestAITools #AITools2026 #Productivity #NoCode #AIAutomation #AIAgents #Shorts #GreatLearningAI"
+                    - generic [ref=f1e750]:
+                      - generic [ref=f1e751]:
+                        - term [ref=f1e752]: Views
+                        - definition [ref=f1e753]: 1.3K
+                      - generic [ref=f1e754]:
+                        - term [ref=f1e755]: Likes
+                        - definition [ref=f1e756]: "17"
+                      - generic [ref=f1e757]:
+                        - term [ref=f1e758]: Comments
+                        - definition [ref=f1e759]: "1"
+                    - paragraph [ref=f1e760]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e761]:
+                      - generic [ref=f1e762]:
+                        - text: Published
+                        - time [ref=f1e763]: Oct 3, 2026
+                      - generic [ref=f1e764]:
+                        - text: Collected
+                        - time [ref=f1e765]: Oct 9, 2026
+                      - generic [ref=f1e766]: "Source position: 19"
+                    - paragraph [ref=f1e767]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e768] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=pAZe7EApVr0
+                  - article [ref=f1e769]:
+                    - generic [ref=f1e770]:
+                      - generic [ref=f1e771]: YouTube
+                      - generic [ref=f1e772]: Data Girl Diaries
+                    - 'heading "Top 40 Best AI Tools 🤖(2026) #ai #education#aitools #prompt#growth#learn#best" [level=3] [ref=f1e773]'
+                    - generic [ref=f1e774]:
+                      - generic [ref=f1e775]:
+                        - term [ref=f1e776]: Views
+                        - definition [ref=f1e777]: "342"
+                      - generic [ref=f1e778]:
+                        - term [ref=f1e779]: Likes
+                        - definition [ref=f1e780]: "7"
+                      - generic [ref=f1e781]:
+                        - term [ref=f1e782]: Comments
+                        - definition [ref=f1e783]: "0"
+                    - paragraph [ref=f1e784]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e785]:
+                      - generic [ref=f1e786]:
+                        - text: Published
+                        - time [ref=f1e787]: Sep 21, 2026
+                      - generic [ref=f1e788]:
+                        - text: Collected
+                        - time [ref=f1e789]: Oct 9, 2026
+                      - generic [ref=f1e790]: "Source position: 20"
+                    - paragraph [ref=f1e791]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e792] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=KqDqsg8W59Y
+                  - article [ref=f1e793]:
+                    - generic [ref=f1e794]:
+                      - generic [ref=f1e795]: YouTube
+                      - generic [ref=f1e796]: Coalescence with Jessica Culo
+                    - heading "How AI is Changing Education Forever (Personalized Learning)" [level=3] [ref=f1e797]
+                    - paragraph [ref=f1e798]: For the first time ever, kids can be taught exactly the way they learn best. Remember getting a bad grade just because a teacher's style didn't click with you? AI is completely changing the game by tailoring education to fit every individual student's needs. Whether your child thrives on videos, podcasts, visual graphs, or written text, AI tools can instantly adapt the lesson to capture their attention. Imagine a world where every single class feels like it's being taught by your absolute favorite teacher. Watch the full episode here - https://youtu.be/NjrVgSmKWIw Learn more at - https://www.youtube.com/@UCJEPMNATiBupl921_0l2RFg
+                    - generic [ref=f1e799]:
+                      - generic [ref=f1e800]:
+                        - term [ref=f1e801]: Views
+                        - definition [ref=f1e802]: "34"
+                      - generic [ref=f1e803]:
+                        - term [ref=f1e804]: Likes
+                        - definition [ref=f1e805]: "0"
+                      - generic [ref=f1e806]:
+                        - term [ref=f1e807]: Comments
+                        - definition [ref=f1e808]: "0"
+                    - paragraph [ref=f1e809]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e810]:
+                      - generic [ref=f1e811]:
+                        - text: Published
+                        - time [ref=f1e812]: Sep 28, 2026
+                      - generic [ref=f1e813]:
+                        - text: Collected
+                        - time [ref=f1e814]: Oct 9, 2026
+                      - generic [ref=f1e815]: "Source position: 21"
+                    - paragraph [ref=f1e816]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e817] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=Vm8RQfAqxaE
+                  - article [ref=f1e818]:
+                    - generic [ref=f1e819]:
+                      - generic [ref=f1e820]: YouTube
+                      - generic [ref=f1e821]: careeryush
+                    - 'heading "Ai hack to make handwritten notes 📓... #ai #tools #ainotes #notes #education #study #students" [level=3] [ref=f1e822]'
+                    - generic [ref=f1e823]:
+                      - generic [ref=f1e824]:
+                        - term [ref=f1e825]: Views
+                        - definition [ref=f1e826]: "314"
+                      - generic [ref=f1e827]:
+                        - term [ref=f1e828]: Likes
+                        - definition [ref=f1e829]: "5"
+                      - generic [ref=f1e830]:
+                        - term [ref=f1e831]: Comments
+                        - definition [ref=f1e832]: "2"
+                    - paragraph [ref=f1e833]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e834]:
+                      - generic [ref=f1e835]:
+                        - text: Published
+                        - time [ref=f1e836]: Sep 19, 2026
+                      - generic [ref=f1e837]:
+                        - text: Collected
+                        - time [ref=f1e838]: Oct 9, 2026
+                      - generic [ref=f1e839]: "Source position: 22"
+                    - paragraph [ref=f1e840]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e841] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=HGIDHFjUAwA
+                  - article [ref=f1e842]:
+                    - generic [ref=f1e843]:
+                      - generic [ref=f1e844]: YouTube
+                      - generic [ref=f1e845]: CGTN Africa
+                    - 'heading "Talk Africa: Education in the AI era" [level=3] [ref=f1e846]'
+                    - paragraph [ref=f1e847]: "Professor Zhan Yiwen, Assistant Professor in the Department of Philosophy at Peking University, says being an AI-enabled teacher requires more than knowing how to use AI tools. Educators need the expertise to integrate the technology effectively into the learning process, making strong teaching skills even more important in the AI era. Subscribe to us on YouTube: http://ow.ly/Zvqj30aIsgY Follow us on: Facebook: https://www.facebook.com/cgtnafrica/ Twitter: https://twitter.com/cgtnafrica Instagram: https://www.instagram.com/cgtn_africa/"
+                    - generic [ref=f1e848]:
+                      - generic [ref=f1e849]:
+                        - term [ref=f1e850]: Views
+                        - definition [ref=f1e851]: "483"
+                      - generic [ref=f1e852]:
+                        - term [ref=f1e853]: Likes
+                        - definition [ref=f1e854]: "5"
+                      - generic [ref=f1e855]:
+                        - term [ref=f1e856]: Comments
+                        - definition [ref=f1e857]: "2"
+                    - paragraph [ref=f1e858]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e859]:
+                      - generic [ref=f1e860]:
+                        - text: Published
+                        - time [ref=f1e861]: Sep 10, 2026
+                      - generic [ref=f1e862]:
+                        - text: Collected
+                        - time [ref=f1e863]: Oct 9, 2026
+                      - generic [ref=f1e864]: "Source position: 23"
+                    - paragraph [ref=f1e865]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e866] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=gNbNKQhczPY
+                  - article [ref=f1e867]:
+                    - generic [ref=f1e868]:
+                      - generic [ref=f1e869]: YouTube
+                      - generic [ref=f1e870]: Acry Ai
+                    - heading "Don’t Learn Every AI Tool! 🚨 Learn the Right Ones with ACRY AI" [level=3] [ref=f1e871]
+                    - paragraph [ref=f1e872]: "Don’t Learn Every AI Tool! 🚨 Learn the Right Ones with ACRY AI Welcome to ACRY AI — your destination for **AI learning, AI tools, and practical Artificial Intelligence education**. 🤖🚀 Learn how to use **ChatGPT, Generative AI, AI Tools, Prompt Engineering, AI Automation, and the latest AI technologies** to work smarter, create better content, and improve your productivity. 👉 Enrol Now = https://acryai.com/ 👉instagram.com/acryedutech?igsi=MWtuNHRqZnU1enFqcA== 📚 **What You’ll Learn:** • Artificial Intelligence & Generative AI • ChatGPT & AI Tools Tutorials • Prompt Engineering • AI for Students & Professionals • AI for Content Creation • AI for Social Media & Digital Marketing • AI Automation & Productivity • Latest AI Tools, Updates & Trends • Practical AI Tips & Tutorials for Beginners Whether you're a **student, content creator, freelancer, marketer, professional, or complete beginner**, this channel will help you understand AI in a simple and practical way. 🎯 **Our Mission:** To make AI education **simple, practical, and accessible**, so you can learn AI skills and use them in real-world situations. 🔔 **Subscribe now** and start your journey into the world of Artificial Intelligence! #AI #ArtificialIntelligence #ChatGPT #AITools #GenerativeAI #PromptEngineering #AITraining #AITutorial #AIForBeginners #aiindia"
+                    - generic [ref=f1e873]:
+                      - generic [ref=f1e874]:
+                        - term [ref=f1e875]: Views
+                        - definition [ref=f1e876]: "202"
+                      - generic [ref=f1e877]:
+                        - term [ref=f1e878]: Likes
+                        - definition [ref=f1e879]: Unknown
+                      - generic [ref=f1e880]:
+                        - term [ref=f1e881]: Comments
+                        - definition [ref=f1e882]: "0"
+                    - paragraph [ref=f1e883]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e884]:
+                      - generic [ref=f1e885]:
+                        - text: Published
+                        - time [ref=f1e886]: Oct 6, 2026
+                      - generic [ref=f1e887]:
+                        - text: Collected
+                        - time [ref=f1e888]: Oct 9, 2026
+                      - generic [ref=f1e889]: "Source position: 24"
+                    - paragraph [ref=f1e890]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e891] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=zkYTu6uBsZw
+                  - article [ref=f1e892]:
+                    - generic [ref=f1e893]:
+                      - generic [ref=f1e894]: YouTube
+                      - generic [ref=f1e895]: American Student
+                    - 'heading "What Is AI in Education? #Shorts" [level=3] [ref=f1e896]'
+                    - paragraph [ref=f1e897]: "What Is AI in Education? - explained clearly for Grade 9-12 Computer Science. Searches for AI in the classroom have grown 20 times in just five years. In this video, you'll learn: 1. AI in education uses tools like chatbots and adaptive software to support learning 2. It can personalize practice problems and give instant feedback to students 3. Schools are still figuring out the right balance between AI help and academic honesty Here's how it works: AI in education uses tools like chatbots and adaptive software to support learning, giving students and teachers new ways to interact with course material. One of the biggest advantages is personalization: it can personalize practice problems and give instant feedback to students, adjusting difficulty and pacing in ways a single teacher managing a full classroom often can't. But that convenience comes with real tension, schools are still figuring out the right balance between AI help and academic honesty, trying to support learning without letting AI do the thinking for students. AI in education is reshaping how students learn, and the debate over its role is just getting started. AI in education is reshaping how students learn, and the debate over its role is just getting started! Subscribe for a new concept explained every week - perfect for homework help, test prep, and back-to-school review across every grade level, from elementary to AP high school. What Is AI in Education? | Computer Science Grade 9-12 | AI in education uses tools like chatbots and adaptive software to support learning, It can personalize practice problems and give instant feedback to students, Schools are still figuring out the right balance between AI help and academic honesty #Shorts #ComputerScience #Grade9-12 #StudyTips #BackToSchool #LearnOnYouTube #HomeworkHelp #TestPrep"
+                    - generic [ref=f1e898]:
+                      - generic [ref=f1e899]:
+                        - term [ref=f1e900]: Views
+                        - definition [ref=f1e901]: "51"
+                      - generic [ref=f1e902]:
+                        - term [ref=f1e903]: Likes
+                        - definition [ref=f1e904]: "0"
+                      - generic [ref=f1e905]:
+                        - term [ref=f1e906]: Comments
+                        - definition [ref=f1e907]: "0"
+                    - paragraph [ref=f1e908]: Counts observed at collection, not a measure of growth. Missing values are unknown.
+                    - generic [ref=f1e909]:
+                      - generic [ref=f1e910]:
+                        - text: Published
+                        - time [ref=f1e911]: Sep 29, 2026
+                      - generic [ref=f1e912]:
+                        - text: Collected
+                        - time [ref=f1e913]: Oct 9, 2026
+                      - generic [ref=f1e914]: "Source position: 25"
+                    - paragraph [ref=f1e915]: Source published within requested timeframe. Event date unavailable; publication timing does not verify when a development happened.
+                    - link "View original" [ref=f1e916] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=xNHH9Xo3e6w
+                  - article [ref=f1e917]:
+                    - generic [ref=f1e918]:
+                      - generic [ref=f1e919]: Public web
+                      - generic [ref=f1e920]: www.edcafe.ai
+                    - heading "10+ Best AI Teaching Tools Every Educator Swears By | Edcafe" [level=3] [ref=f1e921]
+                    - paragraph [ref=f1e922]: 8 Jun 2026 ... Best AI Teaching Tools for Teachers in 2026 (Tested and Ranked) · 1. Edcafe AI · 2. MagicSchool AI · 3. Brisk Teaching · 4. Eduaide AI · 5.
+                    - generic [ref=f1e923]:
+                      - generic [ref=f1e924]: Publication date unknown
+                      - generic [ref=f1e925]:
+                        - text: Collected
+                        - time [ref=f1e926]: Oct 9, 2026
+                      - generic [ref=f1e927]: "Source position: 1"
+                    - paragraph [ref=f1e928]: Undated source context. Event date unavailable; publication timing does not verify when a development happened.
+                    - paragraph [ref=f1e929]: Timeframe coverage is unverified for this public-web result.
+                    - link "View original" [ref=f1e930] [cursor=pointer]:
+                      - /url: https://www.edcafe.ai/blog/best-ai-teaching-tools
+                  - article [ref=f1e931]:
+                    - generic [ref=f1e932]:
+                      - generic [ref=f1e933]: Public web
+                      - generic [ref=f1e934]: www.eduaide.ai
+                    - heading "AI Tools for Teachers | Eduaide" [level=3] [ref=f1e935]
+                    - paragraph [ref=f1e936]: Eduaide helps K-12 teachers create worksheets, graphic organizers, and games built from your standards, your curriculum, and real learning science. With the ...
+                    - generic [ref=f1e937]:
+                      - generic [ref=f1e938]: Publication date unknown
+                      - generic [ref=f1e939]:
+                        - text: Collected
+                        - time [ref=f1e940]: Oct 9, 2026
+                      - generic [ref=f1e941]: "Source position: 2"
+                    - paragraph [ref=f1e942]: Undated source context. Event date unavailable; publication timing does not verify when a development happened.
+                    - paragraph [ref=f1e943]: Timeframe coverage is unverified for this public-web result.
+                    - link "View original" [ref=f1e944] [cursor=pointer]:
+                      - /url: https://www.eduaide.ai/
+                  - article [ref=f1e945]:
+                    - generic [ref=f1e946]:
+                      - generic [ref=f1e947]: Public web
+                      - generic [ref=f1e948]: www.disco.co
+                    - heading "Top 10 AI Education Tools for Modern Learning (2026)" [level=3] [ref=f1e949]
+                    - paragraph [ref=f1e950]: "29 Jan 2026 ... Top 10 AI Education Tools for 2026 · 1. Disco: The Premier AI-Powered Social Learning Platform · 2. Khanmigo by Khan Academy · 3. ChatGPT Edu."
+                    - generic [ref=f1e951]:
+                      - generic [ref=f1e952]: Publication date unknown
+                      - generic [ref=f1e953]:
+                        - text: Collected
+                        - time [ref=f1e954]: Oct 9, 2026
+                      - generic [ref=f1e955]: "Source position: 3"
+                    - paragraph [ref=f1e956]: Undated source context. Event date unavailable; publication timing does not verify when a development happened.
+                    - paragraph [ref=f1e957]: Timeframe coverage is unverified for this public-web result.
+                    - link "View original" [ref=f1e958] [cursor=pointer]:
+                      - /url: https://www.disco.co/blog/top-10-ai-education-tools
+                  - article [ref=f1e959]:
+                    - generic [ref=f1e960]:
+                      - generic [ref=f1e961]: Public web
+                      - generic [ref=f1e962]: edu.google.com
+                    - heading "Using AI Tools in the Classroom - Google for Education" [level=3] [ref=f1e963]
+                    - paragraph [ref=f1e964]: Discover how Google AI tools are revolutionizing education. Google has created a suite of powerful AI tools to transform teaching and learning at every level.
+                    - generic [ref=f1e965]:
+                      - generic [ref=f1e966]: Publication date unknown
+                      - generic [ref=f1e967]:
+                        - text: Collected
+                        - time [ref=f1e968]: Oct 9, 2026
+                      - generic [ref=f1e969]: "Source position: 4"
+                    - paragraph [ref=f1e970]: Undated source context. Event date unavailable; publication timing does not verify when a development happened.
+                    - paragraph [ref=f1e971]: Timeframe coverage is unverified for this public-web result.
+                    - link "View original" [ref=f1e972] [cursor=pointer]:
+                      - /url: https://edu.google.com/ai-resources-in-education/
+                  - article [ref=f1e973]:
+                    - generic [ref=f1e974]:
+                      - generic [ref=f1e975]: Public web
+                      - generic [ref=f1e976]: www.canva.com
+                    - 'heading "AI for Teachers: Create Educational Materials With AI - Canva" [level=3] [ref=f1e977]'
+                    - paragraph [ref=f1e978]: Create personalized classroom materials with AI tools for teachers on Canva. Save time crafting quizzes, activities, and lesson plans so you can have more ...
+                    - generic [ref=f1e979]:
+                      - generic [ref=f1e980]: Publication date unknown
+                      - generic [ref=f1e981]:
+                        - text: Collected
+                        - time [ref=f1e982]: Oct 9, 2026
+                      - generic [ref=f1e983]: "Source position: 5"
+                    - paragraph [ref=f1e984]: Undated source context. Event date unavailable; publication timing does not verify when a development happened.
+                    - paragraph [ref=f1e985]: Timeframe coverage is unverified for this public-web result.
+                    - link "View original" [ref=f1e986] [cursor=pointer]:
+                      - /url: https://www.canva.com/ai-for-teachers/
+                  - article [ref=f1e987]:
+                    - generic [ref=f1e988]:
+                      - generic [ref=f1e989]: Public web
+                      - generic [ref=f1e990]: www.eklavvya.com
+                    - 'heading "AI Tools for Education List 2026: 80 Free & Paid Tools" [level=3] [ref=f1e991]'
+                    - paragraph [ref=f1e992]: Research & Academic Writing 9 · NotebookLM · Elicit · Scholarcy · Scite · Grammarly · Otter.ai · Granola · Wispr Flow. Free + paid plansAI. Voice-to-text ...
+                    - generic [ref=f1e993]:
+                      - generic [ref=f1e994]: Publication date unknown
+                      - generic [ref=f1e995]:
+                        - text: Collected
+                        - time [ref=f1e996]: Oct 9, 2026
+                      - generic [ref=f1e997]: "Source position: 6"
+                    - paragraph [ref=f1e998]: Undated source context. Event date unavailable; publication timing does not verify when a development happened.
+                    - paragraph [ref=f1e999]: Timeframe coverage is unverified for this public-web result.
+                    - link "View original" [ref=f1e1000] [cursor=pointer]:
+                      - /url: https://www.eklavvya.com/blog/ai-tools-education-content/
+                  - article [ref=f1e1001]:
+                    - generic [ref=f1e1002]:
+                      - generic [ref=f1e1003]: Public web
+                      - generic [ref=f1e1004]: www.unesco.org
+                    - heading "Artificial intelligence in education - AI | UNESCO" [level=3] [ref=f1e1005]
+                    - paragraph [ref=f1e1006]: "But with these tools come challenges: over-reliance, ethical concerns, and declining deep reading skills. Teachers are learning how to navigate this disruption, ..."
+                    - generic [ref=f1e1007]:
+                      - generic [ref=f1e1008]: Publication date unknown
+                      - generic [ref=f1e1009]:
+                        - text: Collected
+                        - time [ref=f1e1010]: Oct 9, 2026
+                      - generic [ref=f1e1011]: "Source position: 7"
+                    - paragraph [ref=f1e1012]: Undated source context. Event date unavailable; publication timing does not verify when a development happened.
+                    - paragraph [ref=f1e1013]: Timeframe coverage is unverified for this public-web result.
+                    - link "View original" [ref=f1e1014] [cursor=pointer]:
+                      - /url: https://www.unesco.org/en/digital-education/artificial-intelligence
+                  - article [ref=f1e1015]:
+                    - generic [ref=f1e1016]:
+                      - generic [ref=f1e1017]: Public web
+                      - generic [ref=f1e1018]: www.edutopia.org
+                    - heading "7 AI Tools That Help Teachers Work More Efficiently - Edutopia" [level=3] [ref=f1e1019]
+                    - paragraph [ref=f1e1020]: "20 Okt 2023 ... Eduaide.Ai: This is an AI-assisted lesson-development tool that provides educators with more than 100 resource types to choose from to create ..."
+                    - generic [ref=f1e1021]:
+                      - generic [ref=f1e1022]: Publication date unknown
+                      - generic [ref=f1e1023]:
+                        - text: Collected
+                        - time [ref=f1e1024]: Oct 9, 2026
+                      - generic [ref=f1e1025]: "Source position: 8"
+                    - paragraph [ref=f1e1026]: Undated source context. Event date unavailable; publication timing does not verify when a development happened.
+                    - paragraph [ref=f1e1027]: Timeframe coverage is unverified for this public-web result.
+                    - link "View original" [ref=f1e1028] [cursor=pointer]:
+                      - /url: https://www.edutopia.org/article/7-ai-tools-that-help-teachers-work-more-efficiently/
+                  - article [ref=f1e1029]:
+                    - generic [ref=f1e1030]:
+                      - generic [ref=f1e1031]: Public web
+                      - generic [ref=f1e1032]: slidesgo.com
+                    - heading "Free AI tools for education - Slidesgo" [level=3] [ref=f1e1033]
+                    - paragraph [ref=f1e1034]: Slideshow maker for educators. Customize your presentations with zero effort using our online editor. Personalize your slides, add your content, and engage your ...
+                    - generic [ref=f1e1035]:
+                      - generic [ref=f1e1036]: Publication date unknown
+                      - generic [ref=f1e1037]:
+                        - text: Collected
+                        - time [ref=f1e1038]: Oct 9, 2026
+                      - generic [ref=f1e1039]: "Source position: 9"
+                    - paragraph [ref=f1e1040]: Undated source context. Event date unavailable; publication timing does not verify when a development happened.
+                    - paragraph [ref=f1e1041]: Timeframe coverage is unverified for this public-web result.
+                    - link "View original" [ref=f1e1042] [cursor=pointer]:
+                      - /url: https://slidesgo.com/ai
+                  - article [ref=f1e1043]:
+                    - generic [ref=f1e1044]:
+                      - generic [ref=f1e1045]: Public web
+                      - generic [ref=f1e1046]: guides.libraries.uc.edu
+                    - heading "AI Tools for Education - Research Guides at University of Cincinnati" [level=3] [ref=f1e1047]
+                    - paragraph [ref=f1e1048]: 11 Mei 2026 ... AI Tools for Education · Home · AI Tools for Teaching Toggle Dropdown. Diffit · Magic School AI · Conker AI · AI Tools for Presentations Toggle ...
+                    - generic [ref=f1e1049]:
+                      - generic [ref=f1e1050]: Publication date unknown
+                      - generic [ref=f1e1051]:
+                        - text: Collected
+                        - time [ref=f1e1052]: Oct 9, 2026
+                      - generic [ref=f1e1053]: "Source position: 10"
+                    - paragraph [ref=f1e1054]: Undated source context. Event date unavailable; publication timing does not verify when a development happened.
+                    - paragraph [ref=f1e1055]: Timeframe coverage is unverified for this public-web result.
+                    - link "View original" [ref=f1e1056] [cursor=pointer]:
+                      - /url: https://guides.libraries.uc.edu/ai-education
+                  - article [ref=f1e1057]:
+                    - generic [ref=f1e1058]:
+                      - generic [ref=f1e1059]: Public web
+                      - generic [ref=f1e1060]: journal-center.litpam.com
+                    - heading "Recent Progress in the Use of Artificial Intelligence Tools in Education" [level=3] [ref=f1e1061]
+                    - paragraph [ref=f1e1062]: AI tools in higher education provide numerous advantages at the institutional, social, and instructional levels. Disruptive AI tools such as ChatGPT have ...
+                    - generic [ref=f1e1063]:
+                      - generic [ref=f1e1064]: Publication date unknown
+                      - generic [ref=f1e1065]:
+                        - text: Collected
+                        - time [ref=f1e1066]: Oct 9, 2026
+                      - generic [ref=f1e1067]: "Source position: 11"
+                    - paragraph [ref=f1e1068]: Undated source context. Event date unavailable; publication timing does not verify when a development happened.
+                    - paragraph [ref=f1e1069]: Timeframe coverage is unverified for this public-web result.
+                    - link "View original" [ref=f1e1070] [cursor=pointer]:
+                      - /url: https://journal-center.litpam.com/index.php/e-Saintika/article/view/1377
+                  - article [ref=f1e1071]:
+                    - generic [ref=f1e1072]:
+                      - generic [ref=f1e1073]: Public web
+                      - generic [ref=f1e1074]: prosiding.stie-aas.ac.id
+                    - 'heading "ARTIFICIAL INTELLIGENCE (AI) IN EDUCATION: USING AI TOOLS ..." [level=3] [ref=f1e1075]'
+                    - paragraph [ref=f1e1076]: 20 Des 2021 ... With the development of Artificial Intelligence (AI) in the field of education to help process daily activities including teaching and learning.
+                    - generic [ref=f1e1077]:
+                      - generic [ref=f1e1078]: Publication date unknown
+                      - generic [ref=f1e1079]:
+                        - text: Collected
+                        - time [ref=f1e1080]: Oct 9, 2026
+                      - generic [ref=f1e1081]: "Source position: 12"
+                    - paragraph [ref=f1e1082]: Undated source context. Event date unavailable; publication timing does not verify when a development happened.
+                    - paragraph [ref=f1e1083]: Timeframe coverage is unverified for this public-web result.
+                    - link "View original" [ref=f1e1084] [cursor=pointer]:
+                      - /url: https://prosiding.stie-aas.ac.id/index.php/prosenas/article/view/106
+                  - article [ref=f1e1085]:
+                    - generic [ref=f1e1086]:
+                      - generic [ref=f1e1087]: Public web
+                      - generic [ref=f1e1088]: guides.lib.purdue.edu
+                    - 'heading "Artificial Intelligence (AI): AI Tools for Teaching and Learning" [level=3] [ref=f1e1089]'
+                    - paragraph [ref=f1e1090]: "23 Sep 2026 ... Artificial Intelligence (AI): AI Tools for Teaching and Learning · AI Tools for Teaching and Learning Comparison · ClassPoint · Eduaide.ai."
+                    - generic [ref=f1e1091]:
+                      - generic [ref=f1e1092]: Publication date unknown
+                      - generic [ref=f1e1093]:
+                        - text: Collected
+                        - time [ref=f1e1094]: Oct 9, 2026
+                      - generic [ref=f1e1095]: "Source position: 13"
+                    - paragraph [ref=f1e1096]: Undated source context. Event date unavailable; publication timing does not verify when a development happened.
+                    - paragraph [ref=f1e1097]: Timeframe coverage is unverified for this public-web result.
+                    - link "View original" [ref=f1e1098] [cursor=pointer]:
+                      - /url: https://guides.lib.purdue.edu/c.php?g=1371380&p=10592802
+                  - article [ref=f1e1099]:
+                    - generic [ref=f1e1100]:
+                      - generic [ref=f1e1101]: Public web
+                      - generic [ref=f1e1102]: teachingcommons.stanford.edu
+                    - heading "AI Tools in Teaching and Learning - Stanford Teaching Commons" [level=3] [ref=f1e1103]
+                    - paragraph [ref=f1e1104]: "21 Apr 2023 ... In many ways, teaching with AI tools in mind relies on a familiar concept: assignments that support students in developing linked thinking and ..."
+                    - generic [ref=f1e1105]:
+                      - generic [ref=f1e1106]: Publication date unknown
+                      - generic [ref=f1e1107]:
+                        - text: Collected
+                        - time [ref=f1e1108]: Oct 9, 2026
+                      - generic [ref=f1e1109]: "Source position: 14"
+                    - paragraph [ref=f1e1110]: Undated source context. Event date unavailable; publication timing does not verify when a development happened.
+                    - paragraph [ref=f1e1111]: Timeframe coverage is unverified for this public-web result.
+                    - link "View original" [ref=f1e1112] [cursor=pointer]:
+                      - /url: https://teachingcommons.stanford.edu/news/ai-tools-teaching-and-learning
+                  - article [ref=f1e1113]:
+                    - generic [ref=f1e1114]:
+                      - generic [ref=f1e1115]: Public web
+                      - generic [ref=f1e1116]: www.researchgate.net
+                    - 'heading "(PDF) Artificial Intelligence (AI) In Education: Using AI Tools for ..." [level=3] [ref=f1e1117]'
+                    - paragraph [ref=f1e1118]: ... In addition to supporting technical aspects of language learning, AI is also considered capable of increasing students' motivation and participation during ...
+                    - generic [ref=f1e1119]:
+                      - generic [ref=f1e1120]: Publication date unknown
+                      - generic [ref=f1e1121]:
+                        - text: Collected
+                        - time [ref=f1e1122]: Oct 9, 2026
+                      - generic [ref=f1e1123]: "Source position: 15"
+                    - paragraph [ref=f1e1124]: Undated source context. Event date unavailable; publication timing does not verify when a development happened.
+                    - paragraph [ref=f1e1125]: Timeframe coverage is unverified for this public-web result.
+                    - link "View original" [ref=f1e1126] [cursor=pointer]:
+                      - /url: https://www.researchgate.net/publication/357447234_Artificial_Intelligence_AI_In_Education_Using_AI_Tools_for_Teaching_and_Learning_Process
+            - group [ref=f1e1127]:
+              - generic "▶ Evidence patterns (4)" [ref=f1e1128] [cursor=pointer]
+            - group [ref=f1e1129]:
+              - generic "▶ Content tools (optional)" [ref=f1e1130] [cursor=pointer]
+            - button "Download report JSON" [ref=f1e1131] [cursor=pointer]
+            - dialog "Citation trace" [ref=f1e1132]:
+              - generic [ref=f1e1133]:
+                - generic [ref=f1e1134]:
+                  - heading "Citation trace" [level=3] [ref=f1e1135]
+                  - button "Close citation trace" [active] [ref=f1e1136] [cursor=pointer]: ✕
+                - paragraph [ref=f1e1137]:
+                  - strong [ref=f1e1138]: "Source-backed summary #0"
+                  - text: ": How to Use AI as a Student? – 10+ Powerful AI Tools & Hacks for Smart Study 🎯 AI can become a powerful study assistant when used correctly. This video explores practical ways students can use AI tools and smart study hacks to improve learning, productivity, revision, and academic work. 📌 How to"
+                - heading "Upstream chain" [level=4] [ref=f1e1139]
+                - list [ref=f1e1140]:
+                  - listitem [ref=f1e1141]:
+                    - generic [ref=f1e1142]: Interpretation
+                    - generic [ref=f1e1143]: How to Use AI as a Student? – 10+ Powerful AI Tools & Hacks for Smart Study 🎯 AI can become a powerful study assistant when used correctly. This video explores practical ways students can use AI tools and smart study hacks to improve learning, productivity, revision, and academic work. 📌 How to
+                - heading "Citations" [level=4] [ref=f1e1144]
+                - list [ref=f1e1145]:
+                  - listitem [ref=f1e1146]:
+                    - generic [ref=f1e1147]: fact
+                    - generic [ref=f1e1148]: Fact description on youtube:AskI6IQJBds
+                    - list [ref=f1e1149]:
+                      - listitem [ref=f1e1150]:
+                        - generic [ref=f1e1151]: youtube:AskI6IQJBds
+                        - generic [ref=f1e1152]: How to Use AI as a Student? | 10+ Powerful AI Tools & Hacks for Smart Study
+                        - link "View original" [ref=f1e1153] [cursor=pointer]:
+                          - /url: https://www.youtube.com/watch?v=AskI6IQJBds
+  - button "Open Next.js Dev Tools" [ref=f1e9] [cursor=pointer]
+  - alert [ref=f1e59]

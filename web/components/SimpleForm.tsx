@@ -29,7 +29,7 @@ export function SimpleForm({ onSubmit, disabled, initialValues }: SimpleFormProp
   const [localError, setLocalError] = useState<string | null>(null);
   const [includeContentTools, setIncludeContentTools] = useState(initialValues?.include_content_tools ?? false);
 
-  const [preset, setPreset] = useState<string>("custom");
+  const [preset, setPreset] = useState<string>(initialValues?.date_from || initialValues?.date_to ? "custom" : "last_30d");
   const [dateFrom, setDateFrom] = useState<string>(initialValues?.date_from ?? "");
   const [dateTo, setDateTo] = useState<string>(initialValues?.date_to ?? "");
   const [maxDate, setMaxDate] = useState<string>("");
@@ -101,7 +101,7 @@ export function SimpleForm({ onSubmit, disabled, initialValues }: SimpleFormProp
   }
 
   return (
-    <form className="research-form simple-research-form" onSubmit={handleSubmit}>
+    <form className="research-form simple-research-form" onSubmit={handleSubmit} aria-busy={disabled}>
       <div className="form-field topic-field">
         <label htmlFor="topic">Topic</label>
         <input
@@ -133,7 +133,7 @@ export function SimpleForm({ onSubmit, disabled, initialValues }: SimpleFormProp
         </div>
       </div>
 
-      <fieldset className="date-fieldset">
+      <fieldset className="date-fieldset" aria-describedby="date-range-help">
         <legend>Timeframe</legend>
         <div className="form-field">
           <label htmlFor="simple-date-preset">Preset</label>
@@ -150,9 +150,9 @@ export function SimpleForm({ onSubmit, disabled, initialValues }: SimpleFormProp
             ))}
           </select>
         </div>
-        <p className="date-help">
-          Presets update both dates. Editing either date switches to Custom.
-          Leave blank to use the default last-30-days window.
+        <p className="date-help" id="date-range-help">
+          Blank dates use the last 30 days. Choose a preset or enter both dates
+          for a different range.
         </p>
         <div className="form-row">
           <div className="form-field">

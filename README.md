@@ -1,5 +1,7 @@
 # Trendora
 
+Current release: **Alpha v0.1**, for local use. Public deployment remains unverified.
+
 A research-first workspace: choose a topic and a timeframe, collect material
 from available internet sources, review what those sources actually support, and
 keep the result. Built for one owner plus a small shared workflow, not for

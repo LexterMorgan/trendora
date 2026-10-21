@@ -5,6 +5,7 @@
  */
 
 import type { ResearchReferenceResponse } from "./trendora-api.ts";
+import { platformForUrl } from "./platform.ts";
 import type {
   CitationJson,
   ContentBriefJson,
@@ -67,6 +68,7 @@ export interface ResolvedCitation {
   references: ResolvedReference[];
   unresolvedIdentifiers: string[];
   detail: string;
+  textEvidence?: { value: string | null; unavailableReason: string | null };
 }
 
 export type PublicationScope = "in_window" | "outside_window" | "undated" | "unknown_window";
@@ -87,6 +89,36 @@ export function publicationDay(publishedAt: string | null | undefined): string |
   if (!publishedAt || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(publishedAt) || !validCalendarDate(publishedAt.slice(0, 10))) return null;
   const published = new Date(publishedAt);
   return Number.isFinite(published.getTime()) ? published.toISOString().slice(0, 10) : null;
+}
+
+export function referencePlatform(reference: ResearchReferenceResponse): string {
+  const platform = platformForUrl(reference.url);
+  if (platform) return platform;
+  try {
+    const host = new URL(reference.url ?? "").hostname.toLowerCase().replace(/\.$/, "");
+    if (host === "youtu.be" || host === "youtube.com" || host.endsWith(".youtube.com")) return "YouTube";
+  } catch {
+    // A missing or invalid URL carries no platform identity.
+  }
+  return "Other / unknown";
+}
+
+export interface ReferenceFilters {
+  query: string;
+  platform: string;
+  date: "all" | "dated" | "undated";
+}
+
+export function filterReferences(
+  references: readonly ResearchReferenceResponse[],
+  filters: ReferenceFilters,
+): ResearchReferenceResponse[] {
+  const query = filters.query.trim().toLocaleLowerCase();
+  return references.filter((reference) =>
+    (!query || (reference.title ?? "").toLocaleLowerCase().includes(query)) &&
+    (filters.platform === "all" || referencePlatform(reference) === filters.platform) &&
+    (filters.date === "all" || (publicationDay(reference.published_at) !== null) === (filters.date === "dated")),
+  );
 }
 
 export function publicationScope(publishedAt: string | null | undefined, window: DateWindow): PublicationScope {
@@ -149,6 +181,7 @@ export function resolveCitation(citation: CitationJson, maps: ProvenanceMaps): R
   const analysis = maps.analysisById.get(referenceKey(referenceId)) ?? null;
 
   if (citation.kind === "fact") {
+    const referenceKnown = maps.referenceById.has(referenceKey(referenceId));
     const fact = analysis?.facts?.find((item) => item.field === citation.field);
     const resolved = resolveReferences([referenceId], maps);
     return {
@@ -158,6 +191,24 @@ export function resolveCitation(citation: CitationJson, maps: ProvenanceMaps): R
       resolved: fact !== undefined,
       references: resolved.references,
       unresolvedIdentifiers: resolved.unresolvedIdentifiers,
+      ...(TEXT_FACT_FIELDS.has(citation.field) ? {
+        textEvidence: {
+          value: typeof fact?.value === "string" && fact.value.trim() ? fact.value : null,
+          unavailableReason: !referenceKnown
+            ? "Cited text unavailable: the cited source is not present in this report."
+            : !analysis
+              ? "Cited text unavailable: no evidence analysis exists for the cited source."
+              : !fact
+                ? "Cited text unavailable: fact was not found in the evidence map."
+                : fact.value === null
+                  ? "Cited text unavailable: value is null."
+                  : typeof fact.value !== "string"
+                    ? "Cited text unavailable: value is not text."
+                    : !fact.value.trim()
+                      ? "Cited text unavailable: value is blank."
+                      : null,
+        },
+      } : {}),
       detail: fact
         ? `Fact ${citation.field} on ${referenceKey(referenceId)}`
         : `Unresolved provenance: fact ${citation.field} on ${referenceKey(referenceId)}`,

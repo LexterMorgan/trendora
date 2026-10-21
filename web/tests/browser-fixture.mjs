@@ -104,7 +104,7 @@ function fictionalReport(topic, options = {}) {
   const report = {
     status: "completed",
     research: {
-      status: "completed", query: { topic, markets, market: markets.length === 1 ? markets[0] : null, date_from: "2026-08-01", date_to: "2026-08-31", sources, result_limit: 20, facebook_page_id: null },
+      status: "completed", query: { topic, markets, market: markets.length === 1 ? markets[0] : null, date_from: options.dateFrom ?? "2026-08-01", date_to: options.dateTo ?? "2026-08-31", sources, result_limit: 20, facebook_page_id: null },
       coverage: { completeness: "complete", sources: sources.map((code) => ({ source_code: code, capability: "keyword_search", status: "available", reason: null })) }, executed_sources: sources,
       references: [{ ...ref, url: "https://example.test/fictional", title: "Fictional source", description: options.oversized ? "a".repeat(8_388_609) : "Fictional evidence", published_at: null, channel_external_id: null, channel_title: null, market_contexts: markets.length ? markets.slice(0, 1) : [], market_context: markets.length === 1 ? markets[0] : null, market_basis: markets.length ? "youtube_region_availability" : null, source_rank: 1, metrics: { view_count: 0, like_count: null, comment_count: null, reaction_count: null, share_count: null }, collected_at: "2026-10-01T00:00:00Z" }],
     },
@@ -245,6 +245,33 @@ function fictionalReport(topic, options = {}) {
     report.research.references = [];
     for (const field of ["evidence", "interpretation", "strategy", "ideation"]) report[field] = null;
   }
+  if (options.mixedPlatforms) {
+    const original = report.research.references[0];
+    report.research.references = [
+      { ...original, title: "Fictional video source", url: "https://youtu.be/fictional-video", published_at: "2026-08-12T12:00:00Z" },
+      { ...original, source_code: "public_web", content_external_id: "fictional-reddit", title: "Fictional Reddit source", url: "https://www.reddit.com/r/fictional", published_at: null, metrics: { view_count: null, like_count: null, comment_count: null, reaction_count: null, share_count: null } },
+      { ...original, source_code: "public_web", content_external_id: "fictional-spoof", title: "Fictional Reddit spoof", url: "https://reddit.com.evil.example/fictional", published_at: "2026-02-30T00:00:00Z", metrics: { view_count: null, like_count: null, comment_count: null, reaction_count: null, share_count: null } },
+      { ...original, source_code: "public_web", content_external_id: "fictional-undated", title: "Fictional undated source", url: null, published_at: null, metrics: { view_count: null, like_count: null, comment_count: null, reaction_count: null, share_count: null } },
+    ];
+  }
+  if ("evidenceText" in options) {
+    const fact = report.evidence?.analyses?.[0]?.facts.find((entry) => entry.field === "description");
+    if (fact) fact.value = options.evidenceText;
+  }
+  if (options.diagnostics !== false) {
+    const retried = options.interpretationFailure === "malformed";
+    const bytes = 2048;
+    report.run_details = {
+      elapsed_ms: 1234,
+      stage_durations_ms: { collection: 500, interpretation: retried ? 1200 : 600, persistence: 134 },
+      ai_requests: [
+        { stage: "interpretation", request_bytes: bytes, elapsed_ms: 590, prompt_tokens: 100, completion_tokens: 0, total_tokens: 100 },
+        ...(retried ? [{ stage: "interpretation", request_bytes: bytes + 1, elapsed_ms: 610, prompt_tokens: null, completion_tokens: null, total_tokens: null }] : []),
+      ],
+      retry_count: retried ? 1 : 0,
+      finding_mode: report.interpretation?.model_provenance?.provider === "source_evidence" ? "source_excerpts" : report.interpretation ? "ai_interpretation" : "none",
+    };
+  }
   return report;
 }
 
@@ -301,7 +328,22 @@ export async function createMockBackend() {
       }
       if (pathname === "/api/v1/research/reports" && request.method === "GET") {
         const limit = Number(url.searchParams.get("limit") ?? 50), offset = Number(url.searchParams.get("offset") ?? 0);
-        const summaries = [...reports.entries()].map(([id, entry]) => ({ id, created_at: "2026-10-01T00:00:00Z", status: entry.report.status, topic: entry.report.research?.query?.topic ?? "Fictional saved report", markets: entry.report.research?.query?.markets ?? ["SG"], source_codes: entry.report.research?.query?.sources ?? ["youtube"] }));
+        const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
+        const status = url.searchParams.get("status");
+        const dateFrom = url.searchParams.get("date_from"), dateTo = url.searchParams.get("date_to");
+        // Mirrors the backend: filters run across the whole authorized history
+        // before counting/pagination, on the stored outcome and requested window.
+        const summaries = [...reports.entries()].reverse()
+          .filter(([, entry]) => {
+            const query = entry.report.research?.query ?? {};
+            const topic = (query.topic ?? "").toLowerCase();
+            if (q && !topic.includes(q)) return false;
+            if (status && entry.report.status !== status) return false;
+            if (dateFrom && String(query.date_to ?? "") < dateFrom) return false;
+            if (dateTo && String(query.date_from ?? "") > dateTo) return false;
+            return true;
+          })
+          .map(([id, entry]) => ({ id, created_at: "2026-10-01T00:00:00Z", status: entry.report.status, topic: entry.report.research?.query?.topic ?? "Fictional saved report", markets: entry.report.research?.query?.markets ?? ["SG"], source_codes: entry.report.research?.query?.sources ?? ["youtube"] }));
         return reply(response, 200, summaries.slice(offset, offset + limit));
       }
       if (action === "report") {
@@ -364,8 +406,14 @@ export async function createMockBackend() {
     generationOptions(value) { generationOptions = value; },
     seedSavedReport(options = {}) {
       const id = randomUUID(), report = fictionalReport(options.topic ?? "Fictional saved report", options);
+      // Saved snapshots keep only the six immutable fields; diagnostics are
+      // fresh-response metadata and are not reconstructed on read.
+      delete report.run_details;
       report.persistence = { status: "saved", request_id: null, report_id: id, snapshot_origin: "server_generated", error_code: null };
       reports.set(id, { report, outOfHistory: options.outOfHistory ?? false }); return id;
+    },
+    seedSavedReports(optionsList) {
+      return optionsList.map((options) => this.seedSavedReport(options));
     },
     async close() { if (held) { held(); held = null; } server.closeAllConnections(); await new Promise((resolve) => server.close(resolve)); },
   };
@@ -375,7 +423,7 @@ export async function runBrowserScenarios({ chromium, origin, mock, root, env, e
   const results = [], diagnostics = [], blocked = [], images = [];
   const output = (name, value) => writeFile(path.join(root, name), JSON.stringify(value, null, 2));
   mock.setFrontend(origin);
-  const browser = await chromium.launch({ headless: true, executablePath, downloadsPath: path.join(root, "runtime"), tracesDir: path.join(root, "runtime"), env, args: ["--disable-background-networking", "--disable-component-update", "--disable-sync", "--disable-domain-reliability", "--no-first-run", "--metrics-recording-only", "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1"] });
+  const browser = await chromium.launch({ headless: true, executablePath, downloadsPath: path.join(root, "runtime"), tracesDir: path.join(root, "runtime"), env, args: ["--disable-gpu", "--disable-background-networking", "--disable-component-update", "--disable-sync", "--disable-domain-reliability", "--no-first-run", "--metrics-recording-only", "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1"] });
   registerBrowserCleanup(() => browser.close());
   const names = plannerWorkspaceRegressions({}).map(([name]) => name);
   try {
@@ -400,7 +448,10 @@ export async function runBrowserScenarios({ chromium, origin, mock, root, env, e
       page.on("pageerror", (err) => diagnostics.push({ index, type: "pageerror", message: err.message }));
       page.on("console", (message) => { if (message.type() === "error") diagnostics.push({ index, type: "console", message: message.text() }); });
       page.on("dialog", (dialog) => dialog.accept());
-      const snapshot = (name) => page.screenshot({ path: path.join(root, `${index + 1}-${name}.png`), fullPage: true });
+      const snapshot = async (name, { fullPage = true } = {}) => {
+        await page.evaluate(() => document.fonts.ready.then(() => {}));
+        return page.screenshot({ path: path.join(root, `${index + 1}-${name}.png`), fullPage, scale: "css", animations: "disabled" });
+      };
       let selectedReport = null;
       const fixture = {
         page, origin, A, B, calls: mock.calls, optionalCalls: mock.optionalCalls, interpretationCalls: mock.interpretationCalls, records: mock.records, reports: mock.reports, waitFor, snapshot,
@@ -408,6 +459,7 @@ export async function runBrowserScenarios({ chromium, origin, mock, root, env, e
         openResearch: async () => { await page.goto(origin + (selectedReport ? `/report/${selectedReport}` : "/")); await (selectedReport ? page.locator(".report") : page.getByRole("button", { name: "Generate research report", exact: true })).waitFor(); },
         submitResearch: async (topic, options = {}) => { mock.generationOptions(options); await page.getByLabel("Topic", { exact: true }).fill(topic); await page.getByRole("checkbox", { name: "Generate content ideas and briefs", exact: true }).setChecked(!options.researchOnly); await page.getByRole("button", { name: "Generate research report", exact: true }).click(); await page.locator(".report").waitFor(); },
         seedSavedReport: async (options) => { selectedReport = mock.seedSavedReport(options); return selectedReport; },
+        seedSavedReports: (optionsList) => mock.seedSavedReports(optionsList),
         fault: (value) => mock.fault(value), stalled: () => mock.stalled(), release: () => mock.release(),
         setImageMode: (value) => mock.setImageMode(value),
         images,

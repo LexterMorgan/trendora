@@ -11,7 +11,13 @@ Backend (from the repository root, using the project virtualenv):
 ```sh
 .venv/bin/python -m pytest tests/unit -q          # offline unit suite
 .venv/bin/python -m pytest tests/integration -q   # requires a database, see below
+.venv/bin/python -m trendora.research.evaluation report.json
 ```
+
+The last command is the offline research-quality evaluator. It reads an
+exported report, writes structural diagnostics and a human-review worksheet,
+and never calls a model or the network. See
+[RESEARCH_QUALITY.md](RESEARCH_QUALITY.md).
 
 Frontend (from `web/`):
 

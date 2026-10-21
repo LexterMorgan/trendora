@@ -128,6 +128,24 @@ export interface PersistenceOutcomeJson {
   recovery_receipt?: string | null;
 }
 
+export interface AIRequestDetailsJson {
+  stage: string;
+  request_bytes: number;
+  elapsed_ms: number;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  total_tokens: number | null;
+}
+
+/** Fresh-response measurements. Never part of the immutable snapshot. */
+export interface RunDetailsJson {
+  elapsed_ms: number;
+  stage_durations_ms: Record<string, number>;
+  ai_requests: AIRequestDetailsJson[];
+  retry_count: number;
+  finding_mode: "ai_interpretation" | "source_excerpts" | "none" | string;
+}
+
 export interface ResearchReportResponse {
   status: string;
   research: ResearchResponse;
@@ -136,6 +154,7 @@ export interface ResearchReportResponse {
   strategy: StrategicResultJson | null;
   ideation: IdeationResultJson | null;
   persistence?: PersistenceOutcomeJson | null;
+  run_details?: RunDetailsJson | null;
 }
 
 export const SNAPSHOT_FIELDS = [
@@ -256,4 +275,37 @@ export async function saveReportSnapshot(
     );
   }
   return payload;
+}
+
+export interface ReportAskAnswerJson {
+  answer: string;
+  citations: CitationJson[];
+  model_provenance: ModelProvenanceJson;
+}
+
+export async function askReport(
+  reportId: string,
+  question: string,
+): Promise<ReportAskAnswerJson> {
+  return requestJson<ReportAskAnswerJson>(
+    `/api/reports/${encodeURIComponent(reportId)}/ask`,
+    { method: "POST", body: { question } },
+  );
+}
+
+export interface PreviousReportChangesJson {
+  previous_report_id: string | null;
+  previous_created_at: string | null;
+  new_findings: string[];
+  dropped_findings: string[];
+}
+
+export async function previousReportChanges(
+  reportId: string,
+  options?: { signal?: AbortSignal },
+): Promise<PreviousReportChangesJson> {
+  return requestJson<PreviousReportChangesJson>(
+    `/api/reports/${encodeURIComponent(reportId)}/changes`,
+    { signal: options?.signal },
+  );
 }

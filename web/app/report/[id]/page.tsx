@@ -86,7 +86,18 @@ function ReportContent({ id }: { id: string }) {
         </ApiErrorPanel>
       )}
 
-      {!loading && !error && report && <ReportView key={id} report={report} />}
+      {!loading && !error && report && (
+        <>
+          <section className="page-heading report-heading">
+            <div>
+              <Link className="report-back-link" href="/past-reports">All reports</Link>
+              <h1>{topic || "Research report"}</h1>
+              <p>Findings, original sources, and a record of what was searched.</p>
+            </div>
+          </section>
+          <ReportView key={id} report={report} />
+        </>
+      )}
     </main>
   );
 }

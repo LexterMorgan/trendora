@@ -14,7 +14,9 @@ export function plannerWorkspaceRegressions(f) {
   const scopeSummary = () => f.page.locator(".report summary").filter({ hasText: /^Scope and coverage details$/ });
   // Screenshots must show the settled page: the entrance animation fills
   // backwards, so an early capture is legitimately invisible.
-  const settleAnimations = () => f.page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)));
+  const settleAnimations = () => f.page.evaluate(() => Promise.all(
+    document.getAnimations().map((animation) => animation.finished.catch(() => {})),
+  ));
   async function openScopeDetails() {
     const summary = scopeSummary();
     await summary.waitFor();
@@ -422,17 +424,238 @@ export function plannerWorkspaceRegressions(f) {
     ["Report source library expands, keeps counts, and reflows at mobile width", async () => {
       await f.seedSavedReport({ manySources: 8 }); await f.openResearch();
       const cards = f.page.locator(".reference-card");
-      const more = f.page.locator("details.reference-more");
-      const moreSummary = f.page.getByText("Show all 8 sources", { exact: true });
+      const expand = button("Show all 8 sources");
       assert.equal(await f.page.locator(".reference-card:visible").count(), 6, "Only the first six sources show before expanding");
-      assert.equal(await more.evaluate((element) => element.open), false);
-      await moreSummary.click();
+      assert.equal(await expand.getAttribute("aria-expanded"), "false");
+      await expand.click();
       assert.equal(await f.page.locator(".reference-card:visible").count(), 8, "Expanding reveals every source");
       assert.equal(await cards.count(), 8);
       assert.equal(plannerMutations().length, 0);
       await f.page.setViewportSize({ width: 360, height: 800 });
       await f.metrics("source-library-360");
       await f.snapshot("source-library-expanded");
+    }],
+    ["Source filters intersect title, hostname platform and date, then reset honestly", async () => {
+      await f.seedSavedReport({ mixedPlatforms: true, topic: "Fictional filter report" }); await f.openResearch();
+      const search = f.page.getByLabel("Search source titles", { exact: true });
+      const platform = f.page.locator(".reference-controls select").nth(0);
+      const date = f.page.locator(".reference-controls select").nth(1);
+      const visible = () => f.page.locator(".reference-card:visible").count();
+      const count = f.page.locator(".reference-result-count");
+      assert.equal(await visible(), 4);
+      assert.equal(await count.innerText(), "4 sources.");
+      await search.fill("reddit");
+      assert.equal(await visible(), 2, "A suffix-spoofed host must not become Reddit");
+      assert.equal(await count.innerText(), "2 of 4 sources match.");
+      await platform.selectOption("Reddit");
+      assert.equal(await visible(), 1);
+      await date.selectOption("undated");
+      assert.equal(await visible(), 1, "The real Reddit source has no valid publication day");
+      await search.fill("spoof");
+      assert.equal(await visible(), 0);
+      assert.equal(await f.page.getByText(/No sources match these filters/).isVisible(), true);
+      await platform.selectOption("Other / unknown");
+      assert.equal(await visible(), 1);
+      await date.selectOption("dated");
+      assert.equal(await visible(), 0, "An impossible calendar date stays undated");
+      await button("Reset filters").click();
+      assert.equal(await visible(), 4);
+      assert.equal(await count.innerText(), "4 sources.");
+      assert.equal(await search.inputValue(), "");
+      assert.equal(plannerMutations().length, 0);
+      await f.page.setViewportSize({ width: 360, height: 900 });
+      await search.focus();
+      assert.notEqual(await search.evaluate((element) => getComputedStyle(element).outlineStyle), "none");
+      const overflow = await f.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      assert(overflow <= 1, `Source controls overflowed by ${overflow}px`);
+      await f.metrics("source-filters-360");
+      await f.snapshot("source-filters-360");
+    }],
+    ["Citation drawer shows exact evidence text and unavailable reasons without substitution", async () => {
+      await f.seedSavedReport({ topic: "Fictional exact evidence", evidenceText: "Exact cited evidence value" });
+      await f.openResearch();
+      const citation = button("Trace 1 citation").first();
+      await citation.click();
+      let drawer = f.page.getByRole("dialog", { name: "Citation trace", exact: true });
+      await drawer.waitFor();
+      assert.equal(await drawer.locator(".citation-text-value").innerText(), "Exact cited evidence value");
+      assert.match(await drawer.innerText(), /Cited description value/);
+      assert.match(await drawer.innerText(), /does not independently verify/);
+      assert.equal(await drawer.getByRole("link", { name: "View original", exact: true }).getAttribute("href"), "https://example.test/fictional");
+      await f.page.keyboard.press("Escape");
+      assert.equal(await drawer.count(), 0);
+      assert.equal(await citation.evaluate((element) => document.activeElement === element), true, "Closing restores focus to the trigger");
+      assert.equal(await f.page.getByText("Run diagnostics unavailable for this report. Measurements were not recorded when it was saved.", { exact: true }).isVisible(), true);
+      assert.equal(await f.page.getByText(/Missing diagnostics do not imply zero/).isVisible(), true);
+
+      await f.seedSavedReport({ topic: "Fictional missing evidence", evidenceText: null });
+      await f.openResearch();
+      await button("Trace 1 citation").first().click();
+      drawer = f.page.getByRole("dialog", { name: "Citation trace", exact: true });
+      await drawer.waitFor();
+      assert.match(await drawer.innerText(), /Cited text unavailable: value is null/);
+      assert.equal(await drawer.locator(".citation-text-value").count(), 0);
+      await f.page.keyboard.press("Escape");
+      assert.equal(plannerMutations().length, 0);
+      await f.snapshot("citation-exact-evidence");
+    }],
+    ["Full report copy, clipboard failure and print keep every caveat and disclosure", async () => {
+      await f.seedSavedReport({ topic: "Fictional export report", researchFirst: true });
+      await f.openResearch();
+      assert.equal(await f.page.locator(".report-print-only").first().evaluate((element) => getComputedStyle(element).display), "none");
+      await f.page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin: f.origin });
+      await button("Copy full report as Markdown").click();
+      await f.page.getByText("Report copied", { exact: true }).waitFor();
+      const copied = await f.page.evaluate(() => navigator.clipboard.readText());
+      for (const text of ["# Research report", "## Research findings", "## Sources", "Event dates are unavailable", "Run diagnostics unavailable", "not the whole internet"]) {
+        assert.ok(copied.includes(text), `Copied report is missing ${text}`);
+      }
+      assert.ok(!copied.includes("\u003cimg"), "Source markup must stay escaped text");
+
+      await f.page.evaluate(() => {
+        Object.defineProperty(navigator, "clipboard", {
+          configurable: true,
+          value: { writeText: async () => { throw new Error("denied by test"); } },
+        });
+      });
+      await button("Copy full report as Markdown").click();
+      assert.equal(await f.page.getByText(/Clipboard unavailable/).isVisible(), true);
+
+      const search = f.page.getByLabel("Search source titles", { exact: true });
+      await search.fill("outside-window");
+      assert.equal(await f.page.locator(".reference-card:visible").count(), 1);
+      await f.page.emulateMedia({ media: "print" });
+      assert.equal(await f.page.locator(".reference-card:visible").count(), 3, "Print ignores screen filters");
+      assert.equal(await f.page.locator(".report-print-only").first().isVisible(), true);
+      assert.equal(await f.page.locator(".unified-header").isVisible(), false, "Print hides application chrome");
+      await f.page.emulateMedia({ media: "screen" });
+
+      await f.page.evaluate(() => {
+        window.__printCalls = 0;
+        window.print = () => {
+          window.__printCalls += 1;
+          window.__printAllOpen = [...document.querySelectorAll(".report details")].every((detail) => detail.open);
+        };
+      });
+      const contentToolsOpenBefore = await contentTools().evaluate((element) => element.parentElement.open);
+      await button("Print or save as PDF").click();
+      assert.equal(await f.page.evaluate(() => window.__printCalls), 1);
+      assert.equal(await f.page.evaluate(() => window.__printAllOpen), true);
+      assert.equal(await contentTools().evaluate((element) => element.parentElement.open), contentToolsOpenBefore);
+      assert.equal(plannerMutations().length, 0);
+      await f.snapshot("report-print-layout");
+    }],
+    ["Saved history filters server-side, resets offset and distinguishes empty from no-match", async () => {
+      const seeded = Array.from({ length: 50 }, (_, index) => ({ topic: `Fictional history ${index + 1}` }));
+      seeded.push({ topic: "Zebra climate education" });
+      seeded.push({ topic: "Fictional September report", dateFrom: "2026-09-01", dateTo: "2026-09-30" });
+      seeded.push({ topic: "Fictional empty outcome", noEvidence: true });
+      f.seedSavedReports(seeded);
+      await f.page.goto(f.origin + "/past-reports");
+      await f.page.locator(".history-row").first().waitFor();
+      const rows = f.page.locator(".history-row");
+      assert.equal(await rows.count(), 50);
+      assert.equal(await f.page.locator(".history-page-label").innerText(), "Page 1");
+      await button("Next").click();
+      await f.waitFor(async () => (await rows.count()) === 3);
+
+      const search = f.page.getByLabel("Topic search", { exact: true });
+      await search.fill("zebra");
+      await button("Apply filters").click();
+      await f.waitFor(async () => (await rows.count()) === 1);
+      assert.equal(await f.page.locator(".history-page-label").innerText(), "Page 1");
+      assert.match(await rows.first().innerText(), /Zebra climate education/);
+
+      await button("Reset").click();
+      await f.waitFor(async () => (await rows.count()) === 50);
+      await f.page.locator(".history-filter-field select").selectOption("no_evidence");
+      await button("Apply filters").click();
+      await f.waitFor(async () => (await rows.count()) === 1);
+      assert.match(await rows.first().innerText(), /Fictional empty outcome/);
+
+      await button("Reset").click();
+      await f.waitFor(async () => (await rows.count()) === 50);
+      await f.page.getByLabel("Requested from", { exact: true }).fill("2026-09-01");
+      await button("Apply filters").click();
+      await f.waitFor(async () => (await rows.count()) === 1);
+      assert.match(await rows.first().innerText(), /Fictional September report/);
+
+      await f.page.getByLabel("Requested to", { exact: true }).fill("2026-08-01");
+      await button("Apply filters").click();
+      assert.equal(await f.page.getByText("Start date must not be after end date.", { exact: true }).isVisible(), true);
+      await f.page.getByLabel("Requested to", { exact: true }).fill("2026-09-30");
+      await button("Apply filters").click();
+      await f.waitFor(async () => (await rows.count()) === 1);
+
+      await button("Reset").click();
+      await f.waitFor(async () => (await rows.count()) === 50);
+      await f.page.getByLabel("Requested from", { exact: true }).fill("2026-10-01");
+      await f.page.getByLabel("Requested to", { exact: true }).fill("2026-10-02");
+      await button("Apply filters").click();
+      await f.page.getByRole("heading", { name: "No reports match these filters", exact: true }).waitFor();
+      assert.equal(await rows.count(), 0);
+      await f.page.setViewportSize({ width: 360, height: 900 });
+      const overflow = await f.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      assert(overflow <= 1, `History filters overflowed by ${overflow}px`);
+      await f.metrics("history-filters-360");
+      await f.snapshot("history-filters-360");
+      assert.equal(plannerMutations().length, 0);
+    }],
+    ["Superseded history search is aborted and never replaces the newer result", async () => {
+      f.seedSavedReports([{ topic: "Unique Alpha report" }, { topic: "Unique Beta report" }]);
+      let release;
+      const gate = new Promise((resolve) => { release = resolve; });
+      await f.page.route("**/api/v1/research/reports?*q=Alpha*", async (route) => {
+        await gate;
+        await route.continue().catch(() => {});
+      });
+      await f.page.goto(f.origin + "/past-reports");
+      await f.page.locator(".history-row").first().waitFor();
+      const search = f.page.getByLabel("Topic search", { exact: true });
+      await search.fill("Alpha");
+      await button("Apply filters").click();
+      await f.page.waitForTimeout(150);
+      await search.fill("Beta");
+      await button("Apply filters").click();
+      await f.waitFor(async () => (await f.page.locator(".history-row").count()) === 1);
+      release();
+      await f.page.waitForTimeout(300);
+      assert.match(await f.page.locator(".history-row").first().innerText(), /Unique Beta report/);
+      assert.equal(await f.page.getByText("Unique Alpha report", { exact: false }).count(), 0);
+      await f.page.unroute("**/api/v1/research/reports?*q=Alpha*");
+
+      await f.switchAccount(f.B);
+      await f.page.locator(".history-row").first().waitFor();
+      assert.equal(await f.page.getByRole("heading", { name: "Saved research", exact: true }).isVisible(), true);
+      assert.equal(await f.page.getByText("Could not load reports").count(), 0);
+      assert.equal(plannerMutations().length, 0);
+    }],
+    ["Loading shows measured elapsed time and completed reports show real run details", async () => {
+      await f.page.goto(f.origin + "/");
+      await f.page.getByRole("button", { name: "Generate research report", exact: true }).waitFor();
+      f.fault({ action: "generate", mode: "delay-before" });
+      await f.page.getByLabel("Topic", { exact: true }).fill("Fictional delayed diagnostics");
+      await f.page.getByRole("button", { name: "Generate research report", exact: true }).click();
+      await f.page.locator(".elapsed-note").waitFor();
+      await f.page.waitForTimeout(1200);
+      assert.match(await f.page.locator(".elapsed-note").innerText(), /Elapsed: \d/);
+      assert.equal(await f.page.getByText(/percentage|% complete/i).count(), 0, "No invented progress percentage");
+      await f.release();
+      await f.page.locator(".report").waitFor();
+      assert.equal(await f.page.locator(".elapsed-note").count(), 0, "The timer stops when the response arrives");
+      const runSummary = f.page.locator(".run-diagnostics summary");
+      await runSummary.click();
+      const diagnostics = f.page.locator(".run-diagnostics");
+      assert.match(await diagnostics.innerText(), /Backend run/);
+      assert.match(await diagnostics.innerText(), /Browser wait \(submit to response\)/);
+      assert.match(await diagnostics.innerText(), /Source collection/);
+      assert.match(await diagnostics.innerText(), /serialized request bytes/);
+      assert.match(await diagnostics.innerText(), /Findings mode: AI interpretation/);
+      assert.match(await diagnostics.innerText(), /prompt 100/);
+      assert.match(await diagnostics.innerText(), /does not guarantee the router or provider stopped/);
+      assert.equal(await f.page.getByText(/private provider message|authorization/i).count(), 0);
+      assert.equal(plannerMutations().length, 0);
+      await f.snapshot("run-diagnostics");
     }],
     ["Preview loads the highest-resolution image once and stops", async () => {
       const base = f.images.length;
@@ -1020,19 +1243,23 @@ export function plannerWorkspaceRegressions(f) {
       assert.equal(await mobileNav.isVisible(), false, "mobile menu must be hidden on desktop");
       assert.equal(await f.page.locator(".header-nav").isVisible(), true);
       assert.equal(await menu.isVisible(), false);
-      const desktop = await f.metrics("menu-open-desktop");
       // No overlapping controls: every visible control stays within the viewport
       // and the header controls do not intersect each other.
-      const headerControls = await f.page.locator(".unified-header a, .unified-header button").evaluateAll((elements) =>
-        elements.filter((e) => e.getClientRects().length).map((e) => { const r = e.getBoundingClientRect(); return { text: e.textContent, left: r.left, right: r.right, top: r.top, bottom: r.bottom }; }));
-      for (let i = 0; i < headerControls.length; i += 1) {
-        for (let j = i + 1; j < headerControls.length; j += 1) {
-          const a = headerControls[i], b = headerControls[j];
-          const overlap = a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
-          assert.equal(overlap, false, `header controls overlap: ${a.text} / ${b.text}`);
+      for (const width of [1440, 1024, 769]) {
+        await f.page.setViewportSize({ width, height: 900 });
+        assert.equal(await mobileNav.isVisible(), false);
+        assert.equal(await f.page.locator(".header-nav").isVisible(), true);
+        await f.metrics(`menu-open-desktop-${width}`);
+        const headerControls = await f.page.locator(".unified-header a, .unified-header button").evaluateAll((elements) =>
+          elements.filter((e) => e.getClientRects().length).map((e) => { const r = e.getBoundingClientRect(); return { text: e.textContent, left: r.left, right: r.right, top: r.top, bottom: r.bottom }; }));
+        for (let i = 0; i < headerControls.length; i += 1) {
+          for (let j = i + 1; j < headerControls.length; j += 1) {
+            const a = headerControls[i], b = headerControls[j];
+            const overlap = a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+            assert.equal(overlap, false, `header controls overlap at ${width}px: ${a.text} / ${b.text}`);
+          }
         }
       }
-      assert(desktop.viewport === 1440);
       // Return to mobile: the disclosure is still usable.
       await f.page.setViewportSize({ width: 360, height: 800 });
       assert.equal(await menu.isVisible(), true);
@@ -1318,6 +1545,99 @@ export function plannerWorkspaceRegressions(f) {
       await f.page.setViewportSize({ width: 360, height: 800 });
       assert.equal(await panel.evaluate((element) => getComputedStyle(element).position), "static");
       await f.metrics("research-composer-360");
+      assert.equal(plannerMutations().length, 0);
+    }],
+    ["Alpha brand assets load locally across workspace and authentication", async () => {
+      await f.openResearch();
+      const logo = f.page.locator(".brand-link .brand-art");
+      await logo.waitFor();
+      await f.waitFor(() => logo.evaluate((image) => image.complete && image.naturalWidth > 0));
+      assert.equal(new URL(await logo.getAttribute("src"), f.origin).origin, f.origin);
+      assert.equal(await f.page.getByRole("link", { name: "Trendora home", exact: true }).count(), 1);
+      for (const width of [1440, 768, 360]) {
+        await f.page.setViewportSize({ width, height: 1000 });
+        await settleAnimations();
+        await f.metrics(`alpha-home-${width}`);
+        await f.snapshot(`alpha-home-${width}`);
+      }
+      await button("Sign out").click();
+      await f.page.waitForURL(f.origin + "/login");
+      const authLogo = f.page.locator(".auth-brand .brand-art");
+      await f.waitFor(() => authLogo.evaluate((image) => image.complete && image.naturalWidth > 0));
+      await f.page.setViewportSize({ width: 1440, height: 1000 });
+      await f.snapshot("alpha-auth-1440");
+      assert.equal(plannerMutations().length, 0);
+    }],
+    ["Default timeframe is clear without adding dates to the request; edited dates remain custom", async () => {
+      await f.openResearch();
+      assert.equal(await f.page.getByLabel("Preset", { exact: true }).inputValue(), "last_30d");
+      assert.equal(await f.page.getByLabel("From", { exact: true }).inputValue(), "");
+      assert.equal(await f.page.getByLabel("To", { exact: true }).inputValue(), "");
+      await f.submitResearch("Fictional alpha default dates", { researchOnly: true });
+      const request = f.calls.find((call) => call.path === "/api/v1/research/report");
+      assert(request);
+      assert.equal(Object.hasOwn(request.body, "date_from"), false);
+      assert.equal(Object.hasOwn(request.body, "date_to"), false);
+      assert.deepEqual(request.body.markets, []);
+      assert.deepEqual(request.body.sources, ["youtube", "public_web"]);
+      await f.page.goto(f.origin + "/test-fixtures/SimpleForm");
+      assert.equal(await f.page.getByLabel("Preset", { exact: true }).inputValue(), "custom");
+      assert.equal(await f.page.getByLabel("From", { exact: true }).inputValue(), "2026-08-01");
+      assert.equal(await f.page.getByLabel("To", { exact: true }).inputValue(), "2026-08-31");
+      assert.equal(plannerMutations().length, 0);
+    }],
+    ["Global saved research has readable status, scope, and a named report heading", async () => {
+      await f.seedSavedReport({ topic: "Fictional global alpha report", requestMarkets: [], researchOnly: true, requestSources: ["youtube", "public_web"] });
+      await f.page.goto(f.origin + "/past-reports");
+      await f.page.locator(".history-row").waitFor();
+      assert.equal(await f.page.locator(".history-markets").innerText(), "Global");
+      assert.equal(await f.page.locator(".status-badge").innerText(), "Research complete");
+      await f.snapshot("alpha-history-1440");
+      await f.page.locator(".history-row").click();
+      await f.page.getByRole("heading", { level: 1, name: "Fictional global alpha report", exact: true }).waitFor();
+      await f.metrics("alpha-report-1440");
+      await f.snapshot("alpha-report-1440");
+      await f.page.setViewportSize({ width: 360, height: 900 });
+      await f.metrics("alpha-report-360");
+      await f.snapshot("alpha-report-360");
+      await f.page.getByRole("link", { name: "All reports", exact: true }).click();
+      await f.page.getByRole("heading", { name: "Saved research", exact: true }).waitFor();
+      assert.equal(plannerMutations().length, 0);
+    }],
+    ["Research guide uses the real local font and keyboard-reachable shortcuts", async () => {
+      await f.openResearch();
+      await f.page.evaluate(() => document.fonts.ready.then(() => {}));
+      const typography = await f.page.evaluate(() => ({
+        family: getComputedStyle(document.body).fontFamily,
+        faces: [...document.fonts].map((face) => ({ family: face.family, status: face.status })),
+        fonts: performance.getEntriesByType("resource").filter((entry) => /\.(woff2?|ttf)(\?|$)/.test(entry.name)).map((entry) => new URL(entry.name).origin),
+      }));
+      assert.match(typography.family, /manrope/i);
+      assert(typography.faces.some((face) => /manrope/i.test(face.family) && face.status === "loaded"), "the bundled font must actually load, not just appear in CSS");
+      assert(typography.fonts.length > 0 && typography.fonts.every((origin) => origin === f.origin), "font requests stay on the app origin");
+      const guide = f.page.getByRole("complementary", { name: "Start with the source.", exact: true });
+      assert.equal(await guide.getByRole("heading", { name: "YouTube", exact: true }).isVisible(), true);
+      assert.equal(await guide.getByRole("heading", { name: "Public web", exact: true }).isVisible(), true);
+      assert.match(await guide.innerText(), /Publication dates can be unknown/);
+      for (const width of [1440, 768, 360]) {
+        await f.page.setViewportSize({ width, height: 1000 });
+        await f.page.evaluate(() => window.scrollTo(0, 0));
+        await settleAnimations();
+        await f.metrics(`workbench-${width}`);
+        await f.snapshot(`workbench-${width}`, { fullPage: false });
+      }
+      const shortcuts = guide.getByRole("navigation", { name: "Research shortcuts", exact: true });
+      const history = shortcuts.getByRole("link", { name: /^Saved research/ });
+      assert.equal(await history.getAttribute("href"), "/past-reports");
+      await history.focus();
+      assert.notEqual(await history.evaluate((element) => getComputedStyle(element).outlineStyle), "none");
+      await f.snapshot("workbench-mobile-guide", { fullPage: false });
+      await f.page.keyboard.press("Enter");
+      await f.page.getByRole("heading", { level: 1, name: "Saved research", exact: true }).waitFor();
+      await f.page.goto(f.origin + "/");
+      await f.page.getByRole("navigation", { name: "Research shortcuts", exact: true }).getByRole("link", { name: /^Shared planner/ }).click();
+      await f.page.getByRole("heading", { level: 1, name: "Shared planner", exact: true }).waitFor();
+      assert.equal(f.calls.filter((call) => call.path === "/api/v1/research/report").length, 0, "shortcuts must never trigger generation");
       assert.equal(plannerMutations().length, 0);
     }],
   ];

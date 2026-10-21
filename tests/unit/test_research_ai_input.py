@@ -300,7 +300,8 @@ class TestEndToEnd:
         # The stored pack and the saved snapshot keep the untouched original.
         stored = next(fact.value for fact in report.evidence_pack.analyses[0].facts if fact.field is EvidenceField.DESCRIPTION)
         assert stored == long_description
-        snapshot = to_report_response(report).model_dump(mode="json", exclude={"persistence"})
+        from trendora.api.report_snapshot import SNAPSHOT_FIELDS
+        snapshot = to_report_response(report).model_dump(mode="json", include=set(SNAPSHOT_FIELDS))
         assert snapshot["research"]["references"][0]["description"] == long_description
 
         # The accepted citation still resolves to the original stored source text.

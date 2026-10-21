@@ -1,0 +1,50 @@
+- generic [active] [ref=f8e1]:
+  - main [ref=f8e13]:
+    - generic [ref=f8e14]:
+      - link "Trendora home" [ref=f8e16] [cursor=pointer]:
+        - /url: /
+        - generic [aria-hidden] [ref=f8e17]: T
+        - generic [ref=f8e18]: Trendora
+      - generic [ref=f8e19]:
+        - button "Sign out" [ref=f8e20] [cursor=pointer]
+        - button "Menu" [ref=f8e21] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f8e23]: ▼
+    - generic [ref=f8e24]:
+      - generic [ref=f8e25]:
+        - heading "Understand what’s happening in your topics." [level=1] [ref=f8e26]
+        - paragraph [ref=f8e27]: Search available sources, read sourced findings with their publication dates, and see where coverage is thin. Content ideas and briefs stay optional.
+      - region "Research request" [ref=f8e28]:
+        - generic [ref=f8e29]:
+          - generic [ref=f8e30]:
+            - generic [ref=f8e31]: Topic
+            - textbox "Topic" [ref=f8e32]:
+              - /placeholder: What topic do you want to research?
+          - generic "Example topics" [ref=f8e33]:
+            - generic [ref=f8e35]:
+              - button "AI education tools for students" [ref=f8e36] [cursor=pointer]
+              - button "Online learning platform trends" [ref=f8e37] [cursor=pointer]
+              - button "STEM scholarships in Southeast Asia" [ref=f8e38] [cursor=pointer]
+          - group "Timeframe" [ref=f8e39]:
+            - generic [ref=f8e41]:
+              - generic [ref=f8e42]: Preset
+              - combobox "Preset" [ref=f8e43]:
+                - option "Last 7 days"
+                - option "Last 30 days"
+                - option "Last 90 days"
+                - option "Last 12 months"
+                - option "Custom" [selected]
+            - paragraph [ref=f8e44]: Presets update both dates. Editing either date switches to Custom. Leave blank to use the default last-30-days window.
+            - generic [ref=f8e45]:
+              - generic [ref=f8e46]:
+                - generic [ref=f8e47]: From
+                - textbox "From" [ref=f8e48]
+              - generic [ref=f8e49]:
+                - generic [ref=f8e50]: To
+                - textbox "To" [ref=f8e51]
+          - generic [ref=f8e52] [cursor=pointer]:
+            - checkbox "Generate content ideas and briefs" [ref=f8e53]
+            - generic [ref=f8e54]: Generate content ideas and briefs
+          - button "Generate research report" [ref=f8e55] [cursor=pointer]
+          - paragraph [ref=f8e56]: Searches YouTube and the public web globally, with no country restriction. This is not comprehensive worldwide coverage. Public-web results are indexed titles and snippets; the timeframe is not enforced and publication dates are unverified, so undated results remain context.
+  - button "Open Next.js Dev Tools" [ref=f8e9] [cursor=pointer]
+  - alert [ref=f8e57]

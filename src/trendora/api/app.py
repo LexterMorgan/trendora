@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Generator
 from contextlib import ExitStack
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID, uuid4
 
 from fastapi import Depends, FastAPI, HTTPException, Query
@@ -57,7 +57,7 @@ from trendora.api.auth import (
     require_member,
 )
 from trendora.api.deps import get_session
-from trendora.api.errors import register_error_handlers
+from trendora.api.errors import ReportAskUngroundedError, register_error_handlers
 from trendora.api.models import ForecastResponse, to_forecast_response
 from trendora.api.report_save import ReportExpiredError, report_save_router
 from trendora.api.report_snapshot import SNAPSHOT_FIELDS, snapshot_fingerprint
@@ -67,13 +67,23 @@ from trendora.api.research_models import (
     to_research_response,
 )
 from trendora.api.research_report_models import (
+    ModelProvenanceResponse,
     PersistenceOutcomeResponse,
+    ReportAskCitationResponse,
+    ReportAskRequest,
+    ReportAskResponse,
     ResearchReportRequest,
     ResearchReportResponse,
     to_report_response,
 )
 
 logger = logging.getLogger("trendora.api.app")
+
+
+_HISTORY_STATUS_FILTERS = frozenset({
+    "completed", "research_completed", "no_evidence", "research_unavailable",
+    "insufficient_evidence", "content_unavailable", "source_data_expired",
+})
 
 
 class ReportSummaryResponse(BaseModel):
@@ -88,6 +98,47 @@ class ReportSummaryResponse(BaseModel):
     date_from: str
     date_to: str
     snapshot_origin: str = "legacy_unclassified"
+
+
+class ReportChangesResponse(BaseModel):
+    """Finding statements added or dropped since the nearest older run."""
+
+    previous_report_id: str | None
+    previous_created_at: str | None
+    new_findings: list[str]
+    dropped_findings: list[str]
+
+
+class DiscoverSourceResponse(BaseModel):
+    """One indexed public-web result."""
+
+    source_code: str
+    content_external_id: str
+    title: str
+    url: str
+    published_at: str | None
+    description: str
+
+
+class DiscoverResponse(BaseModel):
+    """Bounded discovery results from the configured web search gateway."""
+
+    query: str
+    status: str
+    sources: list[DiscoverSourceResponse]
+
+
+def _finding_statements(snapshot: dict) -> dict[str, str]:
+    """Map normalized statement -> first stored text, in document order."""
+    statements: dict[str, str] = {}
+    for item in (snapshot.get("interpretation") or {}).get("interpretations") or []:
+        statement = item.get("statement")
+        if not isinstance(statement, str):
+            continue
+        normalized = " ".join(statement.split()).lower()
+        if normalized:
+            statements.setdefault(normalized, statement.strip())
+    return statements
 
 
 def _persist_research_report(
@@ -211,6 +262,16 @@ def build_web_search_gateway(settings) -> WebSearchRetriever | None:
     if serper_key:
         return SerperGateway(serper_key)
     return None
+
+
+def get_discover_gateway() -> Generator[WebSearchRetriever | None, None, None]:
+    """FastAPI dependency: one configured public-web gateway, closed after use."""
+    gateway = build_web_search_gateway(get_settings())
+    try:
+        yield gateway
+    finally:
+        if gateway is not None:
+            gateway.close()
 
 
 def get_github_forecast_product() -> Generator[GitHubForecastProduct, None, None]:
@@ -441,20 +502,31 @@ def create_app() -> FastAPI:
         service: ResearchReportService = Depends(get_research_report_service),
         member: Member = Depends(require_member),
     ) -> ResearchReportResponse:
-        query = adapt_research_request(payload.model_dump())
-        report = service.build_report(
-            topic=query.topic,
-            markets=query.markets,
-            date_from=query.date_from,
-            date_to=query.date_to,
-            sources=query.source_codes,
-            result_limit=query.result_limit,
-            facebook_page_id=query.facebook_page_id,
-            include_content_tools=payload.include_content_tools,
-        )
-        response = to_report_response(report)
-        response.persistence = _persist_research_report(payload, response, member.user_id)
-        return response
+        from trendora.research.run_details import collect_run_details, measure_stage
+        from trendora.api.research_report_models import RunDetailsResponse
+
+        with collect_run_details() as details:
+            query = adapt_research_request(payload.model_dump())
+            report = service.build_report(
+                topic=query.topic,
+                markets=query.markets,
+                date_from=query.date_from,
+                date_to=query.date_to,
+                sources=query.source_codes,
+                result_limit=query.result_limit,
+                facebook_page_id=query.facebook_page_id,
+                include_content_tools=payload.include_content_tools,
+            )
+            response = to_report_response(report)
+            with measure_stage("persistence"):
+                response.persistence = _persist_research_report(payload, response, member.user_id)
+            interpretation = report.interpretation_result
+            mode = "none" if interpretation is None else (
+                "source_excerpts" if interpretation.model_provenance.provider == "source_evidence"
+                else "ai_interpretation"
+            )
+            response.run_details = RunDetailsResponse(**details.as_dict(mode))
+            return response
 
     @app.get(
         "/api/v1/research/reports",
@@ -470,18 +542,48 @@ def create_app() -> FastAPI:
     def list_research_reports(
         limit: int = Query(default=50, ge=1, le=100, description="Max records to return"),
         offset: int = Query(default=0, ge=0, description="Offset for pagination"),
+        q: str | None = Query(
+            default=None,
+            max_length=200,
+            description="Literal, case-insensitive substring of the report topic",
+        ),
+        status: str | None = Query(
+            default=None,
+            description=(
+                "Persisted outcome at save time. Retention may later overwrite "
+                "it with source_data_expired."
+            ),
+        ),
+        date_from: date | None = Query(
+            default=None, description="Inclusive requested-window overlap start"
+        ),
+        date_to: date | None = Query(
+            default=None, description="Inclusive requested-window overlap end"
+        ),
         session: Session = Depends(get_session),
         member: Member = Depends(require_member),
         now: datetime = Depends(get_utc_now),
     ) -> list[ReportSummaryResponse]:
         from trendora.research.repository import get_report_records
 
+        if status is not None and status not in _HISTORY_STATUS_FILTERS:
+            raise HTTPException(
+                status_code=422, detail="Unknown persisted report status filter"
+            )
+        if date_from is not None and date_to is not None and date_from > date_to:
+            raise HTTPException(
+                status_code=422, detail="date_from must not be after date_to"
+            )
         summaries, _total = get_report_records(
             session,
             limit=limit,
             offset=offset,
             visible_from=report_visible_from(member, now),
             now=now,
+            q=q,
+            status=status,
+            date_from=date_from,
+            date_to=date_to,
         )
         return [ReportSummaryResponse(**summary) for summary in summaries]
 
@@ -525,5 +627,196 @@ def create_app() -> FastAPI:
             error_code=None,
         )
         return response
+
+    @app.get(
+        "/api/v1/research/reports/{report_id}/changes",
+        response_model=ReportChangesResponse,
+        summary="Compare findings with the nearest older run",
+        description=(
+            "Compare interpretation statements with the nearest older visible "
+            "report that has the exact same topic. Whitespace-normalized, "
+            "lowercase exact matches only; no fuzzy matching or scoring."
+        ),
+        responses={404: {"description": "Report not found"}},
+    )
+    def get_report_changes(
+        report_id: str,
+        session: Session = Depends(get_session),
+        member: Member = Depends(require_member),
+        now: datetime = Depends(get_utc_now),
+    ) -> ReportChangesResponse:
+        from trendora.research.repository import (
+            get_previous_report_record,
+            get_report_record_by_id,
+        )
+
+        visible_from = report_visible_from(member, now)
+        full_report = get_report_record_by_id(
+            session,
+            report_id,
+            visible_from=visible_from,
+            now=now,
+        )
+        if full_report is None:
+            raise HTTPException(status_code=404, detail="Report not found")
+        snapshot = full_report["report"]
+        if full_report.get("status") == "source_data_expired" or (
+            snapshot.get("status") == "source_data_expired"
+        ):
+            raise ReportExpiredError("This report's source data has expired.")
+
+        previous = get_previous_report_record(
+            session,
+            topic=full_report["topic"],
+            before_created_at=datetime.fromisoformat(full_report["created_at"]),
+            visible_from=visible_from,
+        )
+        if previous is None:
+            return ReportChangesResponse(
+                previous_report_id=None,
+                previous_created_at=None,
+                new_findings=[],
+                dropped_findings=[],
+            )
+
+        current_statements = _finding_statements(snapshot)
+        previous_statements = _finding_statements(previous["report"])
+        return ReportChangesResponse(
+            previous_report_id=previous["id"],
+            previous_created_at=previous["created_at"],
+            new_findings=[
+                text
+                for key, text in current_statements.items()
+                if key not in previous_statements
+            ],
+            dropped_findings=[
+                text
+                for key, text in previous_statements.items()
+                if key not in current_statements
+            ],
+        )
+
+    @app.post(
+        "/api/v1/research/reports/{report_id}/ask",
+        response_model=ReportAskResponse,
+        summary="Ask a saved report a grounded question",
+        dependencies=[Depends(require_member)],
+        description=(
+            "Answer one question from a saved report's own stored material. "
+            "The answer must cite references that report already holds. An "
+            "answer that cites nothing, or cites outside the report, is refused."
+        ),
+        responses={
+            404: {"description": "Report not found"},
+            422: {"description": "Answer was not grounded in this report"},
+            503: {"description": "AI provider is not configured"},
+        },
+    )
+    def ask_report(
+        report_id: str,
+        payload: ReportAskRequest,
+        session: Session = Depends(get_session),
+        member: Member = Depends(require_member),
+        now: datetime = Depends(get_utc_now),
+    ) -> ReportAskResponse:
+        from trendora.research.ai_provider import OpenAICompatibleInterpretationProvider
+        from trendora.research.report_ask import (
+            UngroundedAnswerError,
+            allowed_reference_ids,
+            build_ask_context,
+            validate_answer,
+        )
+        from trendora.research.repository import get_report_record_by_id
+
+        full_report = get_report_record_by_id(
+            session,
+            report_id,
+            visible_from=report_visible_from(member, now),
+            now=now,
+        )
+        if full_report is None:
+            raise HTTPException(status_code=404, detail="Report not found")
+        snapshot = full_report["report"]
+        if full_report.get("status") == "source_data_expired" or (
+            snapshot.get("status") == "source_data_expired"
+        ):
+            raise ReportExpiredError("This report's source data has expired.")
+
+        settings = get_settings()
+        config = build_ai_provider_config(
+            provider=settings.ai_provider,
+            model=settings.ai_model,
+            endpoint_url=settings.ai_endpoint_url,
+            api_key=settings.ai_api_key,
+            timeout_seconds=getattr(settings, "ai_timeout_seconds", None),
+        )
+        provider = OpenAICompatibleInterpretationProvider(config)
+        try:
+            answer, citations = provider.ask(
+                context=build_ask_context(snapshot),
+                question=payload.question,
+            )
+            validate_answer(citations, allowed_reference_ids(snapshot))
+        except UngroundedAnswerError as exc:
+            raise ReportAskUngroundedError(str(exc)) from exc
+
+        return ReportAskResponse(
+            answer=answer,
+            citations=[
+                ReportAskCitationResponse(**citation) for citation in citations
+            ],
+            model_provenance=ModelProvenanceResponse(
+                provider=config.provider, model=config.model
+            ),
+        )
+
+    @app.get(
+        "/api/v1/discover",
+        response_model=DiscoverResponse,
+        summary="Discover indexed public-web results",
+        dependencies=[Depends(require_member)],
+        description=(
+            "Search the configured public-web gateway only. No YouTube, "
+            "Facebook, AI, persistence, scoring, or reordering."
+        ),
+        responses={
+            400: {"description": "Blank query or query over 200 characters"},
+            503: {"description": "Public web search is not configured"},
+        },
+    )
+    def discover(
+        q: str = Query(..., description="Search query, 1-200 characters"),
+        limit: int = Query(default=10, ge=1, le=20),
+        gateway: WebSearchRetriever | None = Depends(get_discover_gateway),
+    ) -> DiscoverResponse:
+        query = q.strip()
+        if not query or len(q) > 200:
+            raise HTTPException(
+                status_code=400, detail="Query must be between 1 and 200 characters"
+            )
+        if gateway is None:
+            raise HTTPException(
+                status_code=503, detail="Public web search is not configured"
+            )
+        try:
+            results = gateway.search(query, limit=limit)
+        except Exception as exc:  # noqa: BLE001 - provider failure is a status, not a crash
+            logger.warning("discover.search_failed error=%s", type(exc).__name__)
+            return DiscoverResponse(query=query, status="source_unavailable", sources=[])
+        return DiscoverResponse(
+            query=query,
+            status="ok",
+            sources=[
+                DiscoverSourceResponse(
+                    source_code="public_web",
+                    content_external_id=result.url,
+                    title=result.title[:200],
+                    url=result.url,
+                    published_at=None,
+                    description=result.snippet[:280],
+                )
+                for result in results
+            ],
+        )
 
     return app

@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, StrictBool
+from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
 from trendora.api.research_models import ResearchRequest, ResearchResponse, to_research_response
 from trendora.research.ai_provider import evidence_pack_to_payload
@@ -133,6 +133,23 @@ class PersistenceOutcomeResponse(BaseModel):
     recovery_receipt: str | None = None
 
 
+class AIRequestDetailsResponse(BaseModel):
+    stage: str
+    request_bytes: int
+    elapsed_ms: int
+    prompt_tokens: int | None
+    completion_tokens: int | None
+    total_tokens: int | None
+
+
+class RunDetailsResponse(BaseModel):
+    elapsed_ms: int
+    stage_durations_ms: dict[str, int]
+    ai_requests: list[AIRequestDetailsResponse]
+    retry_count: int
+    finding_mode: str
+
+
 class ResearchReportResponse(BaseModel):
     status: str
     research: ResearchResponse
@@ -141,6 +158,7 @@ class ResearchReportResponse(BaseModel):
     strategy: StrategicResultResponse | None
     ideation: IdeationResultResponse | None
     persistence: PersistenceOutcomeResponse | None = None
+    run_details: RunDetailsResponse | None = None
 
 
 def to_report_response(report: ResearchReport) -> ResearchReportResponse:
@@ -257,3 +275,18 @@ def _to_ideation(result: IdeationResult | None) -> IdeationResultResponse | None
 
 def _to_provenance(provenance) -> ModelProvenanceResponse:
     return ModelProvenanceResponse(provider=provenance.provider, model=provenance.model)
+
+
+class ReportAskRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=500)
+
+
+class ReportAskCitationResponse(BaseModel):
+    source_code: str
+    content_external_id: str
+
+
+class ReportAskResponse(BaseModel):
+    answer: str
+    citations: list[ReportAskCitationResponse]
+    model_provenance: ModelProvenanceResponse

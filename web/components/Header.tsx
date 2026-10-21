@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { SignOutButton } from "@/components/SignOutButton";
+import { Brand } from "@/components/Brand";
 
 export interface HeaderProps {
   /** Current view name, shown in the mobile menu (e.g. "Research Workspace"). */
@@ -14,9 +15,10 @@ export interface HeaderProps {
 // `match` lists every route prefix that belongs to a destination. A saved
 // report (/report/[id]) belongs to Reports, so its nav item stays active.
 const NAV = [
-  { href: "/", label: "Research", match: ["/"] },
-  { href: "/past-reports", label: "Reports", match: ["/past-reports", "/report"] },
-  { href: "/planner", label: "Planner", match: ["/planner"] },
+  { href: "/", label: "Research", match: ["/"], icon: "M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm5 12 6 6" },
+  { href: "/past-reports", label: "Reports", match: ["/past-reports", "/report"], icon: "M6 3h9l4 4v14H6V3Zm8 0v5h5M9 12h7M9 16h7" },
+  { href: "/discover", label: "Discover", match: ["/discover"], icon: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm3 6-2 5-5 2 2-5 5-2Z" },
+  { href: "/planner", label: "Planner", match: ["/planner"], icon: "M4 5h16v16H4V5Zm0 5h16M8 2v6M16 2v6" },
 ];
 
 /**
@@ -40,11 +42,9 @@ export function Header({ section }: HeaderProps) {
     <header className="unified-header">
       <div className="header-brand">
         <Link href="/" className="brand-link" aria-label="Trendora home">
-          <span className="brand-icon" aria-hidden="true">
-            T
-          </span>
-          <span className="brand-name">Trendora</span>
+          <Brand />
         </Link>
+        <span className="alpha-label">Alpha v0.1</span>
       </div>
 
       <nav className="header-nav" aria-label="Primary">
@@ -55,6 +55,7 @@ export function Header({ section }: HeaderProps) {
             className={isActive(item) ? "header-nav-link is-active" : "header-nav-link"}
             aria-current={isActive(item) ? "page" : undefined}
           >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d={item.icon} /></svg>
             {item.label}
           </Link>
         ))}
@@ -70,9 +71,9 @@ export function Header({ section }: HeaderProps) {
           onClick={() => setMenuOpen((open) => !open)}
         >
           <span className="menu-toggle-label">{menuOpen ? "Close" : "Menu"}</span>
-          <span className="menu-toggle-icon" aria-hidden="true">
-            {menuOpen ? "▲" : "▼"}
-          </span>
+          <svg className="menu-toggle-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+            {menuOpen ? <path d="m5 5 10 10M15 5 5 15" /> : <path d="M3 6h14M3 10h14M3 14h14" />}
+          </svg>
         </button>
       </div>
 

@@ -1,0 +1,55 @@
+- generic [ref=e1]:
+  - button "Open Next.js Dev Tools" [ref=e9] [cursor=pointer]
+  - alert [ref=e13]
+  - main [ref=e14]:
+    - generic [ref=e15]:
+      - link "Trendora home" [ref=e17] [cursor=pointer]:
+        - /url: /
+        - generic [aria-hidden] [ref=e18]: T
+        - generic [ref=e19]: Trendora
+      - navigation "Primary" [ref=e20]:
+        - link "Research" [ref=e21] [cursor=pointer]:
+          - /url: /
+        - link "Reports" [ref=e22] [cursor=pointer]:
+          - /url: /past-reports
+        - link "Planner" [ref=e23] [cursor=pointer]:
+          - /url: /planner
+      - button "Sign out" [ref=e25] [cursor=pointer]
+    - generic [ref=e26]:
+      - generic [ref=e27]:
+        - heading "Understand what’s happening in your topics." [level=1] [ref=e28]
+        - paragraph [ref=e29]: Search available sources, read sourced findings with their publication dates, and see where coverage is thin. Content ideas and briefs stay optional.
+      - region "Research request" [ref=e30]:
+        - generic [ref=e31]:
+          - generic [ref=e32]:
+            - generic [ref=e33]: Topic
+            - textbox "Topic" [active] [ref=e34]:
+              - /placeholder: What topic do you want to research?
+              - text: AI tools for education
+          - generic "Example topics" [ref=e35]:
+            - generic [ref=e37]:
+              - button "AI education tools for students" [ref=e38] [cursor=pointer]
+              - button "Online learning platform trends" [ref=e39] [cursor=pointer]
+              - button "STEM scholarships in Southeast Asia" [ref=e40] [cursor=pointer]
+          - group "Timeframe" [ref=e41]:
+            - generic [ref=e43]:
+              - generic [ref=e44]: Preset
+              - combobox "Preset" [ref=e45]:
+                - option "Last 7 days"
+                - option "Last 30 days" [selected]
+                - option "Last 90 days"
+                - option "Last 12 months"
+                - option "Custom"
+            - paragraph [ref=e46]: Presets update both dates. Editing either date switches to Custom. Leave blank to use the default last-30-days window.
+            - generic [ref=e47]:
+              - generic [ref=e48]:
+                - generic [ref=e49]: From
+                - textbox "From" [ref=e50]: 2026-09-16
+              - generic [ref=e51]:
+                - generic [ref=e52]: To
+                - textbox "To" [ref=e53]: 2026-10-15
+          - generic [ref=e54] [cursor=pointer]:
+            - checkbox "Generate content ideas and briefs" [ref=e55]
+            - generic [ref=e56]: Generate content ideas and briefs
+          - button "Generate research report" [ref=e57] [cursor=pointer]
+          - paragraph [ref=e58]: Searches YouTube and the public web globally, with no country restriction. This is not comprehensive worldwide coverage. Public-web results are indexed titles and snippets; the timeframe is not enforced and publication dates are unverified, so undated results remain context.

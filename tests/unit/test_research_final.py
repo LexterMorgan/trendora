@@ -39,7 +39,8 @@ from trendora.research.reporting import (
 
 
 def _snapshot(report):
-    return to_report_response(report).model_dump(mode="json", exclude={"persistence"})
+    from trendora.api.report_snapshot import SNAPSHOT_FIELDS
+    return to_report_response(report).model_dump(mode="json", include=set(SNAPSHOT_FIELDS))
 
 
 def _pattern_pack():

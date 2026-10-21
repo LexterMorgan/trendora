@@ -99,6 +99,11 @@ class DataUnavailableError(ApiError):
     code = "data_unavailable"
 
 
+class ReportAskUngroundedError(ApiError):
+    status_code = 422
+    code = "ungrounded_answer"
+
+
 def _error(
     status_code: int,
     code: str,

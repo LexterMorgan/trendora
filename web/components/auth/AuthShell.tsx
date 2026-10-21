@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { Brand } from "@/components/Brand";
 
 interface AuthShellProps {
   title: string;
@@ -19,16 +20,14 @@ export function AuthShell({ title, lede, children }: AuthShellProps) {
     <main className="auth-shell">
       <section className="auth-card" aria-labelledby="auth-title">
         <Link href="/" className="auth-brand" aria-label="Trendora home">
-          <span className="brand-icon" aria-hidden="true">
-            T
-          </span>
-          <span className="brand-name">Trendora</span>
+          <Brand />
         </Link>
         <h1 className="auth-title" id="auth-title">
           {title}
         </h1>
         {lede && <p className="auth-lede">{lede}</p>}
         {children}
+        <p className="auth-footer">Trendora Alpha v0.1</p>
       </section>
     </main>
   );
