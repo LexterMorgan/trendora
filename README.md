@@ -1,58 +1,166 @@
+<div align="center">
+
 # Trendora
 
-Current release: **Alpha v0.1**, for local use. Public deployment remains unverified.
+**A research-first workspace for building a defensible picture of a topic before you write or plan anything about it.**
 
-A research-first workspace: choose a topic and a timeframe, collect material
-from available internet sources, review what those sources actually support, and
-keep the result. Built for one owner plus a small shared workflow, not for
-company-wide content management.
+[![ci](https://github.com/LexterMorgan/trendora/actions/workflows/ci.yml/badge.svg)](https://github.com/LexterMorgan/trendora/actions/workflows/ci.yml)
+![status](https://img.shields.io/badge/status-alpha%20v0.1-black)
+![python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![next](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs)
+![postgres](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
 
-The point of a report is to be useful on its own. Reading, saving, and reopening
-research never requires generating content.
+</div>
 
-## Who it is for
+> Local alpha. No public deployment yet. AI prose quality is unverified.
+> Reading, saving, and reopening research never requires a model call.
 
-Personal marketing work: a person who needs a defensible picture of a topic
-before writing or planning anything about it.
+---
 
-The problem it addresses is that search results and platform feeds are
-fragmented, often undated, and easy to over-read. Trendora collects material for
-one topic and window, shows which source supports each statement, and keeps the
-limits visible instead of hiding them.
+## The problem
 
-## Core journey
+Search results are fragmented, often undated, and easy to over-read. A person
+who needs to write or plan something usually ends up with a pile of tabs and no
+record of which source supported which sentence.
 
-```text
-topic + timeframe
-  -> collect evidence from the selected sources
-  -> review source-backed findings, dates, and coverage
-  -> save the research
-  -> optionally develop content ideas and briefs
-  -> optionally plan a post
+Trendora collects material for one topic and one window, shows what each source
+actually supports, and keeps the limits visible instead of hiding them. The
+report is meant to be useful on its own.
+
+**Who it is for:** one person doing marketing or research work, plus a small
+shared workflow. Not company-wide content management.
+
+---
+
+## What it does
+
+| Area | Behavior |
+| --- | --- |
+| **Research** | Topic plus timeframe. Collects material from the configured sources only. |
+| **Grounded findings** | Findings cite supplied source text. Unsupported claims are refused, not softened. |
+| **Ask this report** | A question against a saved report. Answers must cite references that report already holds. |
+| **Run-over-run diff** | Compares findings with the nearest older report of the same topic. Exact match only. |
+| **Discover** | Public-web gateway search. No YouTube, no AI, no scoring, no research handoff. |
+| **Planner** | Save a report, then optionally develop ideas, briefs, and planned posts. |
+
+Everything after saving is optional. Nothing publishes automatically.
+
+---
+
+## How a report is built
+
+```mermaid
+flowchart LR
+    Q[Topic + timeframe] --> C{Coverage check}
+    C -->|no source can satisfy| X[Refused]
+    C --> Y[YouTube]
+    C --> W[Public web search]
+    C --> F[Facebook public page]
+    Y --> N[Normalize references]
+    W --> N
+    F --> N
+    N --> E[Evidence pack]
+    E --> A[Grounded interpretation]
+    E --> X2[Labelled source excerpts]
+    A --> V{Citation validation}
+    V -->|passes| R[Report snapshot]
+    V -->|fails| X2
+    X2 --> R
+    R --> DB[(PostgreSQL)]
 ```
 
-Everything after saving is optional.
+1. **Query.** Topic, markets, and a date window. Nothing runs without a source
+   that can satisfy the request.
+2. **Collection.** Configured retrievers only: YouTube, public web search, and
+   Facebook public Pages. No scraping behind a login.
+3. **Normalization.** Results become references with stable ids, a source code,
+   and fields the reader can inspect.
+4. **Evidence.** A bounded evidence pack is derived from those references:
+   facts, observations, patterns.
+5. **Interpretation.** An OpenAI-compatible endpoint writes findings that must
+   cite supplied evidence. Findings may not contain recommendation language.
+6. **Validation.** Findings with no resolvable citation are refused. If
+   synthesis is unavailable, malformed, or rejected, the report falls back to
+   labelled excerpt text instead of inventing prose.
+7. **Snapshot.** The finished report is stored as one immutable row. Reading it
+   later needs no model call.
 
-## What works today
+---
 
-| Area | State |
+## System architecture
+
+```mermaid
+flowchart TB
+    B[Browser] --> NX[Next.js app]
+    NX -->|same-origin /api proxy| API[FastAPI]
+    API --> DB[(PostgreSQL)]
+    API --> YT[YouTube Data API]
+    API --> SR[Serper or SearXNG]
+    API --> FB[Facebook Graph]
+    API --> AI[OpenAI-compatible endpoint]
+    NX -.bearer token.-> SA[Supabase Auth]
+```
+
+The browser never calls the backend directly. Next.js route handlers proxy every
+request same-origin and forward the bearer token, so cookies and CORS stay
+simple. Every read is gated by session verification plus an active membership.
+
+---
+
+## Persistence
+
+| Table | Holds |
 | --- | --- |
-| Topic and timeframe research, global by default | Works. YouTube and public web are the default sources. |
-| YouTube discovery and enrichment | Works through the YouTube Data API. |
-| Public-web search | Works through Serper, or a self-hosted SearXNG instance that also runs bounded public-social discovery. |
-| Facebook public Pages | Works when separately configured. Opt-in, public Page posts only, no keyword search. |
-| Grounded AI findings | Works. Findings must cite supplied source text; prose quality needs human review. |
-| Excerpt fallback | Works. When synthesis is unavailable, malformed, or rejected by grounding, the report shows exact labelled source excerpts instead. |
-| Saving, recovery, history, expiry | Works. Snapshots are immutable and recovery is idempotent per request key. The expiry command exists but is not scheduled. |
-| Content ideas and briefs | Optional and off by default. Their failure never discards the research. |
-| Planner and report import | Works. Statuses are `idea` and `working`; a planned date is a date, and nothing publishes automatically. |
-| Auth and membership | Works. Session verification plus active-membership checks gate every read. |
-| Grounded report Q&A | Answers must cite references the saved report already holds; uncited answers are refused. |
-| Run-over-run diff | Compares findings with the nearest older report of the same topic. Exact match only. |
-| Discover search | Public-web gateway only, no YouTube, no AI. Results link out; no research handoff yet. |
+| `research_reports` | One immutable snapshot per run: query, coverage, references, evidence, interpretation, strategy, ideation. |
+| `planner_posts` | Planned content: title, platform, caption, brief, planned date, status, assignee. |
+| `planner_post_origin_sources` | Which saved report a planner post came from. |
+| `planner_post_activity` | Append-only activity log. |
+| `memberships` | Who may read reports. |
 
-Older ingestion, analytics, and forecasting capabilities still exist in the code.
-They are secondary to the research journey and are not required by it.
+Reports are append-only. Nothing edits a saved snapshot. Expiry is a separate,
+explicit operation.
+
+---
+
+## Grounding rules
+
+- Every finding must cite supplied evidence. An uncited finding is rejected,
+  not softened.
+- Citation validation proves the evidence was supplied. It does not prove a
+  statement is true or significant.
+- Findings may not contain recommendation or action language. Plans and ideas
+  live in the optional ideation layer.
+- "Ask this report" accepts only citations the saved report already holds.
+  Anything else returns `422 ungrounded_answer`.
+- Run-over-run diff is exact match after whitespace and case normalization.
+  No fuzzy matching, no similarity score.
+
+---
+
+## Tech stack
+
+### Backend
+
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?logo=fastapi&logoColor=white)
+![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.x-D71F00)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-database-4169E1?logo=postgresql&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-auth-3ECF8E?logo=supabase&logoColor=white)
+
+### Frontend
+
+![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+
+### Sources and AI
+
+![OpenAI-compatible](https://img.shields.io/badge/AI-OpenAI--compatible-412991)
+![YouTube](https://img.shields.io/badge/YouTube-Data%20API-FF0000?logo=youtube&logoColor=white)
+![Serper](https://img.shields.io/badge/Serper-web%20search-4285F4)
+![SearXNG](https://img.shields.io/badge/SearXNG-self--hosted-3050FF)
+
+---
 
 ## Quick start
 
@@ -86,13 +194,13 @@ covered in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ```bash
 .venv/bin/python -m pytest tests/unit -q     # offline, guarded, no services
-cd web && npm test                          # frontend unit tests
-cd web && npm run lint && npx tsc --noEmit  # lint and typecheck
+cd web && npm test                           # frontend unit tests
+cd web && npm run lint && npx tsc --noEmit   # lint and typecheck
 ```
 
-Database-backed integration tests need an explicitly approved disposable target.
-See [docs/10_TESTING_EVALUATION.md](docs/10_TESTING_EVALUATION.md) for those
-prerequisites and for what mocked versus live evidence actually establishes.
+CI runs the offline unit suite, typecheck, and Next route type generation on
+every push. Database-backed integration tests need an explicitly approved
+disposable target; see [docs/10_TESTING_EVALUATION.md](docs/10_TESTING_EVALUATION.md).
 
 ## Major limitations
 
@@ -105,9 +213,8 @@ prerequisites and for what mocked versus live evidence actually establishes.
 - **Attention claims.** Current counts and sample prevalence describe the
   returned sample. They do not show growth, and no trend score is invented.
 - **Known limits.** Reference selection is bounded at 24 references and is
-  source-fair, so a small source keeps its place but a limit below the source
-  count cannot cover every source; whitespace-only text is never treated as
-  evidence. Live AI prose quality and full deployment remain unverified.
+  source-fair, so a limit below the source count cannot cover every source;
+  whitespace-only text is never treated as evidence.
 - **Live verification.** AI prose quality and full deployment have not been
   verified. Local operation is not public deployment, and local-first is not
   offline operation.
@@ -131,7 +238,7 @@ authoritative and which are historical.
 
 ```text
 src/trendora/          # backend package
-  api/                 #   FastAPI app, auth, research and planner routes
+  api/                 #   FastAPI app, auth, research, planner, ask and diff routes
   research/            #   query, coverage, retrievers, evidence, interpretation, saving
   connectors/          #   YouTube, web search, Facebook, plus legacy ingestion clients
   analytics/           #   legacy analytics read layer
@@ -139,8 +246,8 @@ src/trendora/          # backend package
   models/              #   SQLAlchemy models
   planner.py           #   planner records and report import
   retention.py         #   explicit, dry-run-first expiry
-web/                   # Next.js research workspace and planner UI
-alembic/               # migrations (0001 through 0008)
+web/                   # Next.js research workspace, report reader, discover, planner UI
+alembic/               # migrations
 tests/unit/            # offline, guarded
 tests/integration/     # requires an approved disposable database
 docs/                  # current guides and the historical archive
@@ -149,4 +256,4 @@ deploy/                # search container configuration
 
 ## License
 
-Proprietary unless a license is added later.
+MIT — see [LICENSE](LICENSE).
