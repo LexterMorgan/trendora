@@ -216,18 +216,18 @@ Seven adversarial fixture cases, one finding each:
 | Case | Citations | Resolved | Text support |
 | --- | ---: | ---: | --- |
 | exact_description_citation | 1 | 1 | yes |
-| title_description_mismatch | 1 | 1 | yes (known gap) |
+| title_description_mismatch | 1 | 1 | no |
 | unsupported_specific_claim | 2 | 2 | no |
 | publication_event_date_confusion | 1 | 1 | no |
 | promotional_attribution | 1 | 1 | no |
 | missing_evidence | 1 | 0 | no |
 | extractive_fallback | 1 | 1 | yes |
 
-Aggregate: 7 of 8 citations resolve, 3 of 7 findings carry text support.
+Aggregate: 7 of 8 citations resolve, 2 of 7 findings carry text support.
 Resolution proves the cited value exists in the report; it does not prove the
-claim is true. The known gap is `title_description_mismatch`: support matching
-reads reference text rather than the exact cited field, so a mis-cited field can
-still pass.
+claim is true. Text support is stricter: a cited field supports a statement only
+when at least half of the statement's content words appear in that exact field,
+so citing a title whose words are absent does not pass.
 
 ## Major limitations
 

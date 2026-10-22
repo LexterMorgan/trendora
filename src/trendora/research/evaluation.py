@@ -16,6 +16,7 @@ import argparse
 import hashlib
 import json
 import math
+import re
 import sys
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime
@@ -34,6 +35,20 @@ SNAPSHOT_FIELDS: tuple[str, ...] = (
 JUDGMENTS: tuple[str, ...] = ("supported", "partially_supported", "unsupported")
 UNREVIEWED = "unreviewed"
 _TEXT_FIELDS = frozenset({"title", "description"})
+# Only enough stopwords to stop "the/and/for" deciding a support verdict.
+_STOPWORDS = frozenset(
+    {
+        "the", "and", "for", "with", "that", "this", "from", "into", "over",
+        "are", "was", "were", "has", "have", "had", "been", "its", "their",
+        "they", "will", "can", "not", "but", "our", "who", "what", "when",
+        "where", "which", "than", "then", "there", "these", "those", "says",
+        "said", "also", "more", "most", "some", "any",
+    }
+)
+# A cited text field supports a statement only when the statement's own words
+# appear in that exact field, at least half of them.
+_SUPPORT_RATIO = 0.5
+_MIN_SHARED_TOKENS = 2
 
 
 class EvaluationError(ValueError):
@@ -440,7 +455,26 @@ def _diagnose_references(
     return rows
 
 
-def _has_text_support(citation_diagnostics: Sequence[Mapping[str, Any]]) -> bool:
+def _content_tokens(text: str) -> frozenset[str]:
+    return frozenset(
+        token
+        for token in re.findall(r"[a-z0-9]+", text.lower())
+        if len(token) > 2 and token not in _STOPWORDS
+    )
+
+
+def _has_text_support(
+    statement: str, citation_diagnostics: Sequence[Mapping[str, Any]]
+) -> bool:
+    """True when a cited text field actually contains the statement's words.
+
+    Citing a text field is not support: the words have to appear in that field.
+    A statement that cites `title` but only matches the description is not
+    supported by the title.
+    """
+    target = _content_tokens(statement)
+    if not target:
+        return False
     for diagnostic in citation_diagnostics:
         identity = _as_mapping(diagnostic.get("identity"))
         if identity is None or identity.get("kind") != "fact":
@@ -450,7 +484,10 @@ def _has_text_support(citation_diagnostics: Sequence[Mapping[str, Any]]) -> bool
         if not diagnostic.get("resolved"):
             continue
         value = diagnostic.get("value")
-        if isinstance(value, str) and value.strip():
+        if not isinstance(value, str) or not value.strip():
+            continue
+        shared = target & _content_tokens(value)
+        if len(shared) >= _MIN_SHARED_TOKENS and len(shared) / len(target) >= _SUPPORT_RATIO:
             return True
     return False
 
@@ -494,7 +531,7 @@ def _diagnose_findings(
                 "origin": origin,
                 "citations": citation_diagnostics,
                 "references": reference_diagnostics,
-                "has_text_support": _has_text_support(citation_diagnostics),
+                "has_text_support": _has_text_support(statement, citation_diagnostics),
                 "publication_collection_dates_distinct": (
                     any(comparable_dates) if comparable_dates else None
                 ),
