@@ -202,6 +202,33 @@ CI runs the offline unit suite, typecheck, and Next route type generation on
 every push. Database-backed integration tests need an explicitly approved
 disposable target; see [docs/10_TESTING_EVALUATION.md](docs/10_TESTING_EVALUATION.md).
 
+## Evaluating reports
+
+The evaluator is offline and structural. It never calls a model or the network.
+
+```bash
+.venv/bin/python -m trendora.research.evaluation \
+  --corpus tests/fixtures/research_quality/cases.json
+```
+
+Seven adversarial fixture cases, one finding each:
+
+| Case | Citations | Resolved | Text support |
+| --- | ---: | ---: | --- |
+| exact_description_citation | 1 | 1 | yes |
+| title_description_mismatch | 1 | 1 | yes (known gap) |
+| unsupported_specific_claim | 2 | 2 | no |
+| publication_event_date_confusion | 1 | 1 | no |
+| promotional_attribution | 1 | 1 | no |
+| missing_evidence | 1 | 0 | no |
+| extractive_fallback | 1 | 1 | yes |
+
+Aggregate: 7 of 8 citations resolve, 3 of 7 findings carry text support.
+Resolution proves the cited value exists in the report; it does not prove the
+claim is true. The known gap is `title_description_mismatch`: support matching
+reads reference text rather than the exact cited field, so a mis-cited field can
+still pass.
+
 ## Major limitations
 
 - **Freshness.** Publication dates are often unknown, and public-web search does

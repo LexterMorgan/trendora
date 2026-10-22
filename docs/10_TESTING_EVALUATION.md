@@ -12,12 +12,15 @@ Backend (from the repository root, using the project virtualenv):
 .venv/bin/python -m pytest tests/unit -q          # offline unit suite
 .venv/bin/python -m pytest tests/integration -q   # requires a database, see below
 .venv/bin/python -m trendora.research.evaluation report.json
+.venv/bin/python -m trendora.research.evaluation \
+  --corpus tests/fixtures/research_quality/cases.json   # aggregate, structural only
 ```
 
-The last command is the offline research-quality evaluator. It reads an
-exported report, writes structural diagnostics and a human-review worksheet,
-and never calls a model or the network. See
-[RESEARCH_QUALITY.md](RESEARCH_QUALITY.md).
+The evaluator reads an exported report, writes structural diagnostics and a
+human-review worksheet, and never calls a model or the network. With
+`--corpus` it aggregates the same diagnostics across named cases and reports
+citation resolution and text-support rates. Neither mode judges whether a
+finding is true. See [RESEARCH_QUALITY.md](RESEARCH_QUALITY.md).
 
 Frontend (from `web/`):
 

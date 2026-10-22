@@ -663,6 +663,86 @@ def load_annotations(path: str | Path) -> dict[str, Any]:
     return data
 
 
+def evaluate_corpus(cases: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Aggregate structural diagnostics across named cases.
+
+    Structural only: a resolved citation means the cited value exists in that
+    report's evidence map. It does not mean the finding is true, and a low rate
+    is a defect in the report, not a judgment about the model.
+    """
+    rows: list[dict[str, Any]] = []
+    total_findings = total_citations = total_resolved = total_supported = 0
+    for case in cases:
+        if not isinstance(case, Mapping):
+            raise EvaluationError("corpus case must be an object")
+        name = case.get("name")
+        report = case.get("report")
+        if not isinstance(name, str) or not isinstance(report, Mapping):
+            raise EvaluationError("corpus case needs a name and a report")
+        diagnostics = build_diagnostics(report)
+        raw_findings = diagnostics.get("findings")
+        findings = [
+            finding
+            for finding in (raw_findings if isinstance(raw_findings, list) else [])
+            if isinstance(finding, Mapping)
+        ]
+        citations = [
+            citation
+            for finding in findings
+            for citation in (
+                finding.get("citations")
+                if isinstance(finding.get("citations"), list)
+                else []
+            )
+            if isinstance(citation, Mapping)
+        ]
+        resolved = sum(1 for citation in citations if citation.get("resolved") is True)
+        supported = sum(1 for finding in findings if finding.get("has_text_support") is True)
+        total_findings += len(findings)
+        total_citations += len(citations)
+        total_resolved += resolved
+        total_supported += supported
+        rows.append(
+            {
+                "name": name,
+                "findings": len(findings),
+                "citations": len(citations),
+                "resolved_citations": resolved,
+                "findings_with_text_support": supported,
+                "origin": diagnostics.get("interpretation_origin"),
+            }
+        )
+    return {
+        "cases": rows,
+        "totals": {
+            "cases": len(rows),
+            "findings": total_findings,
+            "citations": total_citations,
+            "resolved_citations": total_resolved,
+            "findings_with_text_support": total_supported,
+        },
+        "rates": {
+            "citation_resolution": (
+                total_resolved / total_citations if total_citations else None
+            ),
+            "text_support": (
+                total_supported / total_findings if total_findings else None
+            ),
+        },
+        "definition": (
+            "Structural only: a resolved citation means the cited value exists "
+            "in the report's evidence map."
+        ),
+    }
+
+
+def load_corpus(path: str | Path) -> list[Mapping[str, Any]]:
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or not isinstance(data.get("cases"), list):
+        raise EvaluationError('corpus file must contain {"cases": [...]}')
+    return data["cases"]
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="trendora-research-evaluate",
@@ -671,7 +751,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             "report. Does not fetch sources or judge semantics."
         ),
     )
-    parser.add_argument("report", type=Path, help="exported report JSON file")
+    parser.add_argument("report", type=Path, nargs="?", help="exported report JSON file")
+    parser.add_argument(
+        "--corpus",
+        type=Path,
+        help='corpus JSON file containing {"cases": [...]}; aggregates structure only',
+    )
     parser.add_argument(
         "--annotations",
         type=Path,
@@ -683,13 +768,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="write the evaluation document here instead of stdout",
     )
     args = parser.parse_args(argv)
+    if args.report is None and args.corpus is None:
+        parser.error("provide a report file or --corpus")
+    if args.corpus is not None and args.annotations is not None:
+        parser.error("--annotations applies to a single report")
 
     try:
-        report = json.loads(args.report.read_text(encoding="utf-8"))
-        if not isinstance(report, dict):
-            raise EvaluationError("report file must contain a JSON object")
-        annotations = load_annotations(args.annotations) if args.annotations else {}
-        document = evaluate_report(report, annotations)
+        if args.corpus is not None:
+            document = evaluate_corpus(load_corpus(args.corpus))
+        else:
+            report = json.loads(args.report.read_text(encoding="utf-8"))
+            if not isinstance(report, dict):
+                raise EvaluationError("report file must contain a JSON object")
+            annotations = load_annotations(args.annotations) if args.annotations else {}
+            document = evaluate_report(report, annotations)
         serialized = (
             json.dumps(document, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
         )
