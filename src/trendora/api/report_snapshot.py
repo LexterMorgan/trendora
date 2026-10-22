@@ -71,7 +71,11 @@ MAX_STATEMENT = 2_000
 MAX_ANGLE = 1_000
 MAX_OUTLINE_ITEM = 500
 MAX_OUTLINE_ITEMS = 100
+# Public-web identities are the complete result URL. Nested reference IDs must
+# carry the same bound as the URL field, or a server-generated report can fail
+# its own signed recovery validation.
 MAX_URL = 2_048
+MAX_REFERENCE_ID = MAX_URL
 MAX_TOPIC = 500
 
 _STATUSES = frozenset({
@@ -150,7 +154,7 @@ class _Metrics(_Strict):
 
 class _Reference(_Strict):
     source_code: str = Field(min_length=1, max_length=64)
-    content_external_id: str = Field(min_length=1, max_length=256)
+    content_external_id: str = Field(min_length=1, max_length=MAX_REFERENCE_ID)
     url: str | None = None
     title: str | None = Field(default=None, max_length=MAX_TITLE)
     description: str | None = Field(default=None, max_length=MAX_DESCRIPTION)
@@ -306,7 +310,7 @@ class _Ideation(_Strict):
 
 class _ReferenceId(_Strict):
     source_code: str = Field(min_length=1, max_length=64)
-    content_external_id: str = Field(min_length=1, max_length=256)
+    content_external_id: str = Field(min_length=1, max_length=MAX_REFERENCE_ID)
 
 
 class _FactCitation(_Strict):

@@ -15,6 +15,8 @@ from trendora.api.app import (
     get_research_application_service,
     get_research_report_service,
 )
+from trendora.api.report_snapshot import ReportSnapshot
+from trendora.api.research_report_models import to_report_response
 from trendora.connectors.web_search import SearchResult
 from trendora.connectors.web_search.exceptions import (
     WebSearchApiError,
@@ -22,6 +24,7 @@ from trendora.connectors.web_search.exceptions import (
     WebSearchHttpError,
     WebSearchResponseError,
 )
+from trendora.connectors.web_search.url_safety import MAX_RESULT_URL
 from trendora.connectors.web_search.serper_gateway import (
     MAX_RESULTS,
     SerperGateway,
@@ -117,6 +120,14 @@ class TestSafeUrlBoundary:
     )
     def test_rejects_unsafe_urls(self, url):
         assert _is_safe_url(url) is False
+
+    def test_url_length_boundary_matches_recovery_url_bound(self):
+        prefix = "https://example.test/"
+        at_limit = prefix + "a" * (MAX_RESULT_URL - len(prefix))
+        over_limit = at_limit + "a"
+        assert len(at_limit) == MAX_RESULT_URL
+        assert _is_safe_url(at_limit) is True
+        assert _is_safe_url(over_limit) is False
 
     def test_invalid_urls_never_become_results(self):
         gateway = _gateway(
@@ -768,6 +779,24 @@ class TestReportPipeline:
         )
         assert report.status.value == "completed"
         assert events == ["interpretation", "strategy", "ideation"]
+
+    def test_long_public_web_url_serializes_to_recoverable_snapshot(self):
+        long_url = "https://example.test/" + "a" * 300
+        service, _ = self._report_service(
+            [], _ok_handler(_organic({"title": "Long URL", "link": long_url, "snippet": "s"}))
+        )
+        report = service.build_report(
+            topic="t", markets=["SG"], date_from=date(2026, 8, 1),
+            date_to=date(2026, 8, 31), sources=["public_web"], result_limit=5,
+        )
+        response = to_report_response(report)
+        assert response.research.references[0].content_external_id == long_url
+        snapshot = {field: response.model_dump(mode="json")[field] for field in (
+            "status", "research", "evidence", "interpretation", "strategy", "ideation",
+        )}
+        assert snapshot["evidence"]["analyses"][0]["reference_id"]["content_external_id"] == long_url
+        validated = ReportSnapshot.model_validate(snapshot)
+        assert validated.research.references[0].content_external_id == long_url
 
     def test_public_web_report_zero_evidence_no_ai(self):
         events: list[str] = []

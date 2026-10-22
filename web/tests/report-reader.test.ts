@@ -155,3 +155,115 @@ test("printing opens disclosures for the selected report and restores them even 
   assert.equal(marked, false);
   assert.ok(details.every((detail) => !detail.open));
 });
+
+
+function groupedReport(): ResearchReportResponse {
+  const report = fixture("Sourced evidence");
+  report.interpretation = {
+    model_provenance: { provider: "fictional", model: "synthesis" },
+    interpretations: [
+      { statement: "Sourced synthesis", citations: [citation] },
+      { statement: "Sample observation", citations: [{ kind: "pattern", observation_type: "title_has_numeral" }] },
+      { statement: "Limited interpretation", citations: [{ kind: "fact", reference: { source_code: "public_web", content_external_id: "absent" }, field: "description" }] },
+    ],
+  };
+  report.evidence!.patterns = [{
+    observation_type: "title_has_numeral",
+    analyzed_count: 1,
+    matching_count: 1,
+    non_matching_count: 0,
+    ratio: 1,
+    matching_reference_ids: [reference],
+    non_matching_reference_ids: [],
+  }];
+  return report;
+}
+
+test("Markdown preserves reader evidence groups and original interpretation indexes", () => {
+  const report = groupedReport();
+  const before = JSON.stringify(report);
+  const markdown = reportMarkdown(report);
+  assert.match(markdown, /## Research findings/);
+  assert.match(markdown, /### Finding 1/);
+  assert.match(markdown, /## AI observations about the sample/);
+  assert.match(markdown, /### AI observation 2/);
+  assert.match(markdown, /## Interpretations with limited evidence/);
+  assert.match(markdown, /### Interpretation 3/);
+  assert.ok(markdown.indexOf("## Research findings") < markdown.indexOf("## AI observations about the sample"));
+  assert.ok(markdown.indexOf("## AI observations about the sample") < markdown.indexOf("## Interpretations with limited evidence"));
+  assert.match(markdown, /Sourced synthesis/);
+  assert.match(markdown, /Sample observation/);
+  assert.match(markdown, /Limited interpretation/);
+  assert.match(markdown, /\[Source 1\]\(#source-1\)/);
+  assert.match(markdown, /AI synthesis of the collected material/);
+  assert.doesNotMatch(markdown, /source-attributed excerpts/);
+  assert.equal(JSON.stringify(report), before);
+});
+
+test("source-attributed excerpt exports do not claim synthesized findings", () => {
+  const markdown = reportMarkdown(fixture());
+  assert.match(markdown, /source-attributed excerpts/);
+  assert.doesNotMatch(markdown, /AI synthesis of the collected material/);
+});
+
+test("observation-only and limited-only exports hide empty finding groups", () => {
+  const observationReport = fixture("Sourced evidence");
+  observationReport.interpretation = {
+    model_provenance: { provider: "fictional", model: "synthesis" },
+    interpretations: [{ statement: "Sample observation", citations: [{ kind: "pattern", observation_type: "title_has_numeral" }] }],
+  };
+  observationReport.evidence!.patterns = [{
+    observation_type: "title_has_numeral", analyzed_count: 1, matching_count: 1,
+    non_matching_count: 0, ratio: 1, matching_reference_ids: [reference],
+    non_matching_reference_ids: [],
+  }];
+  const observationMarkdown = reportMarkdown(observationReport);
+  assert.doesNotMatch(observationMarkdown, /## Research findings/);
+  assert.doesNotMatch(observationMarkdown, /AI synthesis of the collected material/);
+  assert.match(observationMarkdown, /## AI observations about the sample/);
+
+  const limitedReport = fixture("Sourced evidence");
+  limitedReport.interpretation = {
+    model_provenance: { provider: "fictional", model: "synthesis" },
+    interpretations: [{ statement: "Limited interpretation", citations: [{ kind: "fact", reference: { source_code: "public_web", content_external_id: "absent" }, field: "description" }] }],
+  };
+  const limitedMarkdown = reportMarkdown(limitedReport);
+  assert.doesNotMatch(limitedMarkdown, /## Research findings/);
+  assert.doesNotMatch(limitedMarkdown, /AI synthesis of the collected material/);
+  assert.match(limitedMarkdown, /## Interpretations with limited evidence/);
+});
+
+test("empty interpretation exports do not acquire synthesized-finding framing", () => {
+  const report = fixture();
+  report.interpretation = { model_provenance: { provider: "fictional", model: "synthesis" }, interpretations: [] };
+  const markdown = reportMarkdown(report);
+  assert.doesNotMatch(markdown, /## Research findings/);
+  assert.doesNotMatch(markdown, /AI synthesis of the collected material/);
+  assert.match(markdown, /No interpretations are available in this report/);
+});
+
+
+test("metric observations and blank or null text stay in their honest export groups", () => {
+  const metricReport = fixture("Sourced evidence");
+  metricReport.evidence!.analyses[0].facts.push({ field: "view_count", value: 5 });
+  metricReport.interpretation = {
+    model_provenance: { provider: "fictional", model: "synthesis" },
+    interpretations: [{ statement: "Metric observation", citations: [{ kind: "fact", reference, field: "view_count" }] }],
+  };
+  const metricMarkdown = reportMarkdown(metricReport);
+  assert.match(metricMarkdown, /## AI observations about the sample/);
+  assert.match(metricMarkdown, /### AI observation 1/);
+  assert.doesNotMatch(metricMarkdown, /## Research findings/);
+
+  for (const value of [null, "   "]) {
+    const limited = fixture(value);
+    limited.interpretation = {
+      model_provenance: { provider: "fictional", model: "synthesis" },
+      interpretations: [{ statement: "Limited text", citations: [citation] }],
+    };
+    const markdown = reportMarkdown(limited);
+    assert.match(markdown, /## Interpretations with limited evidence/);
+    assert.doesNotMatch(markdown, /## Research findings/);
+    assert.doesNotMatch(markdown, /AI synthesis of the collected material/);
+  }
+});

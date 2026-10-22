@@ -13,6 +13,9 @@ from __future__ import annotations
 from urllib.parse import unquote, urlsplit
 
 _ALLOWED_SCHEMES = frozenset({"http", "https"})
+# Matches the report snapshot URL and reference-id bound so a server-generated
+# public-web result cannot exceed what signed recovery accepts.
+MAX_RESULT_URL = 2_048
 _CAMPAIGN_PARAMETERS = frozenset({
     "utm_id", "utm_source", "utm_medium", "utm_campaign", "utm_term",
     "utm_content", "utm_source_platform", "utm_creative_format", "utm_marketing_tactic",
@@ -39,7 +42,7 @@ def is_safe_url(value: object) -> bool:
     """
     if not isinstance(value, str):
         return False
-    if not value or not value.strip():
+    if not value or not value.strip() or len(value) > MAX_RESULT_URL:
         return False
     if value != value.strip():
         return False

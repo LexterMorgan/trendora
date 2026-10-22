@@ -12,6 +12,7 @@ import type {
 import {
   buildProvenanceMaps,
   citationPublicationScope,
+  classifyFindingSupport,
   hasSourceBackedSummaries,
   publicationScope,
   publicationScopeLabel,
@@ -26,7 +27,7 @@ export function ideaMarkdown(idea: ContentIdeaJson): string {
     "",
     `**Angle:** ${idea.angle}`,
     "",
-    `**Opportunity indexes:** ${idea.opportunity_indexes.join(", ") || "—"}`,
+    `**Opportunity indexes:** ${idea.opportunity_indexes.join(", ") || "Unknown"}`,
     "",
     `**Citations:** ${idea.citations.length}`,
   ];
@@ -136,7 +137,7 @@ function citedEvidence(citation: ResolvedCitation): string {
 
 function citationBlock(citation: ResolvedCitation, anchors: Map<string, SourceAnchor>): string[] {
   return [
-    `- ${mdText(citation.kind)} — ${mdText(citation.detail)}`,
+    `- ${mdText(citation.kind)}: ${mdText(citation.detail)}`,
     ...(citation.textEvidence ? [`  ${citedEvidence(citation)}`] : []),
     `  Sources: ${citedBy(citation, anchors)}`,
   ];
@@ -214,34 +215,58 @@ export function reportMarkdown(report: ResearchReportResponse): string {
     push("");
   }
 
-  push("## Research findings", "");
-  if (sourceBacked) {
-    push("These are source-attributed excerpts, not synthesized findings. A source's statement and publication date do not independently verify an event or its date.", "");
-  } else {
-    push("AI synthesis of the collected material. Citations show supporting evidence, but do not independently verify a claim or its significance.", "");
-  }
-  push("Publication dates do not establish event dates. Event dates are unavailable.", "");
   push(modelLine("Interpretation", report.interpretation?.model_provenance), "");
 
   const interpretations = report.interpretation?.interpretations ?? [];
-  const findings = interpretations.map((item) => {
+  const findings = interpretations.map((item, index) => {
     const citations = (item.citations ?? []).map((citation) => resolveCitation(citation, maps));
     return {
       item,
+      index,
       citations,
       scope: citationPublicationScope(citations, query),
+      bucket: classifyFindingSupport(maps, citations),
     };
   });
-  if (findings.length === 0) {
-    push("No research findings are available in this report.", "");
-  }
-  findings.forEach(({ item, citations, scope }, index) => {
-    push(`### Finding ${index + 1}`, "");
-    push(`> ${mdText(item.statement)}`, "");
-    push(`Publication scope: ${publicationScopeLabel(scope)}.`, "");
-    for (const citation of citations) push(...citationBlock(citation, anchors));
+  const primaryFindings = findings.filter((entry) => entry.bucket === "finding");
+  const observationFindings = findings.filter((entry) => entry.bucket === "observation");
+  const limitedFindings = findings.filter((entry) => entry.bucket === "limited");
+
+  const findingBlock = (entry: (typeof findings)[number], label: string) => {
+    push(`### ${label} ${entry.index + 1}`, "");
+    const statement = mdText(entry.item.statement);
+    push(sourceBacked && entry.bucket === "finding" ? `> ${statement}` : statement, "");
+    push(`Publication scope: ${publicationScopeLabel(entry.scope)}.`, "");
+    for (const citation of entry.citations) push(...citationBlock(citation, anchors));
     push("");
-  });
+  };
+
+  if (primaryFindings.length > 0) {
+    push("## Research findings", "");
+    if (sourceBacked) {
+      push("These are source-attributed excerpts, not synthesized findings. A source's statement and publication date do not independently verify an event or its date.", "");
+    } else {
+      push("AI synthesis of the collected material. Citations show supporting evidence, but do not independently verify a claim or its significance.", "");
+    }
+    push("Publication dates do not establish event dates. Event dates are unavailable.", "");
+    for (const entry of primaryFindings) findingBlock(entry, "Finding");
+  }
+
+  if (observationFindings.length > 0) {
+    push("## AI observations about the sample", "");
+    push("These interpretations concern patterns, formatting, or metrics in the collected sample. They do not establish developments or growing attention.", "");
+    for (const entry of observationFindings) findingBlock(entry, "AI observation");
+  }
+
+  if (limitedFindings.length > 0) {
+    push("## Interpretations with limited evidence", "");
+    push("The cited evidence is missing, incomplete, or insufficient to support a research finding. These interpretations are retained for reference.", "");
+    for (const entry of limitedFindings) findingBlock(entry, "Interpretation");
+  }
+
+  if (findings.length === 0) {
+    push("No interpretations are available in this report.", "");
+  }
 
   const patterns = report.evidence?.patterns ?? [];
   if (patterns.length) {
@@ -306,7 +331,7 @@ export function reportMarkdown(report: ResearchReportResponse): string {
     ideation.content_ideas?.forEach((idea, index) => {
       push(`### Idea ${index + 1}: ${mdText(idea.title)}`, "");
       push(`- Angle: ${mdText(idea.angle)}`);
-      push(`- Opportunity indexes: ${idea.opportunity_indexes.join(", ") || "—"}`);
+      push(`- Opportunity indexes: ${idea.opportunity_indexes.join(", ") || "Unknown"}`);
       for (const citation of idea.citations ?? []) push(...citationBlock(resolveCitation(citation, maps), anchors));
       push("");
     });

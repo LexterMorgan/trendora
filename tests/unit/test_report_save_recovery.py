@@ -20,6 +20,7 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 from tests.support.app import create_test_app
 from tests.unit.test_research_reporting import _query, _report_service
@@ -652,3 +653,110 @@ def _member():
     from tests.support.app import TEST_MEMBER
 
     return TEST_MEMBER
+
+
+def _rewrite_identity(value, old, new):
+    if isinstance(value, dict):
+        if value.get("source_code") == old[0] and value.get("content_external_id") == old[1]:
+            value["source_code"] = new[0]
+            value["content_external_id"] = new[1]
+        for item in value.values():
+            _rewrite_identity(item, old, new)
+    elif isinstance(value, list):
+        for item in value:
+            _rewrite_identity(item, old, new)
+
+
+def test_long_public_web_identity_survives_snapshot_and_signed_recovery():
+    import copy
+    from trendora.api.report_snapshot import MAX_URL
+
+    url = "https://example.test/" + "a" * 300
+    snapshot = _valid_snapshot()
+    reference = snapshot["research"]["references"][0]
+    old = (reference["source_code"], reference["content_external_id"])
+    _rewrite_identity(snapshot, old, ("public_web", url))
+    reference["url"] = url
+    before = copy.deepcopy(snapshot)
+    validated = ReportSnapshot.model_validate(snapshot).model_dump(mode="json")
+    assert validated["research"]["references"][0]["content_external_id"] == url
+    assert validated["evidence"]["analyses"][0]["reference_id"]["content_external_id"] == url
+    found = []
+
+    def collect_ids(value):
+        if isinstance(value, dict):
+            if value.get("source_code") == "public_web" and "content_external_id" in value:
+                found.append(value["content_external_id"])
+            for item in value.values():
+                collect_ids(item)
+        elif isinstance(value, list):
+            for item in value:
+                collect_ids(item)
+
+    collect_ids(validated)
+    assert found
+    assert set(found) == {url}
+    assert snapshot == before
+    assert _fingerprint(snapshot) == _fingerprint(validated)
+
+    acknowledgment = _save(_RecordingSession([_Membership(), None]), snapshot)
+    assert acknowledgment.created is True
+    assert acknowledgment.snapshot_origin == "client_supplied"
+    assert snapshot == before
+
+    too_long_url = "https://example.test/" + "a" * (
+        MAX_URL + 1 - len("https://example.test/")
+    )
+    assert len(too_long_url) == MAX_URL + 1
+    too_long = copy.deepcopy(snapshot)
+    _rewrite_identity(
+        too_long, ("public_web", url),
+        ("public_web", too_long_url),
+    )
+    with pytest.raises(ValidationError):
+        ReportSnapshot.model_validate(too_long)
+
+
+def test_failed_auto_save_then_signed_recovery_keeps_long_public_web_identity(monkeypatch):
+    import copy
+    from types import SimpleNamespace
+    from unittest.mock import patch
+    from uuid import UUID
+
+    import trendora.api.app as app_module
+    from tests.support.app import TEST_MEMBER
+    from tests.unit.test_research_report_persistence import FakeFactory, FakeSettings
+    from trendora.api.report_save import ReportSaveRequest, save_report_for_actor
+    from trendora.api.research_report_models import ResearchReportRequest, ResearchReportResponse
+
+    url = "https://example.test/" + "b" * 300
+    snapshot = _valid_snapshot()
+    reference = snapshot["research"]["references"][0]
+    _rewrite_identity(snapshot, (reference["source_code"], reference["content_external_id"]), ("public_web", url))
+    reference["url"] = url
+    response = ResearchReportResponse.model_validate(snapshot)
+    request_id = UUID("00000000-0000-4000-8000-000000000077")
+    key = "fictional-recovery-test-key-no-real-value"
+    monkeypatch.setattr(app_module, "get_utc_now", lambda: datetime(2026, 11, 1, tzinfo=timezone.utc))
+    monkeypatch.setattr(app_module, "uuid4", lambda: request_id)
+    monkeypatch.setattr(app_module, "get_settings", lambda: FakeSettings("postgresql://x", key))
+    monkeypatch.setattr(app_module, "get_session_factory", lambda: FakeFactory(error=RuntimeError("fictional save failure")))
+    outcome = app_module._persist_research_report(
+        ResearchReportRequest(topic="t"), response, TEST_MEMBER.user_id,
+    )
+    assert outcome.status == "unknown"
+    assert outcome.recovery_receipt
+    before = copy.deepcopy(snapshot)
+    body = ReportSaveRequest(
+        schema_version=1, request_id=request_id, snapshot=snapshot,
+        recovery_receipt=outcome.recovery_receipt,
+    )
+    with patch("trendora.api.report_save.get_settings", return_value=SimpleNamespace(
+        report_recovery_signing_key=key,
+    )):
+        acknowledgment = save_report_for_actor(
+            _RecordingSession([_Membership(), None]), actor_id=TEST_MEMBER.user_id, body=body,
+        )
+    assert acknowledgment.created is True
+    assert acknowledgment.snapshot_origin == "client_supplied"
+    assert snapshot == before
