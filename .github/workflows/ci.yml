@@ -32,3 +32,30 @@ jobs:
         working-directory: web
       - run: npx tsc --noEmit
         working-directory: web
+      - run: npm test
+        working-directory: web
+      - run: npm run lint
+        working-directory: web
+      - name: Install pinned Playwright driver and browser
+        working-directory: web
+        env:
+          PLAYWRIGHT_VERSION: "1.55.0"
+        run: |
+          npm install --no-save --no-package-lock "playwright@$PLAYWRIGHT_VERSION"
+          npx playwright install --with-deps chromium
+      - name: Isolated browser regressions (Webpack build included)
+        working-directory: web
+        env:
+          TRENDORA_BROWSER_DRIVER: playwright
+          TMPDIR: ${{ runner.temp }}
+        run: npm run test:browser
+      - name: Upload browser diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-regressions
+          path: |
+            ${{ runner.temp }}/trendora-browser-*
+            web/npm-debug.log*
+          if-no-files-found: ignore
+          retention-days: 7

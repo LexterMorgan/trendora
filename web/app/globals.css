@@ -2016,6 +2016,27 @@ textarea::placeholder {
   background: var(--accent-soft);
 }
 
+@media (max-width: 900px) {
+  .unified-header {
+    gap: 12px;
+  }
+
+  .brand-art {
+    width: 160px;
+    height: 42px;
+  }
+
+  .alpha-label {
+    display: none;
+  }
+
+  .header-nav-link {
+    padding: 8px 9px;
+    font-size: 13.5px;
+    gap: 6px;
+  }
+}
+
 @media (max-width: 768px) {
   .unified-header {
     flex-wrap: wrap;
@@ -3228,4 +3249,36 @@ textarea::placeholder {
   color: var(--ink-soft);
   font-size: 14px;
   overflow-wrap: anywhere;
+}
+
+/* --- Ask this report ------------------------------------------------------ */
+
+.ask-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ask-input {
+  flex: 1 1 260px;
+  min-height: 44px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--ink-faint);
+  border-radius: var(--radius);
+}
+
+.ask-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.ask-form .primary-button,
+.ask-form .secondary-button {
+  min-height: 44px;
 }

@@ -29,7 +29,6 @@ export function ReferenceList({ references, window }: ReferenceListProps) {
 
   return (
     <section className="reference-list" aria-label="Research references">
-      <h2 className="section-title">References</h2>
       <div className="reference-controls" role="group" aria-label="Filter sources">
         <label className="reference-search" htmlFor={`${id}-search`}>
           Search source titles

@@ -22,6 +22,22 @@ disagrees with the code, the code wins.
   state says no source matches and offers a reset; it never claims the report
   has no sources.
 
+### Ask and comparison
+
+- "Ask this report" answers cite source identities from the saved report, not
+  exact title/description fields. The trace drawer labels them source-level and
+  does not claim the cited source supports the answer semantically.
+- Ask is bounded by a 180-second Next.js proxy deadline plus the provider
+  deadline. Cancelling or navigating away ends this browser's wait; it does not
+  guarantee the router or upstream provider stopped its work. A late response
+  cannot replace a newer request or survive an account change.
+- Report comparison fetches the nearest older report once per saved report id.
+  It reports added and removed finding statements after whitespace and case
+  normalization. Those are wording differences, not real-world change.
+- With no earlier report, comparison says so and shows no counts. An expired
+  prior report cannot be compared; the route returns an error and the UI offers
+  an explicit GET retry rather than skipping the prior report.
+
 ## 2. Exports and print
 
 - **Full Markdown copy** uses returned data only. It includes findings with
@@ -116,8 +132,10 @@ it does not guarantee the router or upstream provider stopped its work.
 ## 5. Research-quality evaluation
 
 `docs/RESEARCH_QUALITY.md` documents the offline evaluation CLI, its benchmark,
-and the human-review worksheet. Structural diagnostics never become a semantic
-pass, and absent review stays `unreviewed`.
+and the human-review worksheet. Its retained `has_text_support` field means only
+that a resolved title or description fact carries nonblank text. It is not an
+entailment check, a factual-support judgment, or a quality score. Structural
+diagnostics never become a semantic pass, and absent review stays `unreviewed`.
 
 ## 6. Verification
 

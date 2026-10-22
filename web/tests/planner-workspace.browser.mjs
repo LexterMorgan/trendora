@@ -1604,6 +1604,132 @@ export function plannerWorkspaceRegressions(f) {
       await f.page.getByRole("heading", { name: "Saved research", exact: true }).waitFor();
       assert.equal(plannerMutations().length, 0);
     }],
+    ["Ask answers trace source identities, never invented fields, and preserve the saved snapshot", async () => {
+      const reportId = await f.seedSavedReport({ topic: "Fictional ask report" });
+      const before = JSON.stringify(f.reports.get(reportId).report);
+      await f.openResearch();
+      const askSection = f.page.getByRole("heading", { name: "Ask this report", exact: true }).locator("..");
+      assert.match(await askSection.innerText(), /Citations identify sources, not exact supporting passages/);
+      const input = f.page.getByLabel("Question about this report", { exact: true });
+      await input.fill("What does this report say?");
+      await askSection.getByRole("button", { name: "Ask", exact: true }).click();
+      await f.page.getByText("Fictional answer grounded in the report sources.", { exact: true }).waitFor();
+
+      const trace = askSection.getByRole("button", { name: "Trace 1 citation", exact: true });
+      await trace.click();
+      const drawer = f.page.getByRole("dialog", { name: "Citation trace", exact: true });
+      await drawer.waitFor();
+      assert.match(await drawer.innerText(), /Source-level citation; no exact field was supplied for this answer/);
+      assert.equal(await drawer.locator(".citation-text-evidence").count(), 0, "A source identity must not be shown as an exact field citation");
+      assert.equal(await drawer.getByRole("link", { name: "View original", exact: true }).getAttribute("href"), "https://example.test/fictional");
+      await f.page.keyboard.press("Escape");
+      assert.equal(await drawer.count(), 0);
+      assert.equal(await trace.evaluate((element) => document.activeElement === element), true);
+      assert.equal(JSON.stringify(f.reports.get(reportId).report), before, "Ask must not mutate the saved snapshot");
+
+      await input.focus();
+      assert.notEqual(await input.evaluate((element) => getComputedStyle(element).outlineStyle), "none");
+      await f.page.setViewportSize({ width: 360, height: 900 });
+      const overflow = await f.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      assert(overflow <= 1, `Ask layout overflowed by ${overflow}px`);
+      await f.page.emulateMedia({ reducedMotion: "reduce" });
+      assert.equal(await f.page.getByText("Fictional answer grounded in the report sources.", { exact: true }).isVisible(), true);
+      await f.metrics("ask-answer-360");
+      await f.snapshot("ask-answer-360");
+    }],
+    ["Ask failure stays visible and honest without crashing the report", async () => {
+      await f.seedSavedReport({ topic: "Fictional ask failure" });
+      await f.openResearch();
+      f.fault({ action: "ask", mode: "reject", status: 503, code: "ai_provider_not_configured" });
+      await f.page.getByLabel("Question about this report", { exact: true }).fill("What changed?");
+      await f.page.getByRole("button", { name: "Ask", exact: true }).click();
+      const askSection = f.page.getByRole("heading", { name: "Ask this report", exact: true }).locator("..");
+      const alert = askSection.getByRole("alert");
+      await alert.waitFor();
+      assert.match(await alert.innerText(), /unavailable|not configured|could not/i);
+      assert.equal(await f.page.getByRole("heading", { name: "Research findings", exact: true }).isVisible(), true);
+      assert.equal(f.calls.filter((call) => call.path.endsWith("/ask")).length, 1);
+      assert.equal(plannerMutations().length, 0);
+    }],
+    ["Cancelling Ask stops the wait, leaves the question editable, and ignores the late response", async () => {
+      await f.seedSavedReport({ topic: "Fictional ask cancel" });
+      await f.openResearch();
+      f.fault({ action: "ask", mode: "delay-before" });
+      const input = f.page.getByLabel("Question about this report", { exact: true });
+      await input.fill("Will this late answer appear?");
+      await f.page.getByRole("button", { name: "Ask", exact: true }).click();
+      await f.stalled();
+      await f.page.getByRole("button", { name: "Cancel", exact: true }).click();
+      assert.match(await f.page.getByText(/Stopped waiting/).innerText(), /provider may still finish/);
+      await f.release();
+      await f.page.waitForTimeout(250);
+      assert.equal(await f.page.getByText("Fictional answer grounded in the report sources.", { exact: true }).count(), 0);
+      assert.equal(await input.isEnabled(), true);
+      assert.equal(await input.inputValue(), "Will this late answer appear?");
+      assert.equal(f.calls.filter((call) => call.path.endsWith("/ask")).length, 1, "Cancel must not retry automatically");
+      await f.snapshot("ask-cancelled");
+    }],
+    ["Account change cannot surface a stale Ask answer", async () => {
+      await f.seedSavedReport({ topic: "Fictional ask account switch" });
+      await f.openResearch();
+      f.fault({ action: "ask", mode: "delay-before" });
+      await f.page.getByLabel("Question about this report", { exact: true }).fill("Whose answer is this?");
+      await f.page.getByRole("button", { name: "Ask", exact: true }).click();
+      await f.stalled();
+      await f.switchAccount(f.B);
+      await f.release();
+      await f.page.waitForTimeout(250);
+      assert.equal(await f.page.getByText("Fictional answer grounded in the report sources.", { exact: true }).count(), 0);
+      assert.equal(await f.page.getByLabel("Question about this report", { exact: true }).inputValue(), "");
+      assert.equal(plannerMutations().length, 0);
+    }],
+    ["Comparison shows loading, counted wording changes, and a mobile-safe state", async () => {
+      await f.seedSavedReport({
+        topic: "Fictional comparison report",
+        previousStatements: ["Fictional prior finding."],
+        previousCreatedAt: "2026-09-01T00:00:00Z",
+      });
+      f.fault({ action: "changes", mode: "delay-before" });
+      await f.openResearch();
+      await f.page.getByText("Comparing with the previous report…", { exact: true }).waitFor();
+      await f.release();
+      const result = f.page.getByText(/1 added, 1 removed finding statements/);
+      await result.waitFor();
+      assert.match(await result.innerText(), /wording, not real-world change/);
+      const changesCalls = f.calls.filter((call) => call.path.endsWith("/changes"));
+      assert.equal(changesCalls.length, 1);
+      assert.equal(changesCalls[0].method, "GET");
+      await f.page.setViewportSize({ width: 360, height: 900 });
+      const overflow = await f.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      assert(overflow <= 1, `Comparison layout overflowed by ${overflow}px`);
+      await f.metrics("comparison-360");
+      await f.snapshot("comparison-360");
+    }],
+    ["Comparison distinguishes no prior report, expired prior text, and GET-only retry", async () => {
+      await f.seedSavedReport({ topic: "Fictional no previous" });
+      await f.openResearch();
+      await f.page.getByText("No earlier report with this exact topic is available.", { exact: true }).waitFor();
+
+      await f.seedSavedReport({ topic: "Fictional expired comparison", comparisonStatus: 410 });
+      await f.openResearch();
+      const expired = f.page.locator(".report").getByRole("alert");
+      await expired.waitFor();
+      assert.match(await expired.innerText(), /source data has expired/i);
+      await f.page.getByRole("button", { name: "Retry comparison", exact: true }).waitFor();
+      const callsBeforeRetry = f.calls.filter((call) => call.path.endsWith("/changes")).length;
+
+      await f.seedSavedReport({ topic: "Fictional retry comparison" });
+      f.fault({ action: "changes", mode: "reject", status: 410, code: "report_expired" });
+      await f.openResearch();
+      await f.page.locator(".report").getByRole("alert").waitFor();
+      await f.page.getByRole("button", { name: "Retry comparison", exact: true }).click();
+      await f.page.getByText("No earlier report with this exact topic is available.", { exact: true }).waitFor();
+      const retryCalls = f.calls.filter((call) => call.path.endsWith("/changes")).slice(callsBeforeRetry);
+      assert.equal(retryCalls.length, 2);
+      assert(retryCalls.every((call) => call.method === "GET"));
+      assert.equal(plannerMutations().length, 0);
+      await f.snapshot("comparison-retry");
+    }],
     ["Research guide uses the real local font and keyboard-reachable shortcuts", async () => {
       await f.openResearch();
       await f.page.evaluate(() => document.fonts.ready.then(() => {}));

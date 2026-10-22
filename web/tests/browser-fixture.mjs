@@ -302,7 +302,9 @@ export async function createMockBackend() {
     calls.push(call);
     try {
       if (!actor) return error(response, 401, "auth_missing");
-      const action = pathname === "/api/v1/research/report" ? "generate" : pathname === "/api/v1/research/reports/save" ? "save" : pathname.startsWith("/api/v1/research/reports/") ? "report" : pathname.endsWith("/import") ? "import" : pathname.endsWith("/origin") ? "origin" : pathname.endsWith("/archive") ? "archive" : pathname.endsWith("/restore") ? "restore" : request.method === "PUT" ? "update" : request.method === "POST" ? "create" : pathname.endsWith("/members") ? "members" : pathname.endsWith("/posts") ? "list" : "get";
+      const askMatch = pathname.match(/^\/api\/v1\/research\/reports\/([^/]+)\/ask$/);
+      const changesMatch = pathname.match(/^\/api\/v1\/research\/reports\/([^/]+)\/changes$/);
+      const action = askMatch ? "ask" : changesMatch ? "changes" : pathname === "/api/v1/research/report" ? "generate" : pathname === "/api/v1/research/reports/save" ? "save" : pathname.startsWith("/api/v1/research/reports/") ? "report" : pathname.endsWith("/import") ? "import" : pathname.endsWith("/origin") ? "origin" : pathname.endsWith("/archive") ? "archive" : pathname.endsWith("/restore") ? "restore" : request.method === "PUT" ? "update" : request.method === "POST" ? "create" : pathname.endsWith("/members") ? "members" : pathname.endsWith("/posts") ? "list" : "get";
       const currentFault = fault?.action === action ? fault : null;
       if (currentFault) {
         fault = null;
@@ -345,6 +347,42 @@ export async function createMockBackend() {
           })
           .map(([id, entry]) => ({ id, created_at: "2026-10-01T00:00:00Z", status: entry.report.status, topic: entry.report.research?.query?.topic ?? "Fictional saved report", markets: entry.report.research?.query?.markets ?? ["SG"], source_codes: entry.report.research?.query?.sources ?? ["youtube"] }));
         return reply(response, 200, summaries.slice(offset, offset + limit));
+      }
+      if (action === "ask") {
+        const saved = reports.get(decodeURIComponent(askMatch[1]));
+        if (!saved) return error(response, 404, "not_found");
+        const source = saved.report.research?.references?.[0];
+        return await finish(200, {
+          answer: "Fictional answer grounded in the report sources.",
+          citations: source ? [{ source_code: source.source_code, content_external_id: source.content_external_id }] : [],
+          model_provenance: { provider: "fictional", model: "fixture-only" },
+        });
+      }
+      if (action === "changes") {
+        const saved = reports.get(decodeURIComponent(changesMatch[1]));
+        if (!saved) return error(response, 404, "not_found");
+        if (saved.comparisonStatus) {
+          return reply(response, saved.comparisonStatus, {
+            error: {
+              code: saved.comparisonCode ?? "report_expired",
+              message: "The previous report's source data has expired.",
+            },
+          });
+        }
+        const normalize = (value) => value.split(/\s+/).filter(Boolean).join(" ").toLowerCase();
+        const current = (saved.report.interpretation?.interpretations ?? []).map((item) => item.statement);
+        const previous = saved.previousStatements ?? null;
+        if (!previous) return await finish(200, {
+          previous_report_id: null, previous_created_at: null, new_findings: [], dropped_findings: [],
+        });
+        const currentKeys = new Set(current.map(normalize));
+        const previousKeys = new Set(previous.map(normalize));
+        return await finish(200, {
+          previous_report_id: "fictional-previous",
+          previous_created_at: saved.previousCreatedAt ?? "2026-09-01T00:00:00Z",
+          new_findings: current.filter((statement) => !previousKeys.has(normalize(statement))),
+          dropped_findings: previous.filter((statement) => !currentKeys.has(normalize(statement))),
+        });
       }
       if (action === "report") {
         const saved = reports.get(pathname.split("/").at(-1));
@@ -410,7 +448,14 @@ export async function createMockBackend() {
       // fresh-response metadata and are not reconstructed on read.
       delete report.run_details;
       report.persistence = { status: "saved", request_id: null, report_id: id, snapshot_origin: "server_generated", error_code: null };
-      reports.set(id, { report, outOfHistory: options.outOfHistory ?? false }); return id;
+      reports.set(id, {
+        report,
+        outOfHistory: options.outOfHistory ?? false,
+        previousStatements: options.previousStatements ?? null,
+        previousCreatedAt: options.previousCreatedAt ?? null,
+        comparisonStatus: options.comparisonStatus ?? null,
+        comparisonCode: options.comparisonCode ?? null,
+      }); return id;
     },
     seedSavedReports(optionsList) {
       return optionsList.map((options) => this.seedSavedReport(options));

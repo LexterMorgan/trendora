@@ -3,8 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
-  previousReportChanges,
-  type PreviousReportChangesJson,
   type ResearchReportResponse,
 } from "@/lib/report-api";
 import type { ChainLink, ResolvedCitation } from "@/lib/report-provenance";
@@ -15,6 +13,7 @@ import {
   citationPublicationScope,
   publicationScopeLabel,
   resolveCitation,
+  resolveReportAnswerCitation,
   resolveUpstreamChain,
 } from "@/lib/report-provenance";
 import {
@@ -28,6 +27,7 @@ import {
 import { formatDate, sourceLabel } from "@/lib/format";
 import { CitationDrawer } from "./CitationDrawer";
 import { AskPanel } from "./AskPanel";
+import { ReportComparison } from "./ReportComparison";
 import { COVERAGE_REASON_TEXT, CoveragePanel } from "./CoveragePanel";
 import { MarketCaveat } from "./MarketCaveat";
 import { ReferenceList } from "./ReferenceList";
@@ -144,24 +144,6 @@ export function ReportView({ report, clientElapsedMs }: ReportViewProps) {
   const [reportId, setReportId] = useState<string | null>(
     report.persistence?.report_id ?? null,
   );
-  const [previousChanges, setPreviousChanges] = useState<PreviousReportChangesJson | null>(null);
-
-  useEffect(() => {
-    if (!reportId) return;
-    let active = true;
-    const controller = new AbortController();
-    previousReportChanges(reportId, { signal: controller.signal })
-      .then((data) => {
-        if (active) setPreviousChanges(data);
-      })
-      .catch(() => {
-        if (active) setPreviousChanges(null);
-      });
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, [reportId]);
 
   const maps = buildProvenanceMaps(report);
   const sourceBacked = hasSourceBackedSummaries(report);
@@ -399,14 +381,7 @@ export function ReportView({ report, clientElapsedMs }: ReportViewProps) {
               .join(" · ")}
           </p>
         )}
-        {previousChanges?.previous_report_id &&
-          previousChanges.previous_created_at &&
-          previousChanges.new_findings.length > 0 && (
-            <p className="report-brief-note">
-              {plural(previousChanges.new_findings.length, "new finding")} since the
-              previous run · {formatDate(previousChanges.previous_created_at)}
-            </p>
-          )}
+        {reportId && <ReportComparison key={reportId} reportId={reportId} />}
       </section>
       <section className="report-primary-section" aria-labelledby="findings-title">
         <h3 className="section-title" id="findings-title">Research findings</h3>
@@ -473,12 +448,13 @@ export function ReportView({ report, clientElapsedMs }: ReportViewProps) {
       </section>
 
       <AskPanel
+        key={reportId}
         reportId={reportId}
         onTrace={(answer, citations) =>
           setDrawer({
             targetLabel: "Report answer",
             title: answer,
-            citations: citations.map((citation) => resolveCitation(citation, maps)),
+            citations: citations.map((citation) => resolveReportAnswerCitation(citation, maps)),
             chain: [],
           })
         }
@@ -690,7 +666,10 @@ function NoEvidenceView({ report }: { report: ResearchReportResponse }) {
       </div>
       <ReportScope report={report} />
       {(report.research.references?.length ?? 0) > 0 && (
-        <ReferenceList references={report.research.references} window={report.research.query} />
+        <section className="report-primary-section" aria-labelledby="sources-title">
+          <h3 className="section-title" id="sources-title">Sources and evidence</h3>
+          <ReferenceList references={report.research.references} window={report.research.query} />
+        </section>
       )}
       <RunDiagnostics report={report} />
       <ReportActions report={report} />

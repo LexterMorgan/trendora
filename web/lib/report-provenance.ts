@@ -61,7 +61,7 @@ export interface ResolvedReference {
 }
 
 export interface ResolvedCitation {
-  citation: CitationJson;
+  citation: CitationJson | { kind: "reference"; reference: ReferenceIdJson };
   kind: string;
   targetId: string;
   resolved: boolean;
@@ -232,6 +232,21 @@ export function resolveCitation(citation: CitationJson, maps: ProvenanceMaps): R
   };
 }
 
+export function resolveReportAnswerCitation(
+  reference: ReferenceIdJson,
+  maps: ProvenanceMaps,
+): ResolvedCitation {
+  const resolved = resolveReferences([reference], maps);
+  return {
+    citation: { kind: "reference", reference },
+    kind: "reference",
+    targetId: referenceKey(reference),
+    resolved: resolved.unresolvedIdentifiers.length === 0,
+    ...resolved,
+    detail: "Source-level citation; no exact field was supplied for this answer.",
+  };
+}
+
 function resolveReferences(
   identifiers: ReferenceIdJson[],
   maps: ProvenanceMaps,
@@ -295,7 +310,7 @@ function isSampleLevelCitation(maps: ProvenanceMaps, resolved: ResolvedCitation)
   if (!resolved.resolved || resolved.unresolvedIdentifiers.length > 0) return false;
   const raw = resolved.citation;
   if (raw.kind === "pattern" || raw.kind === "observation") return true;
-  if (!METRIC_FACT_FIELDS.has(raw.field)) return false;
+  if (raw.kind !== "fact" || !METRIC_FACT_FIELDS.has(raw.field)) return false;
   const analysis = maps.analysisById.get(referenceKey(raw.reference));
   const fact = analysis?.facts.find((entry) => entry.field === raw.field);
   const value = fact?.value;

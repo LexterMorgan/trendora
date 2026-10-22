@@ -279,18 +279,52 @@ export async function saveReportSnapshot(
 
 export interface ReportAskAnswerJson {
   answer: string;
-  citations: CitationJson[];
+  citations: ReferenceIdJson[];
   model_provenance: ModelProvenanceJson;
+}
+
+function isReferenceId(value: unknown): value is ReferenceIdJson {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Partial<ReferenceIdJson>;
+  return (
+    typeof candidate.source_code === "string" &&
+    candidate.source_code.length > 0 &&
+    typeof candidate.content_external_id === "string" &&
+    candidate.content_external_id.length > 0
+  );
+}
+
+function isReportAskAnswer(value: unknown): value is ReportAskAnswerJson {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Partial<ReportAskAnswerJson>;
+  const provenance = candidate.model_provenance;
+  return (
+    typeof candidate.answer === "string" &&
+    Array.isArray(candidate.citations) &&
+    candidate.citations.every(isReferenceId) &&
+    typeof provenance === "object" &&
+    provenance !== null &&
+    typeof provenance.provider === "string" &&
+    typeof provenance.model === "string"
+  );
 }
 
 export async function askReport(
   reportId: string,
   question: string,
+  options?: { signal?: AbortSignal },
 ): Promise<ReportAskAnswerJson> {
-  return requestJson<ReportAskAnswerJson>(
+  const payload = await requestJson<unknown>(
     `/api/reports/${encodeURIComponent(reportId)}/ask`,
-    { method: "POST", body: { question } },
+    { method: "POST", body: { question }, signal: options?.signal },
   );
+  if (!isReportAskAnswer(payload)) {
+    throw new ResearchApiError(
+      "invalid_response",
+      "Trendora returned an unexpected answer shape.",
+    );
+  }
+  return payload;
 }
 
 export interface PreviousReportChangesJson {

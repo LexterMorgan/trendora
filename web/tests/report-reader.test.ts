@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import type { CitationJson, ResearchReportResponse } from "../lib/report-api.ts";
 import type { ResearchReferenceResponse } from "../lib/trendora-api.ts";
-import { buildProvenanceMaps, filterReferences, referencePlatform, resolveCitation } from "../lib/report-provenance.ts";
+import { buildProvenanceMaps, filterReferences, referencePlatform, resolveCitation, resolveReportAnswerCitation } from "../lib/report-provenance.ts";
 import { reportMarkdown, printReport } from "../lib/report-actions.ts";
 
 const reference: ResearchReferenceResponse = {
@@ -15,6 +15,19 @@ const reference: ResearchReferenceResponse = {
   metrics: { view_count: null, like_count: null, comment_count: null, reaction_count: null, share_count: null },
 };
 const citation: CitationJson = { kind: "fact", reference, field: "description" };
+
+test("Ask response identities trace a source without claiming an exact fact field", () => {
+  const identity = { source_code: reference.source_code, content_external_id: reference.content_external_id };
+  const resolved = resolveReportAnswerCitation(identity, buildProvenanceMaps(fixture()));
+  assert.equal(resolved.resolved, true);
+  assert.equal(resolved.kind, "reference");
+  assert.equal(resolved.references[0].url, reference.url);
+  assert.equal(resolved.textEvidence, undefined);
+  assert.match(resolved.detail, /no exact field/i);
+  const missing = resolveReportAnswerCitation({ ...identity, content_external_id: "absent" }, buildProvenanceMaps(fixture()));
+  assert.equal(missing.resolved, false);
+  assert.equal(missing.references.length, 0);
+});
 
 function fixture(value: unknown = "  Exact evidence <script>alert(1)</script>\nSecond line  "): ResearchReportResponse {
   return {
