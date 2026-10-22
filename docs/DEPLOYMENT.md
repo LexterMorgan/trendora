@@ -34,13 +34,10 @@ From the repository root in Terminal 1:
 ```
 
 Add `--reload` only when you are actively editing backend code; it is a
-development convenience, not the default. Startup does not migrate the database.
-Do not run migrations or cleanup as a startup step; either operation needs
-approval for its exact database target.
+development convenience, not the default. In local development, startup does not
+migrate the database: run Alembic explicitly against an approved target.
 
 Backend: <http://127.0.0.1:8000>; public liveness probe: `/health`.
-Startup does not migrate the database. Do not run migrations or cleanup as a
-startup step; either operation needs approval for its exact database target.
 
 ### Frontend
 
@@ -205,10 +202,14 @@ frontend at a reachable backend URL instead.
    web service).
 2. **New → Web Service**, connect the GitHub repo.
 3. Environment: Python. Build: `pip install -e .`. Start:
-   `uvicorn trendora.api.app:create_app --factory --host 0.0.0.0 --port $PORT`.
+   `alembic upgrade head && uvicorn trendora.api.app:create_app --factory --host 0.0.0.0 --port $PORT`.
 4. Set environment variables (`DATABASE_URL`, `YOUTUBE_API_KEY`,
    `TRENDORA_AI_*`) in the Render dashboard.
 5. Keep using the existing Supabase database via `DATABASE_URL`.
+
+Every Render boot runs `alembic upgrade head` before Uvicorn. Applying the same
+revisions again is idempotent. A failed migration exits non-zero and stops the
+boot, so the service never serves a stale schema.
 
 Free-tier caveats: limited monthly compute hours, services spin down when idle,
 and cold starts add latency. Verify current limits before relying on it.
