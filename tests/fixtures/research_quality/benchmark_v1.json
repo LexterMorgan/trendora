@@ -1,0 +1,2989 @@
+{
+  "schema_version": 1,
+  "dataset_id": "trendora-quality-benchmark",
+  "dataset_version": "1.0.0",
+  "description": "Fictional, manually inspectable smoke benchmark for structural evaluation and human review. Not expert-labeled ground truth.",
+  "label_status": "provisional_author",
+  "splits": {
+    "development": [
+      "q-001-exact-description",
+      "q-002-title-detail-in-description",
+      "q-003-unsupported-specific",
+      "q-004-publication-event-date",
+      "q-005-promotional-attribution",
+      "q-008-negation",
+      "q-009-changed-number",
+      "q-010-changed-unit",
+      "q-011-eligibility",
+      "q-012-percentage",
+      "q-013-unsupported-trend",
+      "q-014-popularity",
+      "q-015-undated-web",
+      "q-016-contradictory-sources",
+      "q-017-duplicate-syndication",
+      "q-022-mixed-sources"
+    ],
+    "held_out": [
+      "q-006-missing-evidence",
+      "q-007-extractive-fallback",
+      "q-018-blank-description",
+      "q-019-unresolved-observation",
+      "q-020-observation-only",
+      "q-021-pattern-only",
+      "q-023-multilingual",
+      "q-024-valid-paraphrase"
+    ]
+  },
+  "cases": [
+    {
+      "id": "q-001-exact-description",
+      "split": "development",
+      "topic": "solar microgrids in rural schools",
+      "question": "What does the material support about solar microgrids in rural schools?",
+      "failure_categories": [
+        "exact_field"
+      ],
+      "expected_behavior": "Description is cited and its exact text is present.",
+      "review_rubric": "The finding should quote or closely restate the cited description; exact-field support is structurally present but still needs human review.",
+      "rationale": "Reused existing fixture exact_description_citation to test exact_field.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "solar microgrids in rural schools",
+            "markets": [
+              "SG"
+            ],
+            "market": "SG",
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "solar-vid-001",
+              "url": "https://example.test/watch?v=solar-vid-001",
+              "title": "Solar microgrids reach rural schools",
+              "description": "Three provinces pilot solar microgrids for rural schools, with results expected next year.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": "northstar-learning",
+              "channel_title": "Northstar Learning",
+              "market_contexts": [
+                "SG"
+              ],
+              "market_context": "SG",
+              "market_basis": "youtube_region_availability",
+              "source_rank": 1,
+              "metrics": {
+                "view_count": 1200,
+                "like_count": 90,
+                "comment_count": 11,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "solar-vid-001"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/watch?v=solar-vid-001"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Solar microgrids reach rural schools"
+                },
+                {
+                  "field": "description",
+                  "value": "Three provinces pilot solar microgrids for rural schools, with results expected next year."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Northstar Learning"
+                },
+                {
+                  "field": "view_count",
+                  "value": 1200
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-002-title-detail-in-description",
+      "split": "development",
+      "topic": "solar microgrids in rural schools",
+      "question": "What does the material support about solar microgrids in rural schools?",
+      "failure_categories": [
+        "wrong_field",
+        "unsupported_specific"
+      ],
+      "expected_behavior": "Title is cited while the specific detail appears only in the description.",
+      "review_rubric": "Reviewer must check whether the cited title carries the detail; the title value is exact but may not support the statement.",
+      "rationale": "Reused existing fixture title_description_mismatch to test wrong_field.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "solar microgrids in rural schools",
+            "markets": [
+              "SG"
+            ],
+            "market": "SG",
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "solar-vid-001",
+              "url": "https://example.test/watch?v=solar-vid-001",
+              "title": "Solar microgrids reach rural schools",
+              "description": "Three provinces pilot solar microgrids for rural schools, with results expected next year.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": "northstar-learning",
+              "channel_title": "Northstar Learning",
+              "market_contexts": [
+                "SG"
+              ],
+              "market_context": "SG",
+              "market_basis": "youtube_region_availability",
+              "source_rank": 1,
+              "metrics": {
+                "view_count": 1200,
+                "like_count": 90,
+                "comment_count": 11,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "solar-vid-001"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/watch?v=solar-vid-001"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Solar microgrids reach rural schools"
+                },
+                {
+                  "field": "description",
+                  "value": "Three provinces pilot solar microgrids for rural schools, with results expected next year."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Northstar Learning"
+                },
+                {
+                  "field": "view_count",
+                  "value": 1200
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-003-unsupported-specific",
+      "split": "development",
+      "topic": "solar microgrids in rural schools",
+      "question": "What does the material support about solar microgrids in rural schools?",
+      "failure_categories": [
+        "unsupported_specificity",
+        "observation_only"
+      ],
+      "expected_behavior": "Specific claim is backed only by an observation/pattern, not source text.",
+      "review_rubric": "A resolved observation or pattern is not title/description text support.",
+      "rationale": "Reused existing fixture unsupported_specific_claim to test unsupported_specificity.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "solar microgrids in rural schools",
+            "markets": [
+              "SG"
+            ],
+            "market": "SG",
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "solar-vid-001",
+              "url": "https://example.test/watch?v=solar-vid-001",
+              "title": "Solar microgrids reach rural schools",
+              "description": "Three provinces pilot solar microgrids for rural schools, with results expected next year.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": "northstar-learning",
+              "channel_title": "Northstar Learning",
+              "market_contexts": [
+                "SG"
+              ],
+              "market_context": "SG",
+              "market_basis": "youtube_region_availability",
+              "source_rank": 1,
+              "metrics": {
+                "view_count": 1200,
+                "like_count": 90,
+                "comment_count": 11,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "solar-vid-001"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/watch?v=solar-vid-001"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Solar microgrids reach rural schools"
+                },
+                {
+                  "field": "description",
+                  "value": "Three provinces pilot solar microgrids for rural schools, with results expected next year."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Northstar Learning"
+                },
+                {
+                  "field": "view_count",
+                  "value": 1200
+                }
+              ],
+              "observations": [
+                {
+                  "observation_type": "description_present",
+                  "value": true,
+                  "evidence_fields": [
+                    "description"
+                  ],
+                  "analysis_basis": "description"
+                }
+              ]
+            }
+          ],
+          "patterns": [
+            {
+              "observation_type": "description_present",
+              "analyzed_count": 1,
+              "matching_count": 1,
+              "non_matching_count": 0,
+              "ratio": 1.0,
+              "matching_reference_ids": [
+                {
+                  "source_code": "youtube",
+                  "content_external_id": "solar-vid-001"
+                }
+              ],
+              "non_matching_reference_ids": []
+            }
+          ]
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-004-publication-event-date",
+      "split": "development",
+      "topic": "solar microgrids in rural schools",
+      "question": "What does the material support about solar microgrids in rural schools?",
+      "failure_categories": [
+        "date_confusion"
+      ],
+      "expected_behavior": "Publication timing is presented as evidence of when an event happened.",
+      "review_rubric": "Publication date is metadata, not event date.",
+      "rationale": "Reused existing fixture publication_event_date_confusion to test date_confusion.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "solar microgrids in rural schools",
+            "markets": [
+              "SG"
+            ],
+            "market": "SG",
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "solar-vid-001",
+              "url": "https://example.test/watch?v=solar-vid-001",
+              "title": "Solar microgrids reach rural schools",
+              "description": "Three provinces pilot solar microgrids for rural schools, with results expected next year.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": "northstar-learning",
+              "channel_title": "Northstar Learning",
+              "market_contexts": [
+                "SG"
+              ],
+              "market_context": "SG",
+              "market_basis": "youtube_region_availability",
+              "source_rank": 1,
+              "metrics": {
+                "view_count": 1200,
+                "like_count": 90,
+                "comment_count": 11,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "solar-vid-001"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/watch?v=solar-vid-001"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Solar microgrids reach rural schools"
+                },
+                {
+                  "field": "description",
+                  "value": "Three provinces pilot solar microgrids for rural schools, with results expected next year."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Northstar Learning"
+                },
+                {
+                  "field": "view_count",
+                  "value": 1200
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-005-promotional-attribution",
+      "split": "development",
+      "topic": "solar microgrids in rural schools",
+      "question": "What does the material support about solar microgrids in rural schools?",
+      "failure_categories": [
+        "promotion",
+        "attribution"
+      ],
+      "expected_behavior": "Promotional wording needs attribution and qualification.",
+      "review_rubric": "Promotional source material is not neutral evidence.",
+      "rationale": "Reused existing fixture promotional_attribution to test promotion.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "solar microgrids in rural schools",
+            "markets": [
+              "SG"
+            ],
+            "market": "SG",
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "solar-vid-001",
+              "url": "https://example.test/watch?v=solar-vid-001",
+              "title": "Solar microgrids reach rural schools",
+              "description": "Three provinces pilot solar microgrids for rural schools, with results expected next year.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": "northstar-learning",
+              "channel_title": "Northstar Learning",
+              "market_contexts": [
+                "SG"
+              ],
+              "market_context": "SG",
+              "market_basis": "youtube_region_availability",
+              "source_rank": 1,
+              "metrics": {
+                "view_count": 1200,
+                "like_count": 90,
+                "comment_count": 11,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "solar-vid-001"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/watch?v=solar-vid-001"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Solar microgrids reach rural schools"
+                },
+                {
+                  "field": "description",
+                  "value": "Three provinces pilot solar microgrids for rural schools, with results expected next year."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Northstar Learning"
+                },
+                {
+                  "field": "view_count",
+                  "value": 1200
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-006-missing-evidence",
+      "split": "held_out",
+      "topic": "solar microgrids in rural schools",
+      "question": "What does the material support about solar microgrids in rural schools?",
+      "failure_categories": [
+        "missing_evidence",
+        "unresolved_citation"
+      ],
+      "expected_behavior": "Citation points to evidence not present in the snapshot.",
+      "review_rubric": "The exact cited value is unavailable; this must remain unresolved.",
+      "rationale": "Reused existing fixture missing_evidence to test missing_evidence.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "solar microgrids in rural schools",
+            "markets": [
+              "SG"
+            ],
+            "market": "SG",
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "solar-vid-001",
+              "url": "https://example.test/watch?v=solar-vid-001",
+              "title": "Solar microgrids reach rural schools",
+              "description": "Three provinces pilot solar microgrids for rural schools, with results expected next year.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": "northstar-learning",
+              "channel_title": "Northstar Learning",
+              "market_contexts": [
+                "SG"
+              ],
+              "market_context": "SG",
+              "market_basis": "youtube_region_availability",
+              "source_rank": 1,
+              "metrics": {
+                "view_count": 1200,
+                "like_count": 90,
+                "comment_count": 11,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "solar-vid-001"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/watch?v=solar-vid-001"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Solar microgrids reach rural schools"
+                },
+                {
+                  "field": "description",
+                  "value": "Three provinces pilot solar microgrids for rural schools, with results expected next year."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Northstar Learning"
+                },
+                {
+                  "field": "view_count",
+                  "value": 1200
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-007-extractive-fallback",
+      "split": "held_out",
+      "topic": "solar microgrids in rural schools",
+      "question": "What does the material support about solar microgrids in rural schools?",
+      "failure_categories": [
+        "fallback"
+      ],
+      "expected_behavior": "Trustworthy extractive excerpts, not synthesis.",
+      "review_rubric": "Fallback is operationally useful but not successful synthesis.",
+      "rationale": "Reused existing fixture extractive_fallback to test fallback.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "solar microgrids in rural schools",
+            "markets": [
+              "SG"
+            ],
+            "market": "SG",
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "solar-vid-002",
+              "url": "https://example.test/watch?v=solar-vid-002",
+              "title": "Northstar Learning announces Solar Scholars program",
+              "description": "Northstar Learning said the Solar Scholars program is sponsored by GridWorks.",
+              "published_at": "2026-02-20T00:00:00Z",
+              "channel_external_id": "northstar-learning",
+              "channel_title": null,
+              "market_contexts": [
+                "SG"
+              ],
+              "market_context": "SG",
+              "market_basis": "youtube_region_availability",
+              "source_rank": 1,
+              "metrics": {
+                "view_count": 1200,
+                "like_count": 90,
+                "comment_count": 11,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T10:00:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "solar-vid-002"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/watch?v=solar-vid-002"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T10:00:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Northstar Learning announces Solar Scholars program"
+                },
+                {
+                  "field": "description",
+                  "value": "Northstar Learning said the Solar Scholars program is sponsored by GridWorks."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-02-20T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": null
+                },
+                {
+                  "field": "view_count",
+                  "value": 1200
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-008-negation",
+      "split": "development",
+      "topic": "Mobile literacy pilot",
+      "question": "What did the first term show?",
+      "failure_categories": [
+        "negation"
+      ],
+      "expected_behavior": "Statement reverses the source negation.",
+      "review_rubric": "The cited description says the pilot did not raise scores.",
+      "rationale": "Negation is easy to drop in synthesis.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "Mobile literacy pilot",
+            "markets": [],
+            "market": null,
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "neg-vid",
+              "url": "https://example.test/neg-vid",
+              "title": "Mobile literacy pilot results",
+              "description": "The mobile tutoring pilot did not raise reading scores in the first term.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": null,
+              "channel_title": "Example Channel",
+              "market_contexts": [],
+              "market_context": null,
+              "market_basis": null,
+              "source_rank": 1,
+              "metrics": {
+                "view_count": null,
+                "like_count": null,
+                "comment_count": null,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "neg-vid"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/neg-vid"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Mobile literacy pilot results"
+                },
+                {
+                  "field": "description",
+                  "value": "The mobile tutoring pilot did not raise reading scores in the first term."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Example Channel"
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-009-changed-number",
+      "split": "development",
+      "topic": "Solar schools pilot",
+      "question": "How many schools joined?",
+      "failure_categories": [
+        "changed_number"
+      ],
+      "expected_behavior": "Statement changes twelve to twenty.",
+      "review_rubric": "The exact number is present in the cited description.",
+      "rationale": "Number drift needs human review; structure only proves text is present.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "Solar schools pilot",
+            "markets": [],
+            "market": null,
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "num-vid",
+              "url": "https://example.test/num-vid",
+              "title": "Solar schools pilot",
+              "description": "Twelve rural schools joined the solar pilot in 2026.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": null,
+              "channel_title": "Example Channel",
+              "market_contexts": [],
+              "market_context": null,
+              "market_basis": null,
+              "source_rank": 1,
+              "metrics": {
+                "view_count": null,
+                "like_count": null,
+                "comment_count": null,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "num-vid"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/num-vid"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Solar schools pilot"
+                },
+                {
+                  "field": "description",
+                  "value": "Twelve rural schools joined the solar pilot in 2026."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Example Channel"
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-010-changed-unit",
+      "split": "development",
+      "topic": "Teacher training programme",
+      "question": "What did the programme train?",
+      "failure_categories": [
+        "changed_unit"
+      ],
+      "expected_behavior": "Statement changes teachers to schools.",
+      "review_rubric": "The cited text names teachers, not schools.",
+      "rationale": "Unit changes can look plausible while altering the claim.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "Teacher training programme",
+            "markets": [],
+            "market": null,
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "unit-vid",
+              "url": "https://example.test/unit-vid",
+              "title": "Teacher training programme",
+              "description": "The programme trained 300 teachers across six districts.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": null,
+              "channel_title": "Example Channel",
+              "market_contexts": [],
+              "market_context": null,
+              "market_basis": null,
+              "source_rank": 1,
+              "metrics": {
+                "view_count": null,
+                "like_count": null,
+                "comment_count": null,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "unit-vid"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/unit-vid"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Teacher training programme"
+                },
+                {
+                  "field": "description",
+                  "value": "The programme trained 300 teachers across six districts."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Example Channel"
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-011-eligibility",
+      "split": "development",
+      "topic": "Scholarship eligibility",
+      "question": "Who may apply?",
+      "failure_categories": [
+        "eligibility"
+      ],
+      "expected_behavior": "Statement drops the age condition.",
+      "review_rubric": "The source states an eligibility restriction.",
+      "rationale": "Eligibility conditions are often omitted in summaries.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "Scholarship eligibility",
+            "markets": [],
+            "market": null,
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "public_web"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "public_web",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "public_web"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "public_web",
+              "content_external_id": "elig-vid",
+              "url": "https://example.test/scholarship",
+              "title": "Scholarship eligibility",
+              "description": "Only applicants aged 18 or older may apply for the scholarship.",
+              "published_at": null,
+              "channel_external_id": null,
+              "channel_title": "Example Channel",
+              "market_contexts": [],
+              "market_context": null,
+              "market_basis": null,
+              "source_rank": 1,
+              "metrics": {
+                "view_count": null,
+                "like_count": null,
+                "comment_count": null,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "public_web",
+                "content_external_id": "elig-vid"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/scholarship"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Scholarship eligibility"
+                },
+                {
+                  "field": "description",
+                  "value": "Only applicants aged 18 or older may apply for the scholarship."
+                },
+                {
+                  "field": "published_at",
+                  "value": null
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Example Channel"
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-012-percentage",
+      "split": "development",
+      "topic": "Science club survey",
+      "question": "What share reported a new club?",
+      "failure_categories": [
+        "percentage",
+        "denominator"
+      ],
+      "expected_behavior": "Statement changes forty percent to eighty percent.",
+      "review_rubric": "The cited text gives forty percent of 50 schools.",
+      "rationale": "Percentages and denominators are easy to alter.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "Science club survey",
+            "markets": [],
+            "market": null,
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "pct-vid",
+              "url": "https://example.test/pct-vid",
+              "title": "Science club survey",
+              "description": "Forty percent of the 50 participating schools reported a new science club.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": null,
+              "channel_title": "Example Channel",
+              "market_contexts": [],
+              "market_context": null,
+              "market_basis": null,
+              "source_rank": 1,
+              "metrics": {
+                "view_count": null,
+                "like_count": null,
+                "comment_count": null,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "pct-vid"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/pct-vid"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Science club survey"
+                },
+                {
+                  "field": "description",
+                  "value": "Forty percent of the 50 participating schools reported a new science club."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Example Channel"
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-013-unsupported-trend",
+      "split": "development",
+      "topic": "Tool adoption note",
+      "question": "Is adoption growing?",
+      "failure_categories": [
+        "trend",
+        "unsupported_specificity"
+      ],
+      "expected_behavior": "A three-school list is presented as rapid growth.",
+      "review_rubric": "The cited text describes three adoptions, not a trend.",
+      "rationale": "A trend claim requires time-series evidence that is absent.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "Tool adoption note",
+            "markets": [],
+            "market": null,
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "public_web"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "public_web",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "public_web"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "public_web",
+              "content_external_id": "trend-vid",
+              "url": "https://example.test/adoption",
+              "title": "Tool adoption note",
+              "description": "The report lists three schools that adopted the tool in 2026.",
+              "published_at": null,
+              "channel_external_id": null,
+              "channel_title": "Example Channel",
+              "market_contexts": [],
+              "market_context": null,
+              "market_basis": null,
+              "source_rank": 1,
+              "metrics": {
+                "view_count": null,
+                "like_count": null,
+                "comment_count": null,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "public_web",
+                "content_external_id": "trend-vid"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/adoption"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Tool adoption note"
+                },
+                {
+                  "field": "description",
+                  "value": "The report lists three schools that adopted the tool in 2026."
+                },
+                {
+                  "field": "published_at",
+                  "value": null
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Example Channel"
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-014-popularity",
+      "split": "development",
+      "topic": "Tutorial video",
+      "question": "Is the tool popular?",
+      "failure_categories": [
+        "popularity",
+        "engagement_claim"
+      ],
+      "expected_behavior": "One video is used to claim popularity.",
+      "review_rubric": "Counts describe one returned item, not popularity or trend.",
+      "rationale": "Engagement counts are sample metadata, not a population measure.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "Tutorial video",
+            "markets": [],
+            "market": null,
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "pop-vid",
+              "url": "https://example.test/pop-vid",
+              "title": "Tutorial video",
+              "description": "A single tutorial video describes the tool.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": null,
+              "channel_title": "Example Channel",
+              "market_contexts": [],
+              "market_context": null,
+              "market_basis": null,
+              "source_rank": 1,
+              "metrics": {
+                "view_count": 1200,
+                "like_count": 90,
+                "comment_count": 11,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "pop-vid"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/pop-vid"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Tutorial video"
+                },
+                {
+                  "field": "description",
+                  "value": "A single tutorial video describes the tool."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Example Channel"
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-015-undated-web",
+      "split": "development",
+      "topic": "Undated pilot article",
+      "question": "When did the pilot launch?",
+      "failure_categories": [
+        "date_confusion",
+        "undated"
+      ],
+      "expected_behavior": "Undated material is assigned a March 2026 launch date.",
+      "review_rubric": "No publication or event date is present.",
+      "rationale": "Undated web material must stay undated.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "Undated pilot article",
+            "markets": [],
+            "market": null,
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "public_web"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "public_web",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "public_web"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "public_web",
+              "content_external_id": "undated-vid",
+              "url": "https://example.test/undated",
+              "title": "Undated pilot article",
+              "description": "The article describes a pilot without a publication date.",
+              "published_at": null,
+              "channel_external_id": null,
+              "channel_title": "Example Channel",
+              "market_contexts": [],
+              "market_context": null,
+              "market_basis": null,
+              "source_rank": 1,
+              "metrics": {
+                "view_count": null,
+                "like_count": null,
+                "comment_count": null,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "public_web",
+                "content_external_id": "undated-vid"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/undated"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Undated pilot article"
+                },
+                {
+                  "field": "description",
+                  "value": "The article describes a pilot without a publication date."
+                },
+                {
+                  "field": "published_at",
+                  "value": null
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Example Channel"
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-016-contradictory-sources",
+      "split": "development",
+      "topic": "Pilot launch",
+      "question": "Did the pilot launch in March?",
+      "failure_categories": [
+        "contradiction"
+      ],
+      "expected_behavior": "Contradictory sources are flattened into a single claim.",
+      "review_rubric": "One source says launched; another says delayed.",
+      "rationale": "Contradictory evidence needs visible qualification, not silent selection.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "Pilot launch",
+            "markets": [],
+            "market": null,
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube",
+              "public_web"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              },
+              {
+                "source_code": "public_web",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube",
+            "public_web"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "contra-a",
+              "url": "https://example.test/contra-a",
+              "title": "Pilot launch announcement",
+              "description": "The pilot launched in March 2026.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": null,
+              "channel_title": "Example Channel",
+              "market_contexts": [],
+              "market_context": null,
+              "market_basis": null,
+              "source_rank": 1,
+              "metrics": {
+                "view_count": null,
+                "like_count": null,
+                "comment_count": null,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            },
+            {
+              "source_code": "public_web",
+              "content_external_id": "contra-b",
+              "url": "https://example.test/delayed",
+              "title": "Pilot delayed notice",
+              "description": "The pilot was delayed and did not launch in March 2026.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": null,
+              "channel_title": "Example Channel",
+              "market_contexts": [],
+              "market_context": null,
+              "market_basis": null,
+              "source_rank": 2,
+              "metrics": {
+                "view_count": null,
+                "like_count": null,
+                "comment_count": null,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "contra-a"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/contra-a"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Pilot launch announcement"
+                },
+                {
+                  "field": "description",
+                  "value": "The pilot launched in March 2026."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Example Channel"
+                }
+              ],
+              "observations": []
+            },
+            {
+              "reference_id": {
+                "source_code": "public_web",
+                "content_external_id": "contra-b"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/delayed"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Pilot delayed notice"
+                },
+                {
+                  "field": "description",
+                  "value": "The pilot was delayed and did not launch in March 2026."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Example Channel"
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-017-duplicate-syndication",
+      "split": "development",
+      "topic": "Syndicated coverage",
+      "question": "Do two sources confirm this?",
+      "failure_categories": [
+        "duplicate",
+        "syndication"
+      ],
+      "expected_behavior": "Two copies are treated as independent confirmation.",
+      "review_rubric": "The descriptions are identical and likely syndicated.",
+      "rationale": "Duplicate text is one underlying source, not two independent confirmations.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "Syndicated coverage",
+            "markets": [],
+            "market": null,
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "public_web"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "public_web",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "public_web"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "public_web",
+              "content_external_id": "dup-a",
+              "url": "https://example.test/dup-a",
+              "title": "Syndicated article A",
+              "description": "The same syndicated description appears on two sites.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": null,
+              "channel_title": "Example Channel",
+              "market_contexts": [],
+              "market_context": null,
+              "market_basis": null,
+              "source_rank": 1,
+              "metrics": {
+                "view_count": null,
+                "like_count": null,
+                "comment_count": null,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            },
+            {
+              "source_code": "public_web",
+              "content_external_id": "dup-b",
+              "url": "https://example.test/dup-b",
+              "title": "Syndicated article B",
+              "description": "The same syndicated description appears on two sites.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": null,
+              "channel_title": "Example Channel",
+              "market_contexts": [],
+              "market_context": null,
+              "market_basis": null,
+              "source_rank": 2,
+              "metrics": {
+                "view_count": null,
+                "like_count": null,
+                "comment_count": null,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "public_web",
+                "content_external_id": "dup-a"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/dup-a"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Syndicated article A"
+                },
+                {
+                  "field": "description",
+                  "value": "The same syndicated description appears on two sites."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Example Channel"
+                }
+              ],
+              "observations": []
+            },
+            {
+              "reference_id": {
+                "source_code": "public_web",
+                "content_external_id": "dup-b"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/dup-b"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Syndicated article B"
+                },
+                {
+                  "field": "description",
+                  "value": "The same syndicated description appears on two sites."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Example Channel"
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-018-blank-description",
+      "split": "held_out",
+      "topic": "Blank evidence item",
+      "question": "What does the evidence say?",
+      "failure_categories": [
+        "blank_evidence"
+      ],
+      "expected_behavior": "Blank text is treated as support.",
+      "review_rubric": "The cited description is whitespace-only.",
+      "rationale": "Blank source text must not become cited text support.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "Blank evidence item",
+            "markets": [],
+            "market": null,
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "blank-vid",
+              "url": "https://example.test/blank-vid",
+              "title": "Blank evidence item",
+              "description": "   ",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": null,
+              "channel_title": "Example Channel",
+              "market_contexts": [],
+              "market_context": null,
+              "market_basis": null,
+              "source_rank": 1,
+              "metrics": {
+                "view_count": null,
+                "like_count": null,
+                "comment_count": null,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "blank-vid"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/blank-vid"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Blank evidence item"
+                },
+                {
+                  "field": "description",
+                  "value": "   "
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Example Channel"
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-019-unresolved-observation",
+      "split": "held_out",
+      "topic": "Observation source",
+      "question": "What does the observation show?",
+      "failure_categories": [
+        "unresolved_citation",
+        "observation_only"
+      ],
+      "expected_behavior": "A missing observation is cited.",
+      "review_rubric": "The output cites observation_type that is absent.",
+      "rationale": "Unresolved citations must expose an unavailable exact value.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "Observation source",
+            "markets": [],
+            "market": null,
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "obs-missing",
+              "url": "https://example.test/obs-missing",
+              "title": "Observation source",
+              "description": "A source with one observation only.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": null,
+              "channel_title": "Example Channel",
+              "market_contexts": [],
+              "market_context": null,
+              "market_basis": null,
+              "source_rank": 1,
+              "metrics": {
+                "view_count": null,
+                "like_count": null,
+                "comment_count": null,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "obs-missing"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/obs-missing"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Observation source"
+                },
+                {
+                  "field": "description",
+                  "value": "A source with one observation only."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Example Channel"
+                }
+              ],
+              "observations": [
+                {
+                  "observation_type": "description_present",
+                  "value": true,
+                  "evidence_fields": [
+                    "description"
+                  ],
+                  "analysis_basis": "description"
+                }
+              ]
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-020-observation-only",
+      "split": "held_out",
+      "topic": "Observation-only source",
+      "question": "What can be concluded?",
+      "failure_categories": [
+        "observation_only"
+      ],
+      "expected_behavior": "Observation is presented as source-text support.",
+      "review_rubric": "Observation resolves, but it is not title/description text.",
+      "rationale": "Resolved non-text evidence is not exact cited text.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "Observation-only source",
+            "markets": [],
+            "market": null,
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "obs-only",
+              "url": "https://example.test/obs-only",
+              "title": "Observation-only source",
+              "description": "A description exists but the finding cites an observation.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": null,
+              "channel_title": "Example Channel",
+              "market_contexts": [],
+              "market_context": null,
+              "market_basis": null,
+              "source_rank": 1,
+              "metrics": {
+                "view_count": null,
+                "like_count": null,
+                "comment_count": null,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "obs-only"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/obs-only"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Observation-only source"
+                },
+                {
+                  "field": "description",
+                  "value": "A description exists but the finding cites an observation."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Example Channel"
+                }
+              ],
+              "observations": [
+                {
+                  "observation_type": "description_present",
+                  "value": true,
+                  "evidence_fields": [
+                    "description"
+                  ],
+                  "analysis_basis": "description"
+                }
+              ]
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-021-pattern-only",
+      "split": "held_out",
+      "topic": "Pattern source",
+      "question": "What does the pattern show?",
+      "failure_categories": [
+        "pattern_only"
+      ],
+      "expected_behavior": "Pattern is presented as source-text support.",
+      "review_rubric": "Pattern resolves, but no title/description text is cited.",
+      "rationale": "Pattern prevalence is not text support.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "Pattern source",
+            "markets": [],
+            "market": null,
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "pat-only",
+              "url": "https://example.test/pat-only",
+              "title": "Pattern source",
+              "description": "A description exists but the finding cites a pattern.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": null,
+              "channel_title": "Example Channel",
+              "market_contexts": [],
+              "market_context": null,
+              "market_basis": null,
+              "source_rank": 1,
+              "metrics": {
+                "view_count": null,
+                "like_count": null,
+                "comment_count": null,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "pat-only"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/pat-only"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Pattern source"
+                },
+                {
+                  "field": "description",
+                  "value": "A description exists but the finding cites a pattern."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Example Channel"
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": [
+            {
+              "observation_type": "description_present",
+              "analyzed_count": 1,
+              "matching_count": 1,
+              "non_matching_count": 0,
+              "ratio": 1.0,
+              "matching_reference_ids": [
+                {
+                  "source_code": "youtube",
+                  "content_external_id": "pat-only"
+                }
+              ],
+              "non_matching_reference_ids": []
+            }
+          ]
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-022-mixed-sources",
+      "split": "development",
+      "topic": "Mixed-source pilot",
+      "question": "What do the sources describe?",
+      "failure_categories": [
+        "mixed_sources"
+      ],
+      "expected_behavior": "Statement cites both YouTube and public web without distinguishing them.",
+      "review_rubric": "Both sources describe the pilot; citations resolve separately.",
+      "rationale": "Mixed source identities must stay distinct.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "Mixed-source pilot",
+            "markets": [],
+            "market": null,
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube",
+              "public_web"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              },
+              {
+                "source_code": "public_web",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube",
+            "public_web"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "mixed-vid",
+              "url": "https://example.test/mixed-vid",
+              "title": "Mixed-source video",
+              "description": "The video describes a pilot in three districts.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": null,
+              "channel_title": "Example Channel",
+              "market_contexts": [],
+              "market_context": null,
+              "market_basis": null,
+              "source_rank": 1,
+              "metrics": {
+                "view_count": null,
+                "like_count": null,
+                "comment_count": null,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            },
+            {
+              "source_code": "public_web",
+              "content_external_id": "mixed-web",
+              "url": "https://example.test/mixed",
+              "title": "Mixed-source article",
+              "description": "The article describes the same pilot in three districts.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": null,
+              "channel_title": "Example Channel",
+              "market_contexts": [],
+              "market_context": null,
+              "market_basis": null,
+              "source_rank": 2,
+              "metrics": {
+                "view_count": null,
+                "like_count": null,
+                "comment_count": null,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "mixed-vid"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/mixed-vid"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Mixed-source video"
+                },
+                {
+                  "field": "description",
+                  "value": "The video describes a pilot in three districts."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Example Channel"
+                }
+              ],
+              "observations": []
+            },
+            {
+              "reference_id": {
+                "source_code": "public_web",
+                "content_external_id": "mixed-web"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/mixed"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Mixed-source article"
+                },
+                {
+                  "field": "description",
+                  "value": "The article describes the same pilot in three districts."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Example Channel"
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-023-multilingual",
+      "split": "held_out",
+      "topic": "阅读试点",
+      "question": "试点取得了什么结果？",
+      "failure_categories": [
+        "multilingual"
+      ],
+      "expected_behavior": "Statement restates the Chinese source exactly.",
+      "review_rubric": "The cited description is exact Chinese text.",
+      "rationale": "Non-Latin exact text is structurally present; semantics remain human.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "阅读试点",
+            "markets": [],
+            "market": null,
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "cn-vid",
+              "url": "https://example.test/cn-vid",
+              "title": "阅读试点",
+              "description": "该试点在三个地区改善了阅读教学。",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": null,
+              "channel_title": "Example Channel",
+              "market_contexts": [],
+              "market_context": null,
+              "market_basis": null,
+              "source_rank": 1,
+              "metrics": {
+                "view_count": null,
+                "like_count": null,
+                "comment_count": null,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "cn-vid"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/cn-vid"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "阅读试点"
+                },
+                {
+                  "field": "description",
+                  "value": "该试点在三个地区改善了阅读教学。"
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Example Channel"
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    },
+    {
+      "id": "q-024-valid-paraphrase",
+      "split": "held_out",
+      "topic": "Reading programme results",
+      "question": "What changed for students?",
+      "failure_categories": [
+        "paraphrase"
+      ],
+      "expected_behavior": "Statement paraphrases the cited description.",
+      "review_rubric": "The cited text is present but wording differs.",
+      "rationale": "A paraphrase may be valid; structure cannot decide it.",
+      "label_status": "provisional_author",
+      "report": {
+        "status": "research_completed",
+        "research": {
+          "query": {
+            "topic": "Reading programme results",
+            "markets": [],
+            "market": null,
+            "date_from": "2026-01-01",
+            "date_to": "2026-03-10",
+            "sources": [
+              "youtube"
+            ],
+            "result_limit": 10,
+            "facebook_page_id": null
+          },
+          "coverage": {
+            "completeness": "complete",
+            "sources": [
+              {
+                "source_code": "youtube",
+                "capability": "public_search",
+                "status": "supported",
+                "reason": null
+              }
+            ]
+          },
+          "executed_sources": [
+            "youtube"
+          ],
+          "status": "completed",
+          "references": [
+            {
+              "source_code": "youtube",
+              "content_external_id": "para-vid",
+              "url": "https://example.test/para-vid",
+              "title": "Reading programme results",
+              "description": "Students improved their reading skills after the ten-week programme.",
+              "published_at": "2026-03-01T00:00:00Z",
+              "channel_external_id": null,
+              "channel_title": "Example Channel",
+              "market_contexts": [],
+              "market_context": null,
+              "market_basis": null,
+              "source_rank": 1,
+              "metrics": {
+                "view_count": null,
+                "like_count": null,
+                "comment_count": null,
+                "reaction_count": null,
+                "share_count": null
+              },
+              "collected_at": "2026-03-05T09:30:00Z"
+            }
+          ]
+        },
+        "evidence": {
+          "analyses": [
+            {
+              "reference_id": {
+                "source_code": "youtube",
+                "content_external_id": "para-vid"
+              },
+              "facts": [
+                {
+                  "field": "url",
+                  "value": "https://example.test/para-vid"
+                },
+                {
+                  "field": "collected_at",
+                  "value": "2026-03-05T09:30:00Z"
+                },
+                {
+                  "field": "title",
+                  "value": "Reading programme results"
+                },
+                {
+                  "field": "description",
+                  "value": "Students improved their reading skills after the ten-week programme."
+                },
+                {
+                  "field": "published_at",
+                  "value": "2026-03-01T00:00:00Z"
+                },
+                {
+                  "field": "channel_title",
+                  "value": "Example Channel"
+                }
+              ],
+              "observations": []
+            }
+          ],
+          "patterns": []
+        },
+        "interpretation": null,
+        "strategy": null,
+        "ideation": null
+      }
+    }
+  ],
+  "limitations": [
+    "24 synthetic cases; not statistically representative.",
+    "Expectations are provisional author notes, not owner-reviewed ground truth.",
+    "Cases reuse compact fictional sources; they are not production report exports.",
+    "The held-out split is deterministic but small."
+  ]
+}

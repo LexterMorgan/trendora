@@ -1,0 +1,250 @@
+{
+  "schema_version": 1,
+  "run_id": "fixture-baseline",
+  "mode": "recorded_output",
+  "dataset_id": "trendora-quality-benchmark",
+  "dataset_version": "1.0.0",
+  "split": "development",
+  "case_ids": [
+    "q-001-exact-description",
+    "q-002-title-detail-in-description",
+    "q-008-negation",
+    "q-009-changed-number",
+    "q-015-undated-web",
+    "q-022-mixed-sources"
+  ],
+  "configuration": {
+    "id": "fixture-baseline",
+    "provider": "fictional-router",
+    "model": "fictional-synth-a",
+    "prompt_version": "synthesis-v1",
+    "prompt_sha256": "ddce54081300e12a79a97d8fa73806d26f78add53271f74f76489ebc5b10e3d6",
+    "generation_parameters": {
+      "temperature": 0,
+      "max_output_tokens": 400
+    },
+    "compaction": {
+      "max_title_chars": 200,
+      "max_description_chars": 600,
+      "max_references": 24
+    },
+    "retry_policy": {
+      "max_attempts": 1,
+      "retry_on": []
+    },
+    "deadline_seconds": 30
+  },
+  "run_elapsed_ms": 6000,
+  "outputs": {
+    "q-001-exact-description": {
+      "kind": "synthesis",
+      "interpretations": [
+        {
+          "statement": "Three provinces piloted solar microgrids for rural schools.",
+          "citations": [
+            {
+              "kind": "fact",
+              "reference": {
+                "source_code": "youtube",
+                "content_external_id": "solar-vid-001"
+              },
+              "field": "description"
+            }
+          ]
+        }
+      ],
+      "model_provenance": {
+        "provider": "fictional-router",
+        "model": "fictional-synth-a"
+      },
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "ok",
+          "elapsed_ms": 420,
+          "usage": {
+            "prompt_tokens": 120,
+            "completion_tokens": 60,
+            "reasoning_tokens": null,
+            "cached_tokens": 0,
+            "total_tokens": 180
+          }
+        }
+      ],
+      "case_elapsed_ms": 450,
+      "prepared": {
+        "source_snapshot_sha256": "80a175a62996925d29fe79312b26ba3fcb6eb219365420a390d9449a8a922b44",
+        "compacted_evidence_sha256": "94034751a4c08f77bed50dddc77ac2a6d61275eb6c4cde59c953208795b69f04",
+        "model_input_sha256": "11bdb6fc8a38b1a9902df2dd109a13b29ad63592bd4f6a7c8bea9a0e5d473448",
+        "prompt_sha256": "ddce54081300e12a79a97d8fa73806d26f78add53271f74f76489ebc5b10e3d6",
+        "configuration_sha256": "17f6ee5d2d6fd603ac4d524db22dcb3f1b87b82a7e623653af19b590f1af7e04"
+      }
+    },
+    "q-002-title-detail-in-description": {
+      "kind": "synthesis",
+      "interpretations": [
+        {
+          "statement": "The pilot reported results expected next year.",
+          "citations": [
+            {
+              "kind": "fact",
+              "reference": {
+                "source_code": "youtube",
+                "content_external_id": "solar-vid-001"
+              },
+              "field": "title"
+            }
+          ]
+        }
+      ],
+      "model_provenance": {
+        "provider": "fictional-router",
+        "model": "fictional-synth-a"
+      },
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "ok",
+          "elapsed_ms": 420,
+          "usage": {
+            "prompt_tokens": 120,
+            "completion_tokens": 60,
+            "reasoning_tokens": null,
+            "cached_tokens": 0,
+            "total_tokens": 180
+          }
+        }
+      ],
+      "case_elapsed_ms": 450,
+      "prepared": {
+        "source_snapshot_sha256": "80a175a62996925d29fe79312b26ba3fcb6eb219365420a390d9449a8a922b44",
+        "compacted_evidence_sha256": "94034751a4c08f77bed50dddc77ac2a6d61275eb6c4cde59c953208795b69f04",
+        "model_input_sha256": "6777eddd3be9047539203ef0c98ba92763ccb4bd5234660b264eb9b63f30a518",
+        "prompt_sha256": "ddce54081300e12a79a97d8fa73806d26f78add53271f74f76489ebc5b10e3d6",
+        "configuration_sha256": "17f6ee5d2d6fd603ac4d524db22dcb3f1b87b82a7e623653af19b590f1af7e04"
+      }
+    },
+    "q-008-negation": {
+      "kind": "synthesis",
+      "interpretations": [
+        {
+          "statement": "The mobile tutoring pilot raised reading scores in the first term.",
+          "citations": [
+            {
+              "kind": "fact",
+              "reference": {
+                "source_code": "youtube",
+                "content_external_id": "neg-vid"
+              },
+              "field": "description"
+            }
+          ]
+        }
+      ],
+      "model_provenance": {
+        "provider": "fictional-router",
+        "model": "fictional-synth-a"
+      },
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "ok",
+          "elapsed_ms": 420,
+          "usage": {
+            "prompt_tokens": 120,
+            "completion_tokens": 60,
+            "reasoning_tokens": null,
+            "cached_tokens": 0,
+            "total_tokens": 180
+          }
+        }
+      ],
+      "case_elapsed_ms": 450,
+      "prepared": {
+        "source_snapshot_sha256": "1a01f6a1d7bd7d33dadc39221ef5b28ae77a04609949325c91b061d177324b72",
+        "compacted_evidence_sha256": "475f51cd2d08409a49127bc76b1d865c631ec7db4eb3ba41f5132aefd0c2c2bd",
+        "model_input_sha256": "57f2e475566f482f973c5f041029131b6d8c1b036bcf41801ab4b3af34a08994",
+        "prompt_sha256": "ddce54081300e12a79a97d8fa73806d26f78add53271f74f76489ebc5b10e3d6",
+        "configuration_sha256": "17f6ee5d2d6fd603ac4d524db22dcb3f1b87b82a7e623653af19b590f1af7e04"
+      }
+    },
+    "q-009-changed-number": {
+      "kind": "synthesis",
+      "interpretations": [
+        {
+          "statement": "Twenty rural schools joined the solar pilot in 2026.",
+          "citations": [
+            {
+              "kind": "fact",
+              "reference": {
+                "source_code": "youtube",
+                "content_external_id": "num-vid"
+              },
+              "field": "description"
+            }
+          ]
+        }
+      ],
+      "model_provenance": {
+        "provider": "fictional-router",
+        "model": "fictional-synth-a"
+      },
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "ok",
+          "elapsed_ms": 420,
+          "usage": {
+            "prompt_tokens": 120,
+            "completion_tokens": 60,
+            "reasoning_tokens": null,
+            "cached_tokens": 0,
+            "total_tokens": 180
+          }
+        }
+      ],
+      "case_elapsed_ms": 450,
+      "prepared": {
+        "source_snapshot_sha256": "aefd7346353231ef003e3feb1ec422922549491f8481eea1f3f7ece80bcb031e",
+        "compacted_evidence_sha256": "da0ab2d3d05d75b872f63a5a2a2da9ed044eb884bc1cf8562d8400632253b5e4",
+        "model_input_sha256": "f318df70509741b225f86f3851db3d79abcdf0df9a47fa45e135cc8adc6314e7",
+        "prompt_sha256": "ddce54081300e12a79a97d8fa73806d26f78add53271f74f76489ebc5b10e3d6",
+        "configuration_sha256": "17f6ee5d2d6fd603ac4d524db22dcb3f1b87b82a7e623653af19b590f1af7e04"
+      }
+    },
+    "q-015-undated-web": {
+      "kind": "failure",
+      "failure_code": "provider_timeout",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "timeout",
+          "elapsed_ms": 30000,
+          "usage": null
+        }
+      ],
+      "case_elapsed_ms": 30000,
+      "prepared": {
+        "source_snapshot_sha256": "78516ca8d6883222586d442f895b966be427cf492ab2280c0e4eaed517982d4f",
+        "compacted_evidence_sha256": "263b3122b358646ad39c64328d8bcb9060bee6b825128beab76b5b36fbf2b7d3",
+        "model_input_sha256": "5ada6e360157377ea3f2b0c6f3a841e48eb8c54ab1270dae21aa66f2feed520c",
+        "prompt_sha256": "ddce54081300e12a79a97d8fa73806d26f78add53271f74f76489ebc5b10e3d6",
+        "configuration_sha256": "17f6ee5d2d6fd603ac4d524db22dcb3f1b87b82a7e623653af19b590f1af7e04"
+      }
+    },
+    "q-022-mixed-sources": {
+      "kind": "fallback",
+      "attempts": [],
+      "case_elapsed_ms": 5,
+      "prepared": {
+        "source_snapshot_sha256": "a9aba18ea1e62a48e7ecaebe461850bc9ccc6562b2fecdc8329a8ba50bec0647",
+        "compacted_evidence_sha256": "cd328c64a708b520b23df2754efd70a96262dd7d03b5643664625b435c30740a",
+        "model_input_sha256": "674254f61fb53145f572aa812b56512a930e2a0b8a448bc675b495e13c6eb00c",
+        "prompt_sha256": "ddce54081300e12a79a97d8fa73806d26f78add53271f74f76489ebc5b10e3d6",
+        "configuration_sha256": "17f6ee5d2d6fd603ac4d524db22dcb3f1b87b82a7e623653af19b590f1af7e04"
+      }
+    }
+  },
+  "notes": "Fictional recorded outputs. Demonstrates the comparison machinery only; not live model results.",
+  "dataset_sha256": "c7ff31e8e1f84ebb2bd3c482f45ee7ce5303ef6bf63edb457a0f0079919437f1"
+}
