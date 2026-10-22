@@ -21,11 +21,11 @@
 
 Search results are fragmented, often undated, and easy to over-read. A person
 who needs to write or plan something usually ends up with a pile of tabs and no
-record of which source supported which sentence.
+record of which source each sentence cites.
 
-Trendora collects material for one topic and one window, shows what each source
-actually supports, and keeps the limits visible instead of hiding them. The
-report is meant to be useful on its own.
+Trendora collects material for one topic and one window, shows which supplied
+source each statement cites, and keeps the limits visible instead of hiding
+them. The report is meant to be useful on its own.
 
 **Who it is for:** one person doing marketing or research work, plus a small
 shared workflow. Not company-wide content management.
@@ -37,13 +37,17 @@ shared workflow. Not company-wide content management.
 | Area | Behavior |
 | --- | --- |
 | **Research** | Topic plus timeframe. Collects material from the configured sources only. |
-| **Grounded findings** | Findings cite supplied source text. Unsupported claims are refused, not softened. |
-| **Ask this report** | A question against a saved report. Answers must cite references that report already holds. |
+| **Grounded findings** | Findings must cite supplied source text. Citations are structural, not proof the statement is true. |
+| **Ask this report** | A question against a saved report. Answers cite source identities the report already holds, not exact supporting fields. |
 | **Run-over-run diff** | Compares findings with the nearest older report of the same topic. Exact match only. |
 | **Discover** | Public-web gateway search. No YouTube, no AI, no scoring, no research handoff. |
 | **Planner** | Save a report, then optionally develop ideas, briefs, and planned posts. |
 
 Everything after saving is optional. Nothing publishes automatically.
+
+Default discovery is global, using YouTube and public web search. Public-web
+items are indexed titles and snippets, not fetched full pages, and YouTube
+evidence is source metadata rather than transcripts or media analysis.
 
 ---
 
@@ -69,7 +73,8 @@ flowchart LR
     R --> DB[(PostgreSQL)]
 ```
 
-1. **Query.** Topic, markets, and a date window. Nothing runs without a source
+1. **Query.** Topic and date window. The default is global discovery; explicit
+   market context remains part of the report data. Nothing runs without a source
    that can satisfy the request.
 2. **Collection.** Configured retrievers only: YouTube, public web search, and
    Facebook public Pages. No scraping behind a login.
@@ -130,10 +135,14 @@ explicit operation.
   statement is true or significant.
 - Findings may not contain recommendation or action language. Plans and ideas
   live in the optional ideation layer.
-- "Ask this report" accepts only citations the saved report already holds.
-  Anything else returns `422 ungrounded_answer`.
+- "Ask this report" answers cite source identities the saved report already
+  holds. Citations are source-level; they do not identify exact supporting
+  fields and do not prove semantic support.
+- Cancelling Ask ends this browser's wait. The router or upstream provider may
+  still finish the request, and cancellation does not guarantee a refund.
 - Run-over-run diff is exact match after whitespace and case normalization.
-  No fuzzy matching, no similarity score.
+  No fuzzy matching, no similarity score. Expired prior reports cannot be
+  compared.
 
 ---
 
@@ -198,9 +207,10 @@ cd web && npm test                           # frontend unit tests
 cd web && npm run lint && npx tsc --noEmit   # lint and typecheck
 ```
 
-CI runs the offline unit suite, typecheck, and Next route type generation on
-every push. Database-backed integration tests need an explicitly approved
-disposable target; see [docs/10_TESTING_EVALUATION.md](docs/10_TESTING_EVALUATION.md).
+CI runs the backend unit suite, frontend unit tests, lint, typecheck, Next route
+type generation, and the isolated browser regressions, which build the
+production Webpack bundle. Database-backed integration tests need an explicitly
+approved disposable target; see [docs/10_TESTING_EVALUATION.md](docs/10_TESTING_EVALUATION.md).
 
 ## Evaluating reports
 
@@ -213,21 +223,56 @@ The evaluator is offline and structural. It never calls a model or the network.
 
 Seven adversarial fixture cases, one finding each:
 
-| Case | Citations | Resolved | Text support |
+| Case | Citations | Resolved | Cited text present |
 | --- | ---: | ---: | --- |
 | exact_description_citation | 1 | 1 | yes |
-| title_description_mismatch | 1 | 1 | no |
+| title_description_mismatch | 1 | 1 | yes |
 | unsupported_specific_claim | 2 | 2 | no |
 | publication_event_date_confusion | 1 | 1 | no |
 | promotional_attribution | 1 | 1 | no |
 | missing_evidence | 1 | 0 | no |
 | extractive_fallback | 1 | 1 | yes |
 
-Aggregate: 7 of 8 citations resolve, 2 of 7 findings carry text support.
+Aggregate: 7 of 8 citations resolve, 3 of 7 findings cite nonblank source text.
 Resolution proves the cited value exists in the report; it does not prove the
-claim is true. Text support is stricter: a cited field supports a statement only
-when at least half of the statement's content words appear in that exact field,
-so citing a title whose words are absent does not pass.
+claim is true. "Cited text present" is only a presence check: at least one
+resolved title or description citation carries nonblank text. It says nothing
+about entailment, negation, numbers, paraphrase, or language. Human review is
+separate and starts unreviewed.
+
+### Quality and cost benchmark
+
+The offline benchmark wraps the evaluator with 24 fictional cases (16
+development, 8 held-out), two named configurations, recorded outputs, explicit
+missing-data accounting, and a Markdown comparison. It never calls a provider or
+the network.
+
+```bash
+.venv/bin/python -m trendora.research.quality_benchmark evaluate \
+  --dataset tests/fixtures/research_quality/benchmark_v1.json \
+  --run tests/fixtures/research_quality/runs/baseline.json \
+  --split development \
+  --output /tmp/trendora-benchmark-evaluate
+
+.venv/bin/python -m trendora.research.quality_benchmark compare \
+  --dataset tests/fixtures/research_quality/benchmark_v1.json \
+  --baseline tests/fixtures/research_quality/runs/baseline.json \
+  --candidate tests/fixtures/research_quality/runs/candidate.json \
+  --split development \
+  --output /tmp/trendora-benchmark-comparison
+```
+
+The commands write run JSON or `comparison.json`, plus `worksheet.json` and a
+Markdown report. Recordings
+carry prepared hashes for the dataset, source snapshot, compacted evidence,
+prompt, and configuration; stale or missing identities are rejected. Rejected
+outputs remain failed diagnostic rows, not fallback successes. The shipped
+example runs cover a six-case development subset; they demonstrate the
+machinery, not the full split, and do not show live model quality, latency, or
+savings. Human judgments start unreviewed.
+See [docs/RESEARCH_QUALITY.md](docs/RESEARCH_QUALITY.md) for the dataset, run
+file, metrics, review workflow, and the requirements for any future authorized
+live experiment.
 
 ## Major limitations
 
@@ -283,4 +328,4 @@ deploy/                # search container configuration
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

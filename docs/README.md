@@ -63,7 +63,7 @@ PRD, the PRD wins.
 | [31_COMBINED_MULTI_SOURCE_EXECUTION.md](31_COMBINED_MULTI_SOURCE_EXECUTION.md) | Combined multi-source execution |
 | [32_MULTI_MARKET_RESEARCH.md](32_MULTI_MARKET_RESEARCH.md) | Multi-market research. **Backend contract in force; frontend market controls and later validation details are superseded.** |
 | [33_READER_EXPORT_HISTORY.md](33_READER_EXPORT_HISTORY.md) | Reader evidence display, source filters, Markdown/print export, history filters, run diagnostics |
-| [RESEARCH_QUALITY.md](RESEARCH_QUALITY.md) | Offline research-quality evaluation CLI and human-review worksheet |
+| [RESEARCH_QUALITY.md](RESEARCH_QUALITY.md) | Offline structural evaluator, 24-case quality/cost benchmark, review worksheet, and comparison workflow |
 
 Component guides: [web/README.md](../web/README.md) (frontend) and
 [deploy/searxng/README.md](../deploy/searxng/README.md) (public-web search

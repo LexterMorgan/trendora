@@ -19,7 +19,7 @@ Backend (from the repository root, using the project virtualenv):
 The evaluator reads an exported report, writes structural diagnostics and a
 human-review worksheet, and never calls a model or the network. With
 `--corpus` it aggregates the same diagnostics across named cases and reports
-citation resolution and text-support rates. Neither mode judges whether a
+citation resolution and cited-text presence. Neither mode judges whether a
 finding is true. See [RESEARCH_QUALITY.md](RESEARCH_QUALITY.md).
 
 Frontend (from `web/`):

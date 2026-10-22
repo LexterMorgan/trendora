@@ -1,12 +1,18 @@
 # Research quality evaluation
 
-Status: offline structural evaluator for exported research reports. It produces
-a human worksheet and structural diagnostics; it does not score quality.
+Status: offline structural evaluator and recorded-output benchmark. The
+evaluator produces structural diagnostics and a human worksheet; it does not
+score quality. The benchmark compares two explicitly identified configurations
+using supplied outputs. Neither mode calls a model or the network.
 
-Code: [evaluation.py](../src/trendora/research/evaluation.py). Fixtures:
-[cases.json](../tests/fixtures/research_quality/cases.json) and
-[annotations.json](../tests/fixtures/research_quality/annotations.json). Tests:
-[test_research_evaluation.py](../tests/unit/test_research_evaluation.py).
+Code: [evaluation.py](../src/trendora/research/evaluation.py) for one report;
+[quality_benchmark.py](../src/trendora/research/quality_benchmark.py) for the
+versioned dataset, run replay, comparison, accounting, and Markdown report.
+Fixtures: [cases.json](../tests/fixtures/research_quality/cases.json),
+[benchmark_v1.json](../tests/fixtures/research_quality/benchmark_v1.json), and
+[runs/](../tests/fixtures/research_quality/runs/). Tests:
+[test_research_evaluation.py](../tests/unit/test_research_evaluation.py) and
+[test_quality_benchmark.py](../tests/unit/test_quality_benchmark.py).
 
 ## Commands
 
@@ -22,8 +28,23 @@ Code: [evaluation.py](../src/trendora/research/evaluation.py). Fixtures:
 # Without the console script installed:
 .venv/bin/python -m trendora.research.evaluation report.json
 
+# Evaluate one recorded benchmark run.
+.venv/bin/python -m trendora.research.quality_benchmark evaluate \
+  --dataset tests/fixtures/research_quality/benchmark_v1.json \
+  --run tests/fixtures/research_quality/runs/baseline.json \
+  --split development \
+  --output /tmp/trendora-benchmark-baseline
+
+# Compare two recorded runs.
+.venv/bin/python -m trendora.research.quality_benchmark compare \
+  --dataset tests/fixtures/research_quality/benchmark_v1.json \
+  --baseline tests/fixtures/research_quality/runs/baseline.json \
+  --candidate tests/fixtures/research_quality/runs/candidate.json \
+  --split development \
+  --output /tmp/trendora-benchmark-comparison
+
 # Focused tests.
-.venv/bin/python -m pytest tests/unit/test_research_evaluation.py -q
+.venv/bin/python -m pytest tests/unit/test_research_evaluation.py tests/unit/test_quality_benchmark.py -q
 ```
 
 The evaluator uses only the Python standard library. It does not use the
@@ -210,5 +231,237 @@ them.
 - Finding ids change when evidence values change, so a changed report makes old
   annotations stale. That is intended: re-review instead of carrying judgments
   across different evidence.
-- The benchmark cases are small fictional reports for regression tests, not a
-  quality benchmark or a statistically meaningful sample.
+- The 24-case benchmark is a small smoke benchmark, not statistically
+  representative evidence. Its author-written expectations are provisional.
+
+# Quality and cost benchmark
+
+The benchmark wraps the evaluator with a versioned dataset, two named
+configurations, recorded outputs, explicit accounting, and a comparison report.
+It is an engineering workflow, not a model-ranking system.
+
+## Dataset v1
+
+`tests/fixtures/research_quality/benchmark_v1.json` contains 24 clearly
+fictional cases. Each case has a stable ID, a `development` or `held_out` split,
+a fixed six-field source snapshot with no recorded interpretation, a question,
+failure categories, and author-written provisional expectations/rubric/
+rationale. The split is 16 development and 8 held-out. The held-out split is
+small and deterministic; it is not a statistical holdout.
+
+Expected behavior, rubric, and rationale are review metadata. They never enter
+the prepared evidence or model-input hash. The input projection contains the
+case ID, question, exact compacted-evidence hash, prompt hash, and effective
+compaction identity.
+
+The dataset reuses five existing structural cases and adds compact cases for
+negation, changed numbers/units/percentages/eligibility, unsupported
+specificity and trends/popularity, promotion, date uncertainty, contradictory
+and syndicated sources, blank/missing/unresolved evidence, observations and
+patterns, mixed sources, multilingual text, and paraphrase.
+
+## Run file
+
+A run file is JSON with:
+
+- `schema_version: 1`;
+- `run_id`, `mode` (`recorded_output` or `mocked_transport` only);
+- `dataset_id`, `dataset_version`, and required `dataset_sha256`;
+- `split` and `case_ids`;
+- `configuration` containing exactly: `id`, `provider`, `model`,
+  `prompt_version`, `prompt_sha256`, `generation_parameters`, `compaction`,
+  `retry_policy`, `deadline_seconds`;
+- optional `run_elapsed_ms`;
+- `outputs`, keyed by selected case ID. Every present output carries a required
+  `prepared` identity block:
+  `source_snapshot_sha256`, `compacted_evidence_sha256`,
+  `model_input_sha256`, `prompt_sha256`, and `configuration_sha256`.
+
+A case output is one of:
+
+```json
+{"kind":"synthesis","interpretations":[...],"model_provenance":{"provider":"...","model":"..."},
+ "attempts":[{"status":"ok","elapsed_ms":123,"usage":{"prompt_tokens":10,"completion_tokens":5}}]}
+{"kind":"synthesis","content":"{\"interpretations\": [...]}","model_provenance":{"provider":"...","model":"..."}}
+{"kind":"fallback","attempts":[]}
+{"kind":"failure","failure_code":"provider_timeout","attempts":[{"status":"timeout","elapsed_ms":30000}]}
+```
+
+When `content` is supplied instead of parsed interpretations, the real provider
+DTO parser is exercised. Raw content and decoded interpretations converge on
+the same production parser, research-synthesis bounds (six findings, 500
+characters each), citation validation against the compacted pack, provenance
+check, non-empty check, and title/description text-presence boundary. Invalid
+provider JSON, empty output, over-bound output, unresolved or missing-field
+citations, pattern/observation-only findings, and blank text become failed
+cases; they do not become synthesized success or invented fallback. Rejected
+diagnostics are retained where the interpretations parsed. The report is
+validated as an API response snapshot before diagnostics; unresolved citations
+are exposed, not repaired.
+
+The `prepared` identities are established when the recording is prepared and
+verified before evaluation. A missing or mismatched dataset hash, source
+snapshot, compacted evidence, prompt, or configuration rejects the run; older
+recordings without these fields must be re-prepared, not upgraded by inference.
+This workflow applies the production compaction function; only its current limits
+(24 references, 200 title characters, 600 description characters) are
+supported. Other compaction settings are rejected rather than represented by
+metadata alone. The run records the evaluator application revision and marks
+generation provenance unverified unless a recording supplies separate
+generation-code identity.
+
+Missing outputs and malformed/truncated/over-bound synthesis outputs stay in the
+case denominator. `finish_reason: "length"` maps to `output_truncated`.
+
+Observed model identity is taken from the recorded output provenance and is
+labelled as recorded, not proof of the live route. Requested provider/model is
+the configuration identity, not evidence that the route used it.
+
+## Comparison and artifacts
+
+`evaluate` writes `run.json` and `worksheet.json`. `compare` writes
+`comparison.json`, `worksheet.json`, and `comparison.md`. The comparison records
+dataset hash/version/split/case-set and per-case source-snapshot, compacted
+evidence, prompt, and model-input hashes. Differing dataset hashes, versions,
+splits, case sets, or source snapshots are blocking. Differing compacted
+evidence is visible and not treated as like-for-like. Prompt-only differences
+leave evidence unchanged; model-only differences leave evidence and prompt
+unchanged. Multiple configuration differences are flagged and the comparison
+does not claim a controlled single-variable improvement. Identical
+configurations are compared but flagged.
+
+Artifacts must stay outside source control unless they are intentionally small,
+sanitized fixtures. The shipped example runs cover six development cases; they
+demonstrate the machinery, not the full 16-case development split. Raw provider
+responses, prompts, authorization headers, and reasoning text are never written
+by this workflow; only known answer/evidence fields and safe diagnostics are
+retained.
+
+## Metadata policy and limits
+
+Nested configuration is allowlisted: generation parameters (`temperature`,
+`top_p`, `max_output_tokens`, `seed`), production compaction limits, and retry
+policy (`max_attempts`, `retry_on`). Unknown nested fields are rejected with a
+field-name-only error, not echoed values. Model provenance is reconstructed with
+only provider and model. Attempts retain only status, elapsed time, allowlisted
+usage fields, and cost/pricing fields; extra headers, envelopes, and reasoning
+are dropped. Failure codes must be from a fixed safe set, otherwise they become
+`provider_error`.
+
+Attempt accounting is parsed independently. A malformed usage field, cost,
+attempt time, case time, or non-object attempt leaves that value unknown with a
+fixed diagnostic; it does not erase valid fields, earlier attempts, attempt
+order, or operational acceptance. Missing and invalid values remain unknown,
+never zero. Aggregate totals retain known subtotals and expose
+`invalid_attempts`, `invalid_case_elapsed`, `accounting_complete`, and related
+counts. Configuration numeric fields remain strict and reject non-finite or
+boolean values.
+
+This is structured metadata control, not a universal secret scrubber. Answer
+text, source text, and human annotations can contain sensitive data; sanitize
+real recordings before use.
+
+## Metrics
+
+All rates carry explicit denominators:
+
+- accepted synthesis / fallback / failed cases over selected cases;
+- accepted and rejected-diagnostic finding counts separately; structural and
+  review denominators include findings from accepted outputs plus parseable
+  findings retained as rejected diagnostics;
+- resolved citations over total citations (same combined denominator);
+- findings with cited text present over total findings (same combined
+  denominator);
+- reviewed findings over total worksheet findings, including rejected
+  diagnostic rows; each row carries `accepted_synthesis`;
+- supported, partially_supported, unsupported among reviewed findings;
+- unreviewed separately, never counted as supported;
+- provider attempts, attempt statuses, attempts with usage, known token sums and
+  known-attempt counts (unknown stays unknown), invalid accounting counts, and
+  whether accounting is complete;
+- recorded attempt/case timing and separately measured benchmark-processing
+  time; recorded replay timing is not model latency;
+- actual and estimated charges by currency, with attempts-with-cost and
+  attempts-without-cost counts.
+
+Usage fields accepted: prompt, completion, reasoning, cached, and total tokens.
+Missing values stay unknown. Reasoning tokens are reported separately and never
+added to completion tokens. A known total that disagrees with prompt+completion
+is flagged, not corrected. Estimated cost requires caller-supplied pricing
+source, unit, date, and currency; the comparison reports that pricing provenance
+and never builds in a price table. Actual provider charge, estimate, and unknown
+remain separate.
+
+## Human review
+
+`worksheet.json` contains one row per parseable synthesis finding, including
+findings from rejected outputs, with case ID, finding ID, statement, canonical
+citation identities, exact cited values, value status, reference context (title,
+description, dates), `accepted_synthesis`, and the bound judgment. A title
+citation with a detail that appears only in the description shows both values;
+it does not silently become an exact-field support judgment. Rejected rows are
+diagnostic evidence, not accepted synthesis.
+
+Annotations are keyed by finding ID. A changed statement, citation, evidence
+value, or report makes old annotations stale. Stale ids are reported and never
+applied. All judgments start `unreviewed`; agents may add proposed notes but must
+not impersonate owner review.
+
+To review:
+
+1. Run `evaluate` or `compare` without annotations.
+2. Open `worksheet.json` beside the cited source values.
+3. Assign one judgment and a short rationale; keep a JSON map keyed by
+   `finding_id`. Optional `categories` may list issue types such as
+   `wrong_field`, `altered_number`, `missing_qualification`, `misleading_date`,
+   or `unattributed_promotion`.
+4. Rerun with `--annotations`, `--baseline-annotations`, or
+   `--candidate-annotations`.
+5. Keep the dataset, run files, worksheet, and comparison together.
+
+## Engineering case study template
+
+Use this when a real, authorized comparison exists:
+
+- **Problem:** what failure motivated the change.
+- **Baseline:** configuration, dataset split, case IDs, prompt/input hashes.
+- **Controlled change:** the single intended difference.
+- **Results:** operational, structural, review coverage, latency/usage/cost.
+- **Failure analysis:** representative failed/fallback cases and reviewed
+  unsupported findings.
+- **Limitations:** sample size, mock/replay status, missing metrics, and what the
+  evidence cannot establish.
+
+Leave numbers blank or explicitly fictional until measured. A recorded-output
+example demonstrates the machinery only.
+
+## Future live experiment
+
+No live runner is implemented by this offline workflow. A future live run must
+be explicitly opt-in and fail closed unless the operator supplies both exact
+configurations, selected case IDs/split, maximum app-level attempts,
+per-request timeout, and a bounded call limit. It must not default to the whole
+dataset, silently substitute models, or retry without limit. Router-internal
+retries, upstream cancellation, and final billing may remain outside
+Trendora's control; a local call limit is not a guaranteed monetary ceiling.
+
+The smallest proposed live experiment is the 8-case held-out split, two
+explicit configurations, and one application-level attempt per case:
+16 maximum provider calls total, a 30-second per-request timeout, no retries.
+It must not be run without owner authorization and a bounded pricing/call
+approval; it is not part of this milestone.
+
+## Benchmark limits
+
+- 24 synthetic cases are a smoke benchmark, not production evidence.
+- Author expectations are provisional and unreviewed.
+- Structural diagnostics do not establish factual or semantic support.
+- Recorded outputs do not establish live quality, latency, or cost.
+- Human review coverage is reported explicitly; absence of review is not a pass.
+- The recorded `application` revision is the evaluator run revision, not proof
+  of the code or prompt revision that generated the recording. Generation-code
+  provenance remains unverified unless separately recorded.
+- Structured metadata allowlists prevent known accidental leaks from nested
+  configuration, provenance, attempt, and failure fields. They cannot prove
+  arbitrary answer text, source text, or human annotations are non-sensitive;
+  sanitize real recordings before use.
