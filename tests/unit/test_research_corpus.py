@@ -19,7 +19,7 @@ CORPUS = Path(__file__).resolve().parents[1] / "fixtures" / "research_quality" /
 # What the evaluator reports today for the one finding in each case.
 EXPECTED_TEXT_SUPPORT = {
     "exact_description_citation": True,
-    "title_description_mismatch": False,  # cites title, words only appear in description
+    "title_description_mismatch": True,  # cited title exists; support needs human review
     "unsupported_specific_claim": False,
     "publication_event_date_confusion": False,
     "promotional_attribution": False,
@@ -35,10 +35,10 @@ def test_corpus_totals_are_stable() -> None:
         "findings": 7,
         "citations": 8,
         "resolved_citations": 7,
-        "findings_with_text_support": 2,
+        "findings_with_text_support": 3,
     }
     assert summary["rates"]["citation_resolution"] == 0.875
-    assert summary["rates"]["text_support"] == 2 / 7
+    assert summary["rates"]["text_support"] == 3 / 7
 
 
 def test_each_case_reports_the_same_support_flag() -> None:

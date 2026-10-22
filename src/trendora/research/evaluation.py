@@ -16,7 +16,6 @@ import argparse
 import hashlib
 import json
 import math
-import re
 import sys
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime
@@ -35,20 +34,6 @@ SNAPSHOT_FIELDS: tuple[str, ...] = (
 JUDGMENTS: tuple[str, ...] = ("supported", "partially_supported", "unsupported")
 UNREVIEWED = "unreviewed"
 _TEXT_FIELDS = frozenset({"title", "description"})
-# Only enough stopwords to stop "the/and/for" deciding a support verdict.
-_STOPWORDS = frozenset(
-    {
-        "the", "and", "for", "with", "that", "this", "from", "into", "over",
-        "are", "was", "were", "has", "have", "had", "been", "its", "their",
-        "they", "will", "can", "not", "but", "our", "who", "what", "when",
-        "where", "which", "than", "then", "there", "these", "those", "says",
-        "said", "also", "more", "most", "some", "any",
-    }
-)
-# A cited text field supports a statement only when the statement's own words
-# appear in that exact field, at least half of them.
-_SUPPORT_RATIO = 0.5
-_MIN_SHARED_TOKENS = 2
 
 
 class EvaluationError(ValueError):
@@ -85,6 +70,11 @@ def _canonical_json(value: Any) -> str:
 
 def _sha256(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def canonical_sha256(value: Any) -> str:
+    """SHA-256 of the canonical JSON form used by the evaluator."""
+    return _sha256(_canonical_json(value))
 
 
 def report_fingerprint(report: Mapping[str, Any]) -> str:
@@ -455,26 +445,10 @@ def _diagnose_references(
     return rows
 
 
-def _content_tokens(text: str) -> frozenset[str]:
-    return frozenset(
-        token
-        for token in re.findall(r"[a-z0-9]+", text.lower())
-        if len(token) > 2 and token not in _STOPWORDS
-    )
-
-
 def _has_text_support(
-    statement: str, citation_diagnostics: Sequence[Mapping[str, Any]]
+    citation_diagnostics: Sequence[Mapping[str, Any]],
 ) -> bool:
-    """True when a cited text field actually contains the statement's words.
-
-    Citing a text field is not support: the words have to appear in that field.
-    A statement that cites `title` but only matches the description is not
-    supported by the title.
-    """
-    target = _content_tokens(statement)
-    if not target:
-        return False
+    """Whether exact cited text exists, not whether it supports the claim."""
     for diagnostic in citation_diagnostics:
         identity = _as_mapping(diagnostic.get("identity"))
         if identity is None or identity.get("kind") != "fact":
@@ -486,9 +460,7 @@ def _has_text_support(
         value = diagnostic.get("value")
         if not isinstance(value, str) or not value.strip():
             continue
-        shared = target & _content_tokens(value)
-        if len(shared) >= _MIN_SHARED_TOKENS and len(shared) / len(target) >= _SUPPORT_RATIO:
-            return True
+        return True
     return False
 
 
@@ -531,7 +503,7 @@ def _diagnose_findings(
                 "origin": origin,
                 "citations": citation_diagnostics,
                 "references": reference_diagnostics,
-                "has_text_support": _has_text_support(statement, citation_diagnostics),
+                "has_text_support": _has_text_support(citation_diagnostics),
                 "publication_collection_dates_distinct": (
                     any(comparable_dates) if comparable_dates else None
                 ),
@@ -599,7 +571,9 @@ def build_worksheet(
     return rows
 
 
-def _normalize_annotation(finding_id: str, annotation: Any) -> tuple[str, str]:
+def _normalize_annotation(
+    finding_id: str, annotation: Any
+) -> tuple[str, str, list[str]]:
     if not isinstance(annotation, Mapping):
         raise EvaluationError(f"annotation for {finding_id} must be a JSON object")
     judgment = annotation.get("judgment")
@@ -611,7 +585,14 @@ def _normalize_annotation(finding_id: str, annotation: Any) -> tuple[str, str]:
     note = annotation.get("note", "")
     if not isinstance(note, str):
         raise EvaluationError(f"annotation note for {finding_id} must be a string")
-    return judgment, note
+    categories = annotation.get("categories", [])
+    if not isinstance(categories, list) or not all(
+        isinstance(category, str) and category for category in categories
+    ):
+        raise EvaluationError(
+            f"annotation categories for {finding_id} must be non-empty strings"
+        )
+    return judgment, note, list(categories)
 
 
 def apply_annotations(
@@ -638,15 +619,19 @@ def apply_annotations(
         finding_id = row.get("finding_id")
         if finding_id not in annotations:
             continue
-        judgment, note = _normalize_annotation(finding_id, annotations[finding_id])
+        judgment, note, categories = _normalize_annotation(
+            finding_id, annotations[finding_id]
+        )
         row["judgment"] = judgment
         row["note"] = note
+        row["categories"] = categories
         applied.append(
             {
                 "finding_id": finding_id,
                 "finding_index": row.get("finding_index"),
                 "judgment": judgment,
                 "note": note,
+                "categories": categories,
             }
         )
     stale = sorted(

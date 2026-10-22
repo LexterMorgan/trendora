@@ -670,6 +670,7 @@ def create_app() -> FastAPI:
             topic=full_report["topic"],
             before_created_at=datetime.fromisoformat(full_report["created_at"]),
             visible_from=visible_from,
+            now=now,
         )
         if previous is None:
             return ReportChangesResponse(
@@ -678,6 +679,9 @@ def create_app() -> FastAPI:
                 new_findings=[],
                 dropped_findings=[],
             )
+
+        if previous.get("status") == "source_data_expired":
+            raise ReportExpiredError("The previous report's source data has expired.")
 
         current_statements = _finding_statements(snapshot)
         previous_statements = _finding_statements(previous["report"])

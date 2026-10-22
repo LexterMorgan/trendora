@@ -7,6 +7,8 @@ they cannot prove a live model answers well.
 from __future__ import annotations
 
 import json
+import asyncio
+from dataclasses import replace
 
 import httpx
 import pytest
@@ -161,3 +163,38 @@ def test_ask_sends_one_configured_request_without_retrying_a_failure():
     assert sent["messages"][0]["content"] == ASK_SYSTEM_PROMPT
     assert QUESTION in sent["messages"][1]["content"]
     assert calls[0].headers["authorization"] == "Bearer fictional-key"
+
+
+def test_ask_applies_a_wall_clock_budget_and_cancels_the_exchange():
+    from trendora.research.exceptions import ResearchAITimeoutError
+
+    cancelled = []
+    calls = []
+
+    async def slow_exchange(request):
+        calls.append(request)
+        try:
+            await asyncio.sleep(5)
+            return _envelope('{"answer":"late","citations":[]}')
+        finally:
+            cancelled.append(True)
+
+    provider = OpenAICompatibleInterpretationProvider(
+        replace(_config(), timeout_seconds=0.02), transport=httpx.MockTransport(slow_exchange),
+    )
+    with pytest.raises(ResearchAITimeoutError):
+        provider.ask(context=CONTEXT, question=QUESTION)
+    assert len(calls) == 1
+    assert cancelled == [True]
+
+
+def test_ask_does_not_replace_an_exhausted_caller_budget():
+    from trendora.research.deadline import AIPhaseDeadline
+    from trendora.research.exceptions import ResearchAITimeoutError
+
+    provider, calls = _ask(lambda request: _envelope('{"answer":"late","citations":[]}'))
+    deadline = AIPhaseDeadline(1)
+    deadline._start -= 2
+    with pytest.raises(ResearchAITimeoutError):
+        provider.ask(context=CONTEXT, question=QUESTION, deadline=deadline)
+    assert calls == []

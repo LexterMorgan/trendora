@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from copy import deepcopy
+
+import pytest
 
 from fastapi.testclient import TestClient
 
@@ -45,11 +48,12 @@ def _client(monkeypatch, base: dict | None, previous: dict | None) -> TestClient
         captured["visible_from"] = visible_from
         return base
 
-    def fake_previous(session, *, topic, before_created_at, visible_from=None):
+    def fake_previous(session, *, topic, before_created_at, visible_from=None, now=None):
         captured.update(
             topic=topic,
             before_created_at=before_created_at,
             previous_visible_from=visible_from,
+            previous_now=now,
         )
         return previous
 
@@ -84,6 +88,7 @@ def test_identical_runs_report_no_new_or_dropped_findings(monkeypatch) -> None:
     assert client.captured["topic"] == "Exact topic"
     assert client.captured["visible_from"] == CUTOFF
     assert client.captured["before_created_at"] == FROZEN
+    assert client.captured["previous_now"] == FROZEN
 
 
 def test_one_added_statement_is_reported_after_whitespace_and_case_normalization(
@@ -130,3 +135,32 @@ def test_missing_base_report_is_not_found(monkeypatch) -> None:
     response = client.get(PATH.format(report_id="missing"))
 
     assert response.status_code == 404
+
+
+@pytest.mark.parametrize("swept", [False, True])
+def test_previous_report_expiry_never_exposes_dropped_findings(monkeypatch, swept):
+    from tests.unit.test_research_report_repository import FakeRecord, FakeSession
+    from trendora.research.repository import get_previous_report_record
+
+    snapshot = _record("old", FROZEN, ["Private expired source detail"])["report"]
+    snapshot["research"]["references"] = [{
+        "source_code": "youtube",
+        "collected_at": (FROZEN - timedelta(days=30)).isoformat(),
+    }]
+    record = FakeRecord(report=snapshot, created_at=FROZEN - timedelta(days=1))
+    if swept:
+        record.status = "source_data_expired"
+        record.report = {"status": "source_data_expired"}
+    before = deepcopy(record.report)
+    previous = get_previous_report_record(
+        FakeSession([record]), topic=record.topic, before_created_at=FROZEN,
+        visible_from=CUTOFF, now=FROZEN,
+    )
+    assert previous["status"] == "source_data_expired"
+    assert previous["report"] == {"status": "source_data_expired"}
+    assert record.report == before
+    client = _client(monkeypatch, _record("base", FROZEN, ["Current finding"]), previous)
+    response = client.get(PATH.format(report_id="base"))
+    assert response.status_code == 410
+    assert "Private expired" not in response.text
+    assert "previous report" in response.json()["error"]["message"].lower()

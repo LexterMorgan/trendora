@@ -312,12 +312,14 @@ def get_previous_report_record(
     topic: str,
     before_created_at: datetime,
     visible_from: datetime | None = None,
+    now: datetime | None = None,
 ) -> dict[str, Any] | None:
     """Nearest older visible report with the exact same topic.
 
     Older means strictly earlier ``created_at``; equal timestamps are not
     earlier. Ordering matches the history list: newest first, id descending as
-    the tiebreak for identical timestamps.
+    the tiebreak for identical timestamps. An expired prior report is returned
+    as an identity-only tombstone; callers must refuse to compare it.
     """
     query = session.query(ResearchReportRecord).filter(
         ResearchReportRecord.topic == topic,
@@ -333,9 +335,12 @@ def get_previous_report_record(
     )
     if record is None:
         return None
+    now = now if now is not None else datetime.now(timezone.utc)
+    status = _read_status(record, now)
     return {
         "id": str(record.id),
         "created_at": record.created_at.isoformat(),
         "topic": record.topic,
-        "report": record.report,
+        "status": status,
+        "report": {"status": EXPIRED_STATUS} if status == EXPIRED_STATUS else record.report,
     }

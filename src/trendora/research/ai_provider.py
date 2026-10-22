@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Annotated, Any, Literal, Protocol, Union
@@ -475,10 +476,9 @@ class OpenAICompatibleInterpretationProvider:
         request = build_grounded_request(self._config, pack)
         response = self._send(request, deadline=deadline)
         content = _parse_envelope_content(response)
-        item_list = _parse_model_output(content)
-        interpretations = tuple(_to_domain_interpretation(item) for item in item_list)
-        if pack.research_query is not None:
-            _enforce_research_synthesis_bounds(interpretations)
+        interpretations = parse_research_synthesis(
+            content=content, enforce_bounds=pack.research_query is not None
+        )
         return InterpretationResult(
             model_provenance=ModelProvenance(
                 provider=self._config.provider,
@@ -495,6 +495,8 @@ class OpenAICompatibleInterpretationProvider:
         deadline: "AIPhaseDeadline | None" = None,
     ) -> tuple[str, list[dict[str, str]]]:
         """One grounded question against a bounded report context."""
+        if deadline is None:
+            deadline = AIPhaseDeadline(self._config.timeout_seconds)
         request = build_ask_request(self._config, context, question)
         response = self._send(request, deadline=deadline)
         content = _parse_envelope_content(response)
@@ -668,6 +670,39 @@ def _parse_model_output(content: str) -> list[ProviderInterpretationItem]:
             reason_code=RESPONSE_REASON_SCHEMA,
         ) from exc
     return parsed.interpretations
+
+
+def parse_research_synthesis(
+    *,
+    content: str | None = None,
+    decoded: Mapping[str, Any] | None = None,
+    enforce_bounds: bool = True,
+) -> tuple[AIInterpretation, ...]:
+    """Parse either raw provider content or decoded JSON through one path.
+
+    Raw and recorded/decoded payloads share the same strict DTO validation,
+    citation conversion, and research-synthesis bounds. Provider transport and
+    provenance are not implied by this function.
+    """
+    if (content is None) == (decoded is None):
+        raise ResearchAIResponseError(
+            "provide exactly one synthesis payload",
+            reason_code=RESPONSE_REASON_SCHEMA,
+        )
+    if content is not None:
+        item_list = _parse_model_output(content)
+    else:
+        try:
+            item_list = ProviderInterpretationResponse.model_validate(decoded).interpretations
+        except ValidationError as exc:
+            raise ResearchAIResponseError(
+                "AI provider model output failed strict validation",
+                reason_code=RESPONSE_REASON_SCHEMA,
+            ) from exc
+    interpretations = tuple(_to_domain_interpretation(item) for item in item_list)
+    if enforce_bounds:
+        _enforce_research_synthesis_bounds(interpretations)
+    return interpretations
 
 
 def _to_domain_interpretation(item: ProviderInterpretationItem) -> AIInterpretation:

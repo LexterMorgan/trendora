@@ -209,6 +209,26 @@ def test_title_citation_exposes_the_distinct_description_text() -> None:
     assert "results expected next year" not in citation["cited_text"]
     assert "results expected next year" in reference["description"]
     assert finding["statement"] == "The pilot reported results expected next year."
+    assert finding["has_text_support"] is True
+
+
+@pytest.mark.parametrize(("source_text", "statement"), [
+    ("The tool did not improve scores.", "The tool improved scores."),
+    ("The course costs 10 dollars.", "The course costs 90 dollars."),
+    ("Students improved reading skills.", "Learners strengthened literacy."),
+    ("学生提高了阅读能力。", "学生的阅读能力有所提高。"),
+])
+def test_text_presence_never_assigns_a_semantic_judgment(source_text, statement) -> None:
+    report = _report(statement=statement, citations=[_fact_citation("description")],
+                     facts=[{"field": "description", "value": source_text}])
+    before = copy.deepcopy(report)
+    result = evaluate_report(report)
+    assert result["diagnostics"]["findings"][0]["has_text_support"] is True
+    assert result["diagnostics"]["findings"][0]["citations"][0]["cited_text"] == source_text
+    assert result["worksheet"][0]["judgment"] == "unreviewed"
+    assert result["counts"]["unreviewed"] == 1
+    assert result["counts"]["supported"] == 0
+    assert report == before
 
 
 def test_observation_and_pattern_only_claim_has_no_source_text_support() -> None:

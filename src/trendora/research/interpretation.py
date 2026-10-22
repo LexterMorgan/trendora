@@ -240,6 +240,31 @@ def validate_text_supported_interpretations(
     return result
 
 
+def validate_research_synthesis(
+    pack: EvidencePack,
+    result: InterpretationResult,
+) -> InterpretationResult:
+    """Apply the production research-synthesis acceptance boundary.
+
+    This is the same sequence used when a research report accepts a provider
+    synthesis: citations resolve against the supplied pack, provenance is
+    present, at least one finding exists, and every finding has title or
+    description text support. It is structural acceptance, not semantic truth.
+    """
+    validate_interpretations(pack, result)
+    if (
+        not result.model_provenance.provider.strip()
+        or not result.model_provenance.model.strip()
+    ):
+        raise ResearchInterpretationError(
+            "interpretation result requires trusted model provenance"
+        )
+    if not result.interpretations:
+        raise ResearchInterpretationError("interpretation returned no findings")
+    validate_text_supported_interpretations(pack, result)
+    return result
+
+
 def _resolve_citation(
     citation: Citation,
     analysis_by_id: dict[ReferenceId, ReferenceAnalysis],
