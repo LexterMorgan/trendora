@@ -14,7 +14,7 @@ from trendora.connectors.hackernews.schemas import ItemResource
 logger = logging.getLogger("trendora.connectors.hackernews.client")
 
 HN_API_BASE = "https://hacker-news.firebaseio.com/v0"
-_USER_AGENT = "Trendora/0.0.1"
+_USER_AGENT = "Trendora/0.1.0"
 
 
 class HackerNewsClient:

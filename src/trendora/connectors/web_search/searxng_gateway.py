@@ -54,7 +54,7 @@ MAX_QUERIES = 7
 MAX_PARALLEL = 2
 BATCH_BUDGET_SECONDS = 25.0
 MAX_ATTEMPTS = 14
-_USER_AGENT = "Trendora/0.0.1"
+_USER_AGENT = "Trendora/0.1.0"
 _RETRY_STATUS = 429
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
 

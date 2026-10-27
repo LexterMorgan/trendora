@@ -20,7 +20,7 @@ from trendora.connectors.stackexchange.schemas import QuestionResource, Question
 logger = logging.getLogger("trendora.connectors.stackexchange.client")
 
 STACKEXCHANGE_API_BASE = "https://api.stackexchange.com/2.3"
-_USER_AGENT = "Trendora/0.0.1"
+_USER_AGENT = "Trendora/0.1.0"
 _MAX_PAGESIZE = 100
 _SORT = "activity"
 _ORDER = "desc"

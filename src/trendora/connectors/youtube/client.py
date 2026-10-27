@@ -27,7 +27,7 @@ logger = logging.getLogger("trendora.connectors.youtube.client")
 
 YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3"
 _MAX_IDS_PER_REQUEST = 50
-_USER_AGENT = "Trendora/0.0.1"
+_USER_AGENT = "Trendora/0.1.0"
 
 
 class YouTubeClient:

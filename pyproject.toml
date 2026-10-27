@@ -1,6 +1,6 @@
 [project]
 name = "trendora"
-version = "0.0.1"
+version = "0.1.0"
 description = "Research workspace for collecting sources, reading findings, and keeping reports on a topic."
 readme = "README.md"
 requires-python = ">=3.12"

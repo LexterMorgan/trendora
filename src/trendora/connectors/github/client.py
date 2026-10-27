@@ -19,7 +19,7 @@ from trendora.connectors.github.schemas import RepositoryResource
 logger = logging.getLogger("trendora.connectors.github.client")
 
 GITHUB_API_BASE = "https://api.github.com"
-_USER_AGENT = "Trendora/0.0.1"
+_USER_AGENT = "Trendora/0.1.0"
 _ACCEPT = "application/vnd.github+json"
 _API_VERSION = "2022-11-28"
 

@@ -30,7 +30,7 @@ logger = logging.getLogger("trendora.connectors.web_search.serper_gateway")
 
 MAX_RESULTS = 15
 API_ENDPOINT = "https://google.serper.dev/search"
-_USER_AGENT = "Trendora/0.0.1"
+_USER_AGENT = "Trendora/0.1.0"
 _RETRY_STATUS = 429
 
 # Backwards-compatible aliases: the shared syntactic boundary now lives in

@@ -63,7 +63,7 @@ class FacebookPublicClient:
         self._owns_http = http_client is None
         self._http = http_client or httpx.Client(
             timeout=httpx.Timeout(30.0, connect=10.0),
-            headers={"User-Agent": "Trendora/0.0.1"},
+            headers={"User-Agent": "Trendora/0.1.0"},
         )
 
     def close(self) -> None:
