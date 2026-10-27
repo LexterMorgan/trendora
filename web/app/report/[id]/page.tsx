@@ -95,7 +95,17 @@ function ReportContent({ id }: { id: string }) {
               <p>Findings, original sources, and a record of what was searched.</p>
             </div>
           </section>
-          <ReportView key={id} report={report} />
+          <ReportView
+            key={id}
+            report={report}
+            onReportUpdated={(updated) => {
+              setReport(updated);
+              const nextId = updated.persistence?.report_id;
+              if (nextId && typeof window !== "undefined") {
+                window.history.replaceState(null, "", `/report/${nextId}`);
+              }
+            }}
+          />
         </>
       )}
     </main>

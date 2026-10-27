@@ -2,6 +2,13 @@
 
 ## Status
 
+**Current alpha addition:** content generation now runs on demand for a saved
+report through `POST /api/v1/research/reports/{report_id}/content`. It has its
+own bounded strategy+ideation operation, and success appends a derived completed
+report snapshot. The original research row is never mutated. The M22 contract
+below is unchanged. Sections describing "no API/frontend/persistence" are the
+historical M22 boundary, not the current product state.
+
 **M22 (this document + implementation):** grounded content ideation above validated M21 gaps/opportunities. `ContentIdea` (title + angle derived from opportunities) and `ContentBrief` (elaboration of one idea), executed through the existing OpenAI-compatible provider with strict parsing and mandatory grounding validation.
 
 Chain preserved structurally:

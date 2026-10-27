@@ -104,7 +104,7 @@ Verified from `src/trendora/models/planner.py` and `src/trendora/planner.py`.
 | Excerpt fallback | Implemented | Used when synthesis is unavailable, malformed, empty, or rejected. Clearly labeled. |
 | Sample observations vs limited evidence | Implemented | Separate reader groups; a citation that cannot be validated against supplied evidence is not shown as a finding. |
 | Save, recovery, history, expiry | Implemented; retention command not scheduled | Snapshot and recovery behaviour are tested offline. Expiry has been applied against a real disposable PostgreSQL instance with synthetic data; it has not run against production data and has no schedule. |
-| Optional content tools | Implemented, opt-in | Gaps, opportunities, ideas, and briefs; failure preserves research. |
+| Optional content tools | Implemented, on demand | A saved report generates gaps, opportunities, ideas, and briefs with its own bounded operation. Success appends a derived completed snapshot; failure preserves the source report. |
 | Planner with report import | Implemented | `idea`/`working`, archive/restore, origin tracking. |
 | Auth and membership | Implemented | Supabase JWT verification plus active-membership checks. |
 | AI request deadline | Implemented | One shared monotonic budget bounds in-flight I/O; see section 5. |
@@ -121,12 +121,15 @@ Verified from `src/trendora/models/planner.py` and `src/trendora/planner.py`.
 
 ## 5. Reliability, privacy, and evidence requirements
 
-**Deadline and retries.** One monotonic AI-phase budget is shared by the
-interpretation request, its single malformed-output retry, and the optional
-content stages. It bounds in-flight HTTP I/O, and expiry cancels the request.
-It is **not** a whole-report completion guarantee: collection, persistence, and
-rendering sit outside it, and the frontend proxy has its own separate deadline.
-Parsing, validation, and cleanup are not interrupted.
+**Deadline and retries.** Research synthesis has one monotonic AI-phase budget
+shared by the interpretation request and its single malformed-output retry. A
+retry is skipped when the remaining budget is shorter than the failed attempt.
+On-demand content is a separate operation with its own shared strategy/ideation
+budget. Deadlines bound in-flight HTTP I/O; expiry cancels the request. They are
+**not** whole-report completion guarantees: collection, persistence, and
+rendering sit outside them, and the frontend proxy has its own separate deadline.
+Parsing, validation, and cleanup are not interrupted. A stage that starts is not
+proof that an HTTP request was sent.
 
 **Failure behaviour.** Synthesis that is unavailable, malformed, empty, or
 rejected by grounding falls back to exact source excerpts labelled with their

@@ -10,6 +10,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { createMockBackend, runBrowserScenarios } from "./browser-fixture.mjs";
 import { plannerWorkspaceRegressions } from "./planner-workspace.browser.mjs";
+import { cancellationRegressions } from "./cancellation.browser.mjs";
 
 // Runtime configuration supplies installed tools; this runner never installs them.
 const require = createRequire(import.meta.url);
@@ -39,7 +40,7 @@ fs.chmodSync(root, 0o700);
 const owner = { root, uid: process.getuid?.() ?? null, nonce: randomUUID() };
 const output = (name, value) => fs.writeFileSync(path.join(root, name), JSON.stringify(value, null, 2), { mode: 0o600 });
 output("owner.json", owner);
-const total = plannerWorkspaceRegressions({}).length;
+const total = plannerWorkspaceRegressions({}).length + cancellationRegressions({}).length;
 const children = [];
 const commands = [];
 let mock;
@@ -141,8 +142,20 @@ import type { ResearchFormValues } from "@/components/ResearchForm";
 export default function FormFixture() {
   const [values, setValues] = useState<ResearchFormValues | null>(null);
   return <main className="workspace"><SimpleForm disabled={false} onSubmit={setValues}
-    initialValues={{ topic: "Fictional form research", sources: ["youtube", "public_web"], markets: [], date_from: "2026-08-01", date_to: "2026-08-31" }} />
+    initialValues={{ topic: "Fictional form research", date_from: "2026-08-01", date_to: "2026-08-31" }} />
     <output id="submitted-json" style={{display: "block", overflowWrap: "anywhere"}}>{values && JSON.stringify(values)}</output></main>;
+}`, { mode: 0o600 });
+  }
+  {
+    const route = path.join(root, "web", "app", "test-fixtures", "CallbackRecovery");
+    fs.mkdirSync(route, { recursive: true });
+    fs.writeFileSync(path.join(route, "page.tsx"), `"use client";
+import { useState } from "react";
+import { CallbackRecovery } from "@/components/auth/CallbackRecovery";
+export default function RecoveryFixture() {
+  const [retries, setRetries] = useState(0);
+  return <><CallbackRecovery title="Choose a new password" onRetry={() => setRetries((value) => value + 1)} />
+    <output id="retry-count">{retries}</output></>;
 }`, { mode: 0o600 });
   }
   for (const name of ["home", "runtime"]) fs.mkdirSync(path.join(root, name), { mode: 0o700 });

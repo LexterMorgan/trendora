@@ -15,7 +15,7 @@
  */
 
 import { getSessionStore } from "./auth/client.ts";
-import type { SessionBinding } from "./auth/session.ts";
+import { SessionWaitError, type SessionBinding } from "./auth/session.ts";
 
 export type ApiErrorKind =
   | "unauthenticated"
@@ -133,6 +133,44 @@ function staleRequest(): ResearchApiError {
   );
 }
 
+function abortError(): DOMException {
+  return new DOMException("The request was cancelled.", "AbortError");
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw abortError();
+}
+
+/** Let cancellation settle a caller before an SDK lookup finishes. */
+function waitForToken(
+  token: Promise<string | null>,
+  signal?: AbortSignal,
+): Promise<string | null> {
+  if (!signal) return token;
+  if (signal.aborted) return Promise.reject(abortError());
+  return new Promise<string | null>((resolve, reject) => {
+    const abort = () => {
+      signal.removeEventListener("abort", abort);
+      reject(abortError());
+    };
+    signal.addEventListener("abort", abort, { once: true });
+    token.then(
+      (value) => {
+        signal.removeEventListener("abort", abort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener("abort", abort);
+        reject(error);
+      },
+    );
+  });
+}
+
 export async function requestJson<T = unknown>(
   path: string,
   options: RequestOptions = {},
@@ -142,7 +180,22 @@ export async function requestJson<T = unknown>(
 
   // Capture the account before reading the token: a logout or account switch
   // while the token is being retrieved must stop the request going out.
-  const token = await runtime.getAccessToken().catch(() => null);
+  throwIfAborted(options.signal);
+  let token: string | null;
+  try {
+    token = await waitForToken(runtime.getAccessToken(), options.signal);
+  } catch (error) {
+    if (options.signal?.aborted || isAbortError(error)) throw abortError();
+    if (error instanceof SessionWaitError) {
+      throw new ResearchApiError(
+        "auth_timeout",
+        "Sign-in is taking longer than expected. Try again.",
+        "unavailable",
+      );
+    }
+    token = null; // Preserve the existing transient-failure cache fallback.
+  }
+  throwIfAborted(options.signal);
   if (!isCurrent(binding, runtime.getSessionBinding())) throw staleRequest();
 
   const headers = new Headers();
@@ -163,7 +216,7 @@ export async function requestJson<T = unknown>(
       signal: options.signal,
     });
   } catch (err) {
-    if (err instanceof Error && err.name === "AbortError") throw err;
+    if (options.signal?.aborted || isAbortError(err)) throw abortError();
     throw new ResearchApiError(
       "backend_unreachable",
       "Trendora could not be reached. Check your connection and try again.",
@@ -171,12 +224,15 @@ export async function requestJson<T = unknown>(
     );
   }
 
+  throwIfAborted(options.signal);
   let payload: unknown = null;
   try {
     payload = await response.json();
-  } catch {
+  } catch (error) {
+    if (options.signal?.aborted || isAbortError(error)) throw abortError();
     payload = null;
   }
+  throwIfAborted(options.signal);
 
   // Response belongs to a session that no longer exists: drop it, including
   // the 401/403 side effects it would otherwise trigger.

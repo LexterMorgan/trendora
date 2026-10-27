@@ -85,3 +85,23 @@ test("resolveCallbackAcceptance reports the SDK's URL verdict", async () => {
     "an unreadable verdict is never treated as acceptance",
   );
 });
+
+
+test("resolveCallbackAcceptance reports timeout as unknown, not rejection", async () => {
+  assert.equal(
+    await unconfigured.resolveCallbackAcceptance(
+      fakeClient(() => new Promise(() => {})),
+      { timeoutMs: 0 },
+    ),
+    null,
+    "a stuck SDK verdict is neither acceptance nor rejection",
+  );
+  assert.equal(
+    await unconfigured.resolveCallbackAcceptance(
+      fakeClient(() => Promise.reject(new Error("fictional failure"))),
+      { timeoutMs: 1_000 },
+    ),
+    false,
+    "an SDK error remains a rejection",
+  );
+});

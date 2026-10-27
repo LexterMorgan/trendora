@@ -290,6 +290,13 @@ class CoverageReason(StrEnum):
     # bounded queries failed or the shared budget expired). Distinct from a
     # query that legitimately returned zero results.
     SEARCH_PARTIAL = "search_partial"
+    # Execution-time outcome: every retrieval target for a source failed while
+    # another source completed. The source remains in executed_sources because
+    # attempts happened, but it must not look like a successful empty search.
+    SOURCE_FAILED = "source_failed"
+    # Execution-time outcome: at least one target for a source failed and at
+    # least one target completed. Successful target results remain valid.
+    SOURCE_PARTIAL = "source_partial"
 
 
 class MarketBasis(StrEnum):
@@ -455,6 +462,7 @@ class ResearchRun:
         self._coverage: ResearchCoverage | None = None
         self._references: tuple[ResearchReference, ...] | None = None
         self._executed_sources: tuple[str, ...] = ()
+        self._target_outcomes: dict[str, list[bool]] = {}
 
     @property
     def query(self) -> ResearchQuery:
@@ -471,6 +479,38 @@ class ResearchRun:
     @property
     def references(self) -> tuple[ResearchReference, ...] | None:
         return self._references
+
+    @property
+    def failed_sources(self) -> tuple[str, ...]:
+        """Source codes with at least one failed retrieval target.
+
+        A source can appear here while another target for the same source
+        succeeded. Use ``fully_failed_sources`` for the all-targets-failed
+        classification and ``partially_failed_sources`` for mixed outcomes.
+        """
+        return tuple(
+            source_code
+            for source_code, outcomes in self._target_outcomes.items()
+            if any(not outcome for outcome in outcomes)
+        )
+
+    @property
+    def fully_failed_sources(self) -> tuple[str, ...]:
+        """Source codes for which every attempted retrieval target failed."""
+        return tuple(
+            source_code
+            for source_code, outcomes in self._target_outcomes.items()
+            if outcomes and not any(outcomes)
+        )
+
+    @property
+    def partially_failed_sources(self) -> tuple[str, ...]:
+        """Source codes with at least one failed and one successful target."""
+        return tuple(
+            source_code
+            for source_code, outcomes in self._target_outcomes.items()
+            if any(outcomes) and any(not outcome for outcome in outcomes)
+        )
 
     @property
     def executed_sources(self) -> tuple[str, ...]:
@@ -569,11 +609,14 @@ class ResearchRun:
                 if source_code not in executed:
                     executed.append(source_code)
                 self._executed_sources = tuple(executed)
+                outcomes = self._target_outcomes.setdefault(source_code, [])
                 try:
                     collected_batches.append(
                         (retriever, source_query, retriever.collect(source_query))
                     )
+                    outcomes.append(True)
                 except Exception as exc:  # noqa: BLE001 - classified below
+                    outcomes.append(False)
                     if not tolerate_failures:
                         raise
                     if first_error is None:

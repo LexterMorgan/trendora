@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { proxyError } from "../../../lib/report-proxy.ts";
+
 /**
  * Thin same-origin proxy for public-web discovery.
  *
  * Browser → this route → Trendora FastAPI `GET /api/v1/discover`.
  * Forwards only `q` and `limit` plus the authorization header.
+ *
+ * The 65 second deadline covers the complete upstream exchange. The search
+ * gateways allow at most two 30 second attempts (Serper) or a 25 second batch
+ * (SearXNG), so this leaves a small bounded margin without changing provider
+ * budgets.
  */
 
 const API_BASE_URL = process.env.TRENDORA_API_BASE_URL;
+const DISCOVER_TIMEOUT_MS = 65_000;
 
 export async function GET(request: NextRequest) {
   if (!API_BASE_URL) {
@@ -30,34 +38,41 @@ export async function GET(request: NextRequest) {
   }
   const search = upstreamParams.size > 0 ? `?${upstreamParams.toString()}` : "";
 
-  const headers: Record<string, string> = {};
-  const authorization = request.headers.get("authorization");
-  if (authorization) headers.authorization = authorization;
-  let upstream: Response;
+  const deadline = AbortSignal.timeout(DISCOVER_TIMEOUT_MS);
+  const signal = AbortSignal.any([request.signal, deadline]);
   try {
-    upstream = await fetch(`${API_BASE_URL}/api/v1/discover${search}`, {
+    signal.throwIfAborted();
+    const headers: Record<string, string> = {};
+    const authorization = request.headers.get("authorization");
+    if (authorization) headers.authorization = authorization;
+    const upstream = await fetch(`${API_BASE_URL}/api/v1/discover${search}`, {
       headers,
       cache: "no-store",
+      redirect: "error",
+      signal,
+    });
+    const text = await upstream.text();
+    signal.throwIfAborted();
+    const contentType = upstream.headers.get("content-type") ?? "application/json";
+    return new NextResponse(text, {
+      status: upstream.status,
+      headers: {
+        "content-type": contentType,
+        "cache-control": "private, no-store",
+      },
     });
   } catch {
-    return NextResponse.json(
-      {
-        error: {
-          code: "backend_unreachable",
-          message: "Trendora backend could not be reached.",
-        },
-      },
-      { status: 502 },
+    if (deadline.aborted && !request.signal.aborted) {
+      return proxyError(
+        504,
+        "discover_timeout",
+        "Search took too long. Try a narrower query.",
+      );
+    }
+    return proxyError(
+      502,
+      "backend_unreachable",
+      "Trendora backend could not be reached.",
     );
   }
-
-  const text = await upstream.text();
-  const contentType = upstream.headers.get("content-type") ?? "application/json";
-  return new NextResponse(text, {
-    status: upstream.status,
-    headers: {
-      "content-type": contentType,
-      "cache-control": "private, no-store",
-    },
-  });
 }

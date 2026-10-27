@@ -10,6 +10,10 @@ interface CoveragePanelProps {
 export const COVERAGE_REASON_TEXT: Record<string, string> = {
   search_partial:
     "Public social discovery was partial: some platform queries failed or the shared time budget expired. Results shown are the ones that completed.",
+  source_failed:
+    "All retrieval targets for this source failed. No results from it are included; other sources may have completed.",
+  source_partial:
+    "Some retrieval targets failed. Results from completed targets, if any, are included.",
 };
 
 /**
@@ -49,7 +53,15 @@ export function CoveragePanel({ coverage, executedSources }: CoveragePanelProps)
                 className="coverage-execution"
                 data-searched={executed === undefined ? "unknown" : executed ? "true" : "false"}
               >
-                Execution: {executed === undefined ? "Unavailable" : executed ? "Searched" : "Not searched"}
+                Execution: {executed === undefined
+                  ? "Unavailable"
+                  : !executed
+                    ? "Not searched"
+                    : source.reason === "source_failed"
+                      ? "Attempted; failed"
+                      : source.reason === "source_partial"
+                        ? "Attempted; partial"
+                        : "Searched"}
               </span>
               {source.reason && <p className="drawer-muted coverage-reason">{COVERAGE_REASON_TEXT[source.reason] ?? source.reason}</p>}
             </li>

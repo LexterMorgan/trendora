@@ -105,24 +105,64 @@ export type CallbackSource = {
   auth: { initialize(): Promise<{ error: { message: string } | null }> };
 };
 
+export const CALLBACK_ACCEPTANCE_TIMEOUT_MS = 15_000;
+
+export interface CallbackAcceptanceOptions {
+  timeoutMs?: number;
+}
+
 /**
  * Whether Supabase accepted the auth result carried by the current URL.
  *
  * `initialize()` runs URL processing once and caches its verdict, so this
  * never re-runs a callback. `false` means the SDK rejected the link
  * (incomplete, expired, already used) or public auth is not configured.
- * The SDK's own verdict, never a hand-rolled JWT check.
+ * `null` means the application stopped waiting for an SDK verdict; it is
+ * neither acceptance nor rejection. The SDK's own verdict, never a
+ * hand-rolled JWT check, decides acceptance.
  */
 export async function resolveCallbackAcceptance(
   client: CallbackSource | null = getSupabase(),
-): Promise<boolean> {
+  options: CallbackAcceptanceOptions = {},
+): Promise<boolean | null> {
   if (!client) return false;
+  let initialized: Promise<{ error: { message: string } | null }>;
   try {
-    const { error } = await client.auth.initialize();
-    return error === null;
+    initialized = Promise.resolve(client.auth.initialize());
   } catch {
     return false;
   }
+  const timeoutMs = options.timeoutMs;
+  if (timeoutMs === undefined) {
+    try {
+      const { error } = await initialized;
+      return error === null;
+    } catch {
+      return false;
+    }
+  }
+  return new Promise<boolean | null>((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      resolve(null);
+    }, timeoutMs);
+    initialized.then(
+      ({ error }) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(error === null);
+      },
+      () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(false);
+      },
+    );
+  });
 }
 
 /**

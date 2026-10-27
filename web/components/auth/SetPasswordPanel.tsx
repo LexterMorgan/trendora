@@ -4,8 +4,14 @@ import { useEffect, useSyncExternalStore, useState, type FormEvent } from "react
 import Link from "next/link";
 
 import { AuthNotice, AuthShell } from "@/components/auth/AuthShell";
+import { CallbackRecovery } from "@/components/auth/CallbackRecovery";
 import { PasswordField } from "@/components/auth/PasswordField";
-import { resolveCallbackAcceptance, updatePassword } from "@/lib/auth/client";
+import {
+  CALLBACK_ACCEPTANCE_TIMEOUT_MS,
+  getSessionStore,
+  resolveCallbackAcceptance,
+  updatePassword,
+} from "@/lib/auth/client";
 import {
   deriveCallbackPhase,
   getInitialAuthHash,
@@ -53,16 +59,25 @@ export function SetPasswordPanel({
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
   const [accepted, setAccepted] = useState<boolean | null>(null);
+  const [acceptanceTimedOut, setAcceptanceTimedOut] = useState(false);
+  const [acceptanceAttempt, setAcceptanceAttempt] = useState(0);
 
   useEffect(() => {
     let live = true;
-    void resolveCallbackAcceptance().then((ok) => {
-      if (live) setAccepted(ok);
+    void resolveCallbackAcceptance(undefined, {
+      timeoutMs: CALLBACK_ACCEPTANCE_TIMEOUT_MS,
+    }).then((ok) => {
+      if (!live) return;
+      if (ok === null) {
+        setAcceptanceTimedOut(true);
+        return;
+      }
+      setAccepted(ok);
     });
     return () => {
       live = false;
     };
-  }, []);
+  }, [acceptanceAttempt]);
 
   const phase: AuthCallbackPhase =
     hash === null
@@ -85,6 +100,20 @@ export function SetPasswordPanel({
           </Link>
         </div>
       </AuthShell>
+    );
+  }
+
+  if (phase === "checking" && (session.initializationFailed || acceptanceTimedOut)) {
+    return (
+      <CallbackRecovery
+        title={formTitle}
+        onRetry={() => {
+          setAccepted(null);
+          setAcceptanceTimedOut(false);
+          setAcceptanceAttempt((attempt) => attempt + 1);
+          getSessionStore().retryInitialization();
+        }}
+      />
     );
   }
 

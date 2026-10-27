@@ -61,6 +61,9 @@ export function deriveCallbackPhase(
 ): AuthCallbackPhase {
   if (parsed.error) return "invalid";
   if (parsed.type !== expected) return "invalid";
+  // An explicit SDK rejection is invalid even if the session store is still
+  // loading. Unknown acceptance remains checking.
+  if (accepted === false) return "invalid";
   if (status === "loading") return "checking";
   if (status !== "signedIn") return "invalid";
   // The form may only change the password of the session this exact link

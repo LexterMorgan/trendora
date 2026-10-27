@@ -17,6 +17,7 @@ from trendora.research import (
     build_research_application_service,
 )
 from trendora.research.models import (
+    CoverageReason,
     CoverageStatus,
     PlatformCapability,
     allocate_result_limits,
@@ -84,6 +85,24 @@ def _service(youtube_retriever, facebook_retriever) -> ResearchApplicationServic
     if facebook_retriever is not None:
         retrievers["facebook"] = facebook_retriever
     return ResearchApplicationService(ResearchCapabilityResolver(), retrievers)
+
+
+class MarketFailingRetriever:
+    """Fail one market target while another market target completes."""
+
+    def __init__(self, fail_market: str, refs: tuple[ResearchReference, ...]):
+        self.fail_market = fail_market
+        self.refs = refs
+        self.calls: list[object] = []
+
+    def collect(self, query, *, collected_at=None):
+        self.calls.append(query)
+        if query.market == self.fail_market:
+            raise RuntimeError("one market target timed out")
+        return object()
+
+    def normalize(self, collected):
+        return self.refs
 
 
 class TestQueryValidation:
@@ -273,7 +292,85 @@ class TestCombinedExecution:
         run = _service(yt, fb).execute(**_query())
         assert run.status is ResearchRunStatus.COMPLETED
         assert run.executed_sources == ("youtube", "facebook")
+        assert run.failed_sources == ("youtube",)
+        youtube_coverage = next(
+            source for source in run.coverage.sources if source.source_code == "youtube"
+        )
+        assert youtube_coverage.status is CoverageStatus.AVAILABLE
+        assert youtube_coverage.reason is CoverageReason.SOURCE_FAILED
         assert [r.source_code for r in run.references] == ["facebook"]
+
+    def test_same_source_partial_failure_keeps_successful_target_results(self) -> None:
+        retriever = MarketFailingRetriever(
+            "SG", (_reference("youtube", "us-video", 1, view_count=3),)
+        )
+        service = ResearchApplicationService(
+            ResearchCapabilityResolver(), {"youtube": retriever}
+        )
+        run = service.execute(
+            topic="t",
+            markets=("SG", "MY"),
+            date_from=date(2026, 8, 1),
+            date_to=date(2026, 8, 31),
+            sources=["youtube"],
+            result_limit=4,
+        )
+        assert run.status is ResearchRunStatus.COMPLETED
+        assert run.failed_sources == ("youtube",)
+        assert run.fully_failed_sources == ()
+        assert run.partially_failed_sources == ("youtube",)
+        assert [reference.content_external_id for reference in run.references] == ["us-video"]
+        coverage = next(
+            source for source in run.coverage.sources if source.source_code == "youtube"
+        )
+        assert coverage.reason is CoverageReason.SOURCE_PARTIAL
+
+    def test_same_source_partial_failure_with_empty_success_is_not_all_failed(self) -> None:
+        retriever = MarketFailingRetriever("SG", ())
+        service = ResearchApplicationService(
+            ResearchCapabilityResolver(), {"youtube": retriever}
+        )
+        run = service.execute(
+            topic="t",
+            markets=("SG", "MY"),
+            date_from=date(2026, 8, 1),
+            date_to=date(2026, 8, 31),
+            sources=["youtube"],
+            result_limit=4,
+        )
+        assert run.status is ResearchRunStatus.COMPLETED
+        assert run.references == ()
+        assert run.fully_failed_sources == ()
+        assert run.partially_failed_sources == ("youtube",)
+        coverage = next(
+            source for source in run.coverage.sources if source.source_code == "youtube"
+        )
+        assert coverage.reason is CoverageReason.SOURCE_PARTIAL
+
+    def test_every_target_for_one_source_fails_while_another_source_succeeds(self) -> None:
+        class AllMarketsFail:
+            def __init__(self):
+                self.calls = []
+
+            def collect(self, query, *, collected_at=None):
+                self.calls.append(query)
+                raise RuntimeError("youtube target failed")
+
+            def normalize(self, collected):
+                return ()
+
+        yt = AllMarketsFail()
+        fb = RecordingRetriever((_reference("facebook", "p1", 1, reaction_count=1),))
+        service = _service(yt, fb)
+        run = service.execute(**_query(market=None, markets=("SG", "MY"), result_limit=6))
+        assert run.status is ResearchRunStatus.COMPLETED
+        assert run.fully_failed_sources == ("youtube",)
+        assert run.partially_failed_sources == ()
+        coverage = next(
+            source for source in run.coverage.sources if source.source_code == "youtube"
+        )
+        assert coverage.reason is CoverageReason.SOURCE_FAILED
+        assert [reference.source_code for reference in run.references] == ["facebook"]
 
     def test_all_sources_failing_still_fails_closed(self) -> None:
         yt = RecordingRetriever((), error=RuntimeError("youtube boom"))
@@ -286,6 +383,20 @@ class TestCombinedExecution:
         assert run.status is ResearchRunStatus.COMPLETED
         assert run.references == ()
         assert run.executed_sources == ("youtube", "facebook")
+        assert run.failed_sources == ()
+        assert all(source.reason is None for source in run.coverage.sources)
+
+    def test_one_failed_source_with_an_empty_survivor_keeps_failure_visible(self) -> None:
+        yt = RecordingRetriever((), error=RuntimeError("youtube timeout"))
+        fb = RecordingRetriever(())
+        run = _service(yt, fb).execute(**_query())
+        assert run.status is ResearchRunStatus.COMPLETED
+        assert run.references == ()
+        assert run.failed_sources == ("youtube",)
+        youtube_coverage = next(
+            source for source in run.coverage.sources if source.source_code == "youtube"
+        )
+        assert youtube_coverage.reason is CoverageReason.SOURCE_FAILED
 
     def test_mixed_empty_result_completes_with_present_source(self) -> None:
         yt = RecordingRetriever(())

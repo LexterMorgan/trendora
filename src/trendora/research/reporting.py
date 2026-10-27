@@ -8,6 +8,7 @@ flag preserves the legacy three-stage pipeline and snapshot representation.
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
@@ -296,13 +297,23 @@ class ResearchReportService:
         labeled fallback still applies.
         """
         with measure_stage(stage):
+            started = time.monotonic()
             try:
                 return call()
             except ResearchAIResponseError as exc:
+                elapsed = time.monotonic() - started
                 if deadline is not None and deadline.expired():
                     logger.warning(
                         "research.report.ai_retry_skipped stage=%s reason=budget_exhausted",
                         stage,
+                    )
+                    raise
+                if deadline is not None and deadline.remaining() < elapsed:
+                    logger.warning(
+                        "research.report.ai_retry_skipped stage=%s reason=insufficient_budget_for_retry attempt_ms=%s remaining_ms=%s",
+                        stage,
+                        max(0, round(elapsed * 1000)),
+                        max(0, round(deadline.remaining() * 1000)),
                     )
                     raise
                 logger.warning(
@@ -313,6 +324,66 @@ class ResearchReportService:
                 )
                 record_retry()
                 return call()
+
+    def generate_content(
+        self,
+        pack,
+        interpretation_result,
+        *,
+        deadline=None,
+    ):
+        """Generate strategy and ideation over an existing grounded report.
+
+        The optional operation owns its deadline. Strategy and ideation share
+        that one budget. Validation is mandatory. On failure the caller decides
+        whether to preserve existing content or expose content_unavailable; this
+        method never publishes partial output and never mutates the pack.
+        """
+        if deadline is None:
+            deadline = self._ai_deadline()
+        content_stage = "strategy"
+        stage_state = "not_started"
+        try:
+            if self._strategy is None or self._ideation is None:
+                raise ResearchAIProviderNotConfiguredError("content provider is unavailable")
+            if deadline is not None and deadline.expired():
+                stage_state = "deadline_exhausted_before_request"
+                raise ResearchAITimeoutError("AI phase budget exhausted before content tools")
+            context = StrategicContext(pack, interpretation_result)
+            stage_state = "stage_started"
+            strategic_result = self._run_ai_stage(
+                "strategy",
+                lambda: call_with_deadline(self._strategy.generate, context, deadline),
+                deadline,
+            )
+            validate_strategic_result(context, strategic_result)
+            content_stage = "ideation"
+            stage_state = "not_started"
+            if deadline is not None and deadline.expired():
+                stage_state = "deadline_exhausted_before_request"
+                raise ResearchAITimeoutError("AI phase budget exhausted before content ideas")
+            ideation_context = IdeationContext(context, strategic_result)
+            stage_state = "stage_started"
+            ideation_result = self._run_ai_stage(
+                "ideation",
+                lambda: call_with_deadline(self._ideation.generate, ideation_context, deadline),
+                deadline,
+            )
+            validate_ideation_result(ideation_context, ideation_result)
+            return strategic_result, ideation_result
+        except (
+            ResearchAIProviderError, ResearchAIProviderNotConfiguredError,
+            ResearchAIResponseError, ResearchInterpretationError,
+        ) as exc:
+            logger.warning(
+                "research.report.content_unavailable stage=%s error=%s reason=%s stage_state=%s deadline_remaining_ms=%s",
+                content_stage,
+                type(exc).__name__,
+                getattr(exc, "reason_code", "unspecified"),
+                stage_state,
+                None if deadline is None else max(0, round(deadline.remaining() * 1000)),
+            )
+            raise
 
     def build_report(
         self,
@@ -411,36 +482,13 @@ class ResearchReportService:
                     )
             if interpretation_result.interpretations and include_content_tools:
                 try:
-                    if self._strategy is None or self._ideation is None:
-                        raise ResearchAIProviderNotConfiguredError("content provider is unavailable")
-                    # Optional stages share the same remaining budget.
-                    if deadline is not None and deadline.expired():
-                        raise ResearchAITimeoutError("AI phase budget exhausted before content tools")
-                    context = StrategicContext(pack, interpretation_result)
-                    strategic_result = self._run_ai_stage(
-                        "strategy",
-                        lambda: call_with_deadline(
-                            self._strategy.generate, context, deadline
-                        ),
-                        deadline,
+                    strategic_result, ideation_result = self.generate_content(
+                        pack, interpretation_result, deadline=deadline
                     )
-                    # Validate before passing any provider output to another stage.
-                    validate_strategic_result(context, strategic_result)
-                    ideation_context = IdeationContext(context, strategic_result)
-                    ideation_result = self._run_ai_stage(
-                        "ideation",
-                        lambda: call_with_deadline(
-                            self._ideation.generate, ideation_context, deadline
-                        ),
-                        deadline,
-                    )
-                    validate_ideation_result(ideation_context, ideation_result)
                 except (
                     ResearchAIProviderError, ResearchAIProviderNotConfiguredError,
                     ResearchAIResponseError, ResearchInterpretationError,
-                ) as exc:
-                    logger.warning("research.report.content_unavailable error=%s", type(exc).__name__)
-                    # Invalid or partially generated optional material is not published.
+                ):
                     strategic_result = None
                     ideation_result = None
                     status = ResearchReportStatus.CONTENT_UNAVAILABLE

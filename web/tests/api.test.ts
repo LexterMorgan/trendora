@@ -618,3 +618,75 @@ test("classifyApiError covers the contract statuses", () => {
   assert.equal(classifyApiError(500, "backend_not_configured"), "unavailable");
   assert.equal(classifyApiError(500, "internal_error"), "unknown");
 });
+
+
+test("cancelling during token lookup settles without dispatch", async () => {
+  const auth = pendingAuth();
+  const store = createSessionStore(auth.adapter);
+  store.start();
+  auth.resolveNext({ user: { id: "user-a" }, access_token: "tok-a" });
+  await tick();
+  const controller = new AbortController();
+  const runtime = storeRuntime(store);
+
+  await withFetch(
+    () => jsonResponse(200, { ok: true }),
+    async (fetchCap) => {
+      const pending = settled(requestJson("/api/reports", { runtime, signal: controller.signal }));
+      assert.equal(auth.waiting, 1);
+      controller.abort();
+      const err = await pending;
+      assert.ok(err instanceof Error);
+      assert.equal(err.name, "AbortError");
+      assert.equal(fetchCap.calls, 0);
+      auth.resolveNext({ user: { id: "user-a" }, access_token: "tok-a" });
+      await tick();
+      assert.equal(fetchCap.calls, 0, "a late token cannot send the cancelled request");
+    },
+  );
+});
+
+test("token lookup timeout settles as temporary auth unavailability", async () => {
+  const auth = pendingAuth();
+  const store = createSessionStore(auth.adapter, { tokenTimeoutMs: 0 });
+  store.start();
+  auth.resolveNext({ user: { id: "user-a" }, access_token: "tok-a" });
+  await tick();
+  const runtime = storeRuntime(store);
+
+  await withFetch(
+    () => jsonResponse(200, { ok: true }),
+    async (fetchCap) => {
+      const err = await settled(requestJson("/api/reports", { runtime }));
+      assert.ok(err instanceof ResearchApiError);
+      assert.equal(err.code, "auth_timeout");
+      assert.equal(err.kind, "unavailable");
+      assert.equal(fetchCap.calls, 0);
+      assert.equal(store.getSessionState().status, "signedIn");
+    },
+  );
+});
+
+
+test("cancellation while parsing a response body is not an unreadable response", async () => {
+  const controller = new AbortController();
+  await withFetch(
+    () => {
+      queueMicrotask(() => controller.abort());
+      return new Response(new ReadableStream({
+        start(stream) {
+          controller.signal.addEventListener("abort", () => {
+            stream.error(new DOMException("cancelled", "AbortError"));
+          }, { once: true });
+        },
+      }));
+    },
+    async (fetchCap) => {
+      const pending = settled(requestJson("/api/reports", { runtime: runtime(capture()), signal: controller.signal }));
+      const err = await pending;
+      assert.ok(err instanceof Error);
+      assert.equal(err.name, "AbortError");
+      assert.equal(fetchCap.calls, 1);
+    },
+  );
+});

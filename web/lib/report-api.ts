@@ -202,10 +202,12 @@ export function isResearchReport(value: unknown): value is ResearchReportRespons
 
 export async function submitReport(
   request: ResearchRequest,
+  options?: { signal?: AbortSignal },
 ): Promise<ResearchReportResponse> {
   const payload = await requestJson<ResearchReportResponse>("/api/report", {
     method: "POST",
     body: request,
+    signal: options?.signal,
   });
   if (!isResearchReport(payload)) {
     throw new ResearchApiError(
@@ -272,6 +274,23 @@ export async function saveReportSnapshot(
     throw new ResearchApiError(
       "invalid_response",
       "Trendora returned an unexpected save response.",
+    );
+  }
+  return payload;
+}
+
+export async function generateReportContent(
+  reportId: string,
+  options?: { signal?: AbortSignal },
+): Promise<ResearchReportResponse> {
+  const payload = await requestJson<ResearchReportResponse>(
+    `/api/reports/${encodeURIComponent(reportId)}/content`,
+    { method: "POST", signal: options?.signal },
+  );
+  if (!isResearchReport(payload)) {
+    throw new ResearchApiError(
+      "invalid_response",
+      "Trendora returned an unexpected content response.",
     );
   }
   return payload;

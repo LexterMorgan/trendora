@@ -11,6 +11,8 @@ const CODE_MESSAGES: Record<string, string> = {
     "The Trendora backend could not be reached. Make sure the backend is running.",
   backend_not_configured:
     "The Trendora backend is not configured (TRENDORA_API_BASE_URL is missing).",
+  auth_timeout:
+    "Sign-in is taking longer than expected. Try again.",
   internal_error: "An unexpected error occurred.",
 };
 

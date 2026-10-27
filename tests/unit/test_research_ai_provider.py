@@ -808,6 +808,19 @@ class TestRequestBody:
         assert body["reasoning"] == {"effort": "low", "exclude": True}
         assert "provider" not in body and "tools" not in body
 
+    def test_research_context_gets_a_larger_bounded_output_allowance(self) -> None:
+        captured = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["body"] = json.loads(request.content)
+            return httpx.Response(200, json=_envelope(_model_output([])))
+
+        _provider(handler).interpret(_research_pack())
+        assert captured["body"]["max_tokens"] == 8192
+
+        _provider(handler).interpret(_pack())
+        assert captured["body"]["max_tokens"] == 4096
+
     def test_request_body_shape(self) -> None:
         captured = {}
 

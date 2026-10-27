@@ -17,7 +17,6 @@ export interface HeaderProps {
 const NAV = [
   { href: "/", label: "Research", match: ["/"], icon: "M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm5 12 6 6" },
   { href: "/past-reports", label: "Reports", match: ["/past-reports", "/report"], icon: "M6 3h9l4 4v14H6V3Zm8 0v5h5M9 12h7M9 16h7" },
-  { href: "/discover", label: "Discover", match: ["/discover"], icon: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm3 6-2 5-5 2 2-5 5-2Z" },
   { href: "/planner", label: "Planner", match: ["/planner"], icon: "M4 5h16v16H4V5Zm0 5h16M8 2v6M16 2v6" },
 ];
 

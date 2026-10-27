@@ -74,14 +74,14 @@ def _service(interp, strategy=None, ideation=None, *, budget):
 
 class TestRetrySharesBudget:
     def test_retry_receives_only_remaining_time(self, clock):
-        # First attempt consumes 80s of a 90s budget, then fails malformed.
+        # First attempt consumes 10s of a 90s budget, then fails malformed.
         interp = _DeadlineAwareInterp()
 
         def interpret(pack, *, deadline=None):
             interp.calls += 1
             interp.remaining_seen.append(deadline.remaining() if deadline else None)
             if interp.calls == 1:
-                clock["t"] += 80.0  # burn most of the budget on the first attempt
+                clock["t"] += 10.0  # leave enough time for one bounded retry
                 raise ResearchAIResponseError("bad")
             return _text_supported_interpretation(pack)
 
@@ -91,9 +91,28 @@ class TestRetrySharesBudget:
         )
         assert report.status is ResearchReportStatus.RESEARCH_COMPLETED
         assert interp.calls == 2
-        # First attempt saw ~90s; the retry saw only the ~10s that remained.
+        # First attempt saw ~90s; the retry saw only the ~80s that remained.
         assert interp.remaining_seen[0] == pytest.approx(90.0, abs=0.01)
-        assert interp.remaining_seen[1] == pytest.approx(10.0, abs=0.01)
+        assert interp.remaining_seen[1] == pytest.approx(80.0, abs=0.01)
+
+    def test_expensive_failed_attempt_prevents_unchanged_retry(self, clock, caplog):
+        import logging
+
+        interp = _DeadlineAwareInterp()
+
+        def fail(pack, *, deadline=None):
+            interp.calls += 1
+            clock["t"] += 80.0
+            raise ResearchAIResponseError("bad")
+
+        interp.interpret = fail
+        with caplog.at_level(logging.WARNING, logger="trendora.research.reporting"):
+            report = _service(interp, budget=90.0).build_report(
+                **_query(), include_content_tools=False
+            )
+        assert report.status is ResearchReportStatus.RESEARCH_COMPLETED
+        assert interp.calls == 1
+        assert "reason=insufficient_budget_for_retry" in caplog.text
 
     def test_exhausted_budget_prevents_retry(self, clock):
         interp = _DeadlineAwareInterp()

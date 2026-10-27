@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -16,6 +17,7 @@ from trendora.api.app import (
 from trendora.connectors.youtube.client import YouTubeClient
 from trendora.research import (
     ResearchAIProviderError,
+    ResearchAITimeoutError,
     ResearchAIProviderNotConfiguredError,
     ResearchAIResponseError,
     ResearchApplicationService,
@@ -101,6 +103,18 @@ class TestReportEndpoint:
         assert body["strategy"] is body["ideation"] is None
         assert events == ["interpretation"]
         assert len(_mock_report_persistence) == 1
+
+    def test_optional_timeout_keeps_the_failed_stage_in_fresh_run_details(self) -> None:
+        service = _report_service([])
+        def fail(context, *, deadline=None):
+            raise ResearchAITimeoutError("fictional strategy timeout")
+        service._strategy = SimpleNamespace(generate=fail)
+        body = _app_with_report_service(service).post(
+            PATH, json={**_payload(), "include_content_tools": True}
+        ).json()
+        assert body["status"] == "content_unavailable"
+        assert "strategy" in body["run_details"]["stage_durations_ms"]
+        assert body["run_details"]["stage_durations_ms"]["strategy"] >= 0
 
     def test_completed_report_serialization(self) -> None:
         service = _report_service([])

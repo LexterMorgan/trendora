@@ -280,7 +280,8 @@ not evidence that an existing deployment has this configuration.
 | Path | Application limit |
 | --- | --- |
 | Frontend report-generation proxy | 65,536 streamed request bytes; 180-second deadline for upstream fetch and full response reading, with client cancellation forwarded. The 180-second proxy deadline does not guarantee backend completion or backend-side cancellation. |
-| AI interpretation (backend) | One shared monotonic deadline (`TRENDORA_AI_TIMEOUT_SECONDS`, default 30 s) governs the remaining in-flight HTTP request budget across the interpretation call, its retry, and the optional content stages. In-flight I/O is cancellable at the deadline; JSON parsing, grounding validation, and cleanup are not strictly interrupted. This bounds AI request I/O only. It is not a whole-report completion guarantee: collection, persistence, and rendering sit outside it. |
+| Research interpretation (backend) | One shared monotonic deadline (`TRENDORA_AI_TIMEOUT_SECONDS`, default 30 s) governs the interpretation call and at most one malformed-output retry. The retry is skipped when remaining time is shorter than the failed attempt. In-flight I/O is cancellable at the deadline; JSON parsing, grounding validation, and cleanup are not strictly interrupted. |
+| On-demand content (backend) | A separate request generates strategy and ideation for one saved, non-expired report. Strategy and ideation share their own `TRENDORA_AI_TIMEOUT_SECONDS` budget. Success appends a new completed report snapshot; failure leaves the source report unchanged. |
 | Report save/recovery | 8,388,608 request bytes in browser, frontend proxy, and backend route. |
 | Planner writes | 131,072 streamed request bytes in frontend proxy and backend route. |
 
@@ -290,10 +291,11 @@ compute on Hobby allows 300 seconds; the selected project/runtime settings must
 be inspected before relying on that duration. [Vercel limits](https://vercel.com/docs/functions/limitations).
 
 Do not assume a short fixed timeout bounds a whole report. AI request I/O is
-bounded by the shared deadline described in the request-limits table above;
-source requests, markets, optional stages, database writes, and cold starts all
-add time beyond it. Proxy cancellation bounds the frontend wait; it does not
-prove backend execution or a database write stopped. Verify actual latency and
+bounded by the operation deadline described above; source requests, database
+writes, and cold starts add time beyond it. Proxy cancellation bounds the
+frontend wait; it does not prove backend execution or a database write stopped.
+On-demand content is a separate request after the report is saved, so it does
+not consume the research synthesis budget. Verify actual latency and
 lost-response recovery on the intended host before release.
 
 The optional Render Free template does not establish an operational cleanup

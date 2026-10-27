@@ -26,6 +26,8 @@ export interface SessionState {
   status: SessionStatus;
   userId: string | null;
   epoch: number;
+  /** True when the initial lookup timed out or failed and may be retried. */
+  initializationFailed: boolean;
   /**
    * Access token of the session as last established. A later token refresh
    * updates `token` for API calls but leaves this alone, so a callback can
@@ -70,11 +72,60 @@ export interface SessionStore {
   getAccessToken(): Promise<string | null>;
   subscribe(listener: () => void): () => void;
   start(): void;
+  /** Start a fresh bounded initial lookup after a timeout or transient failure. */
+  retryInitialization(): void;
   /** Forced sign-out. Pass the binding to ignore a stale 401. */
   invalidate(binding?: SessionBinding): void;
   /** Purge workspace content for an account the backend rejected. */
   denyAccess(binding: SessionBinding, code: string, message: string): void;
   signOut(): Promise<void>;
+}
+
+export const INITIAL_SESSION_TIMEOUT_MS = 15_000;
+export const TOKEN_LOOKUP_TIMEOUT_MS = 10_000;
+
+/** The application stopped waiting for the auth SDK. The SDK may still finish. */
+export class SessionWaitError extends Error {
+  code = "auth_timeout" as const;
+
+  constructor(message = "Checking your session took too long.") {
+    super(message);
+    this.name = "SessionWaitError";
+  }
+}
+
+export interface SessionStoreOptions {
+  initialTimeoutMs?: number;
+  tokenTimeoutMs?: number;
+}
+
+function waitWithTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  timeoutError: () => Error,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(timeoutError());
+    }, timeoutMs);
+    promise.then(
+      (value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 }
 
 export function gateDecision(
@@ -95,17 +146,24 @@ function hasLiveSession(state: SessionState): boolean {
   return state.status === "signedIn" || state.status === "loading";
 }
 
-export function createSessionStore(adapter: AuthAdapter | null): SessionStore {
+export function createSessionStore(
+  adapter: AuthAdapter | null,
+  options: SessionStoreOptions = {},
+): SessionStore {
+  const initialTimeoutMs = options.initialTimeoutMs ?? INITIAL_SESSION_TIMEOUT_MS;
+  const tokenTimeoutMs = options.tokenTimeoutMs ?? TOKEN_LOOKUP_TIMEOUT_MS;
   const empty: SessionState = {
     status: adapter ? "loading" : "unavailable",
     userId: null,
     epoch: 0,
+    initializationFailed: false,
     establishedToken: null,
     denied: null,
   };
   let state: SessionState = empty;
   let token: string | null = null;
   let started = false;
+  let initializationAttempt = 0;
   const listeners = new Set<() => void>();
 
   function commit(next: SessionState): void {
@@ -113,6 +171,7 @@ export function createSessionStore(adapter: AuthAdapter | null): SessionStore {
       next.status === state.status &&
       next.userId === state.userId &&
       next.epoch === state.epoch &&
+      next.initializationFailed === state.initializationFailed &&
       next.establishedToken === state.establishedToken &&
       next.denied === state.denied
     ) {
@@ -124,16 +183,19 @@ export function createSessionStore(adapter: AuthAdapter | null): SessionStore {
 
   function applyEvent(event: AuthEventName, session: AuthSessionLike | null): void {
     if (!adapter) return;
+    // INITIAL_SESSION reports only the first load. Once a newer state exists,
+    // a late initial payload must not replace an account or undo logout,
+    // whether that payload is null or non-null.
+    if (event === "INITIAL_SESSION" && state.status !== "loading") return;
 
     if (session === null || session.user?.id == null) {
-      // A late INITIAL_SESSION must not knock a newer signed-in state back out.
-      if (event === "INITIAL_SESSION" && state.status !== "loading") return;
       if (state.status === "signedOut" && token === null) return;
       token = null;
       commit({
         status: "signedOut",
         userId: null,
         epoch: state.userId !== null ? state.epoch + 1 : state.epoch,
+        initializationFailed: false,
         establishedToken: null,
         denied: null,
       });
@@ -151,9 +213,34 @@ export function createSessionStore(adapter: AuthAdapter | null): SessionStore {
       status: "signedIn",
       userId,
       epoch: switched ? state.epoch + 1 : state.epoch,
+      initializationFailed: false,
       establishedToken,
       denied: switched ? null : state.denied,
     });
+  }
+
+  function initialize(): void {
+    if (!adapter || state.status !== "loading") return;
+    const attempt = ++initializationAttempt;
+    commit({ ...state, initializationFailed: false });
+    let lookup: Promise<AuthSessionLike | null>;
+    try {
+      lookup = Promise.resolve(adapter.getInitialSession());
+    } catch {
+      lookup = Promise.reject(new Error("initial session lookup failed"));
+    }
+    waitWithTimeout(lookup, initialTimeoutMs, () => new SessionWaitError()).then(
+      (session) => {
+        if (attempt !== initializationAttempt) return;
+        if (state.status === "loading") applyEvent("INITIAL_SESSION", session);
+      },
+      () => {
+        if (attempt !== initializationAttempt) return;
+        if (state.status === "loading") {
+          commit({ ...state, status: "loading", initializationFailed: true });
+        }
+      },
+    );
   }
 
   return {
@@ -172,8 +259,23 @@ export function createSessionStore(adapter: AuthAdapter | null): SessionStore {
 
       let resolved: AuthSessionLike | null | undefined;
       try {
-        resolved = await adapter.getInitialSession();
-      } catch {
+        let lookup: Promise<AuthSessionLike | null>;
+        try {
+          lookup = Promise.resolve(adapter.getInitialSession());
+        } catch {
+          lookup = Promise.reject(new Error("access token lookup failed"));
+        }
+        resolved = await waitWithTimeout(
+          lookup,
+          tokenTimeoutMs,
+          () => new SessionWaitError("Getting your session token took too long."),
+        );
+      } catch (error) {
+        if (error instanceof SessionWaitError) {
+          if (!hasLiveSession(state)) return null;
+          if (state.userId !== wanted.userId || state.epoch !== wanted.epoch) return token;
+          throw error;
+        }
         resolved = undefined; // transient failure: fall back to the cached token
       }
 
@@ -203,17 +305,12 @@ export function createSessionStore(adapter: AuthAdapter | null): SessionStore {
       if (started || !adapter) return;
       started = true;
       adapter.onAuthChange(applyEvent);
-      void adapter
-        .getInitialSession()
-        .then((session) => {
-          if (state.status === "loading") applyEvent("INITIAL_SESSION", session);
-        })
-        .catch(() => {
-          if (state.status === "loading") {
-            token = null;
-            commit({ ...empty, status: "signedOut" });
-          }
-        });
+      initialize();
+    },
+
+    retryInitialization(): void {
+      if (!adapter || state.status !== "loading") return;
+      initialize();
     },
 
     invalidate(binding?: SessionBinding): void {

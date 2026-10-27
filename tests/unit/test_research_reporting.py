@@ -47,11 +47,13 @@ from trendora.research import (
     analyze_references,
     validate_research_report,
 )
+from trendora.research.models import CoverageReason
 from trendora.research.reporting import (
     GroundedIdeationService,
     GroundedInterpretationService,
     GroundedStrategyService,
 )
+from trendora.research.retrieval import ResearchRetriever
 from tests.fixtures.youtube_responses import SEARCH_EMPTY, SEARCH_PAGE_1, VIDEOS_LIST_OK
 
 UTC = timezone.utc
@@ -201,6 +203,22 @@ def _report_service(events: list[str], *, handler=_youtube_handler) -> ResearchR
     return ResearchReportService(_research(handler), interpretation, strategy, ideation)
 
 
+class _FailingRetriever:
+    def collect(self, query, *, collected_at=None):
+        raise RuntimeError("source timeout")
+
+    def normalize(self, collected):
+        return ()
+
+
+class _EmptyRetriever:
+    def collect(self, query, *, collected_at=None):
+        return object()
+
+    def normalize(self, collected):
+        return ()
+
+
 class TestOrchestration:
     def test_full_pipeline_order_and_single_execution(self) -> None:
         events: list[str] = []
@@ -252,6 +270,29 @@ class TestOrchestration:
         assert report.strategic_result is None
         assert report.ideation_result is None
         assert events == []
+
+    def test_no_evidence_keeps_a_failed_source_reason(self) -> None:
+        service = ResearchApplicationService(
+            ResearchCapabilityResolver(),
+            {"youtube": _FailingRetriever(), "public_web": _EmptyRetriever()},
+        )
+        report = ResearchReportService(service).build_report(
+            topic="STEM scholarships in Southeast Asia",
+            markets=(),
+            date_from=date(2026, 9, 1),
+            date_to=date(2026, 9, 30),
+            sources=["youtube", "public_web"],
+            result_limit=4,
+            include_content_tools=True,
+        )
+        assert report.status is ResearchReportStatus.NO_EVIDENCE
+        assert report.research_run.references == ()
+        youtube = next(
+            source
+            for source in report.research_run.coverage.sources
+            if source.source_code == "youtube"
+        )
+        assert youtube.reason is CoverageReason.SOURCE_FAILED
 
     def test_empty_ai_stage_results_remain_executed_non_null(self) -> None:
         class EmptyInterp:

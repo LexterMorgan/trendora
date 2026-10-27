@@ -27,7 +27,6 @@ export function plannerWorkspaceRegressions(f) {
     const summary = contentTools();
     await summary.waitFor();
     if (!await summary.evaluate((element) => element.parentElement.open)) await summary.click();
-    await f.page.getByRole("heading", { name: "Content ideas", exact: true }).waitFor();
   }
   async function create() {
     await f.newPost();
@@ -307,8 +306,9 @@ export function plannerWorkspaceRegressions(f) {
       await button("Save report").click();
       await f.stalled();
       await f.switchAccount(f.B);
-      await f.page.getByRole("button", { name: "Generate research report", exact: true }).waitFor();
       await f.page.getByLabel("Topic", { exact: true }).fill("B private text");
+      await f.page.getByRole("button", { name: "Continue", exact: true }).click();
+      await f.page.getByRole("button", { name: "Generate research report", exact: true }).waitFor();
       await f.release();
       await f.page.waitForTimeout(200);
       assert.equal(await f.page.getByText("Saved to history.").count(), 0);
@@ -394,7 +394,7 @@ export function plannerWorkspaceRegressions(f) {
         if (kind === "fresh") await f.submitResearch("Fictional fresh research", { researchFirst: true });
         const findings = f.page.getByRole("heading", { name: "Research findings", exact: true });
         assert.equal(await findings.isVisible(), true);
-        assert.equal(await f.page.getByText(kind === "fresh" ? "Fictional sourced synthesis fictional-1: context from collected source material." : "Fictional interpretation", { exact: true }).first().isVisible(), true);
+        assert.equal(await f.page.getByText("Fictional interpretation", { exact: true }).first().isVisible(), true);
         assert.equal(await f.page.getByText("AI interpretation", { exact: true }).first().isVisible(), true);
         assert.equal(await f.page.locator(".reference-card").first().isVisible(), true);
         assert.equal(await scopeSummary().isVisible(), true, "Scope essentials stay reachable while the details are closed");
@@ -631,8 +631,7 @@ export function plannerWorkspaceRegressions(f) {
       assert.equal(plannerMutations().length, 0);
     }],
     ["Loading shows measured elapsed time and completed reports show real run details", async () => {
-      await f.page.goto(f.origin + "/");
-      await f.page.getByRole("button", { name: "Generate research report", exact: true }).waitFor();
+      await f.openResearch();
       f.fault({ action: "generate", mode: "delay-before" });
       await f.page.getByLabel("Topic", { exact: true }).fill("Fictional delayed diagnostics");
       await f.page.getByRole("button", { name: "Generate research report", exact: true }).click();
@@ -831,8 +830,7 @@ export function plannerWorkspaceRegressions(f) {
     }],
     ["Final research-only default preserves sourced findings and invokes no optional stages", async () => {
       await f.openResearch();
-      const optIn = f.page.getByRole("checkbox", { name: "Generate content ideas and briefs", exact: true });
-      assert.equal(await optIn.isChecked(), false);
+      assert.equal(await f.page.getByRole("checkbox", { name: "Generate content ideas and briefs", exact: true }).count(), 0);
       await f.submitResearch("Fictional independent research", { researchOnly: true, researchFirst: true });
       const generated = f.calls.find((call) => call.path === "/api/v1/research/report");
       assert.equal(generated.body.include_content_tools, false);
@@ -849,7 +847,7 @@ export function plannerWorkspaceRegressions(f) {
       assert.equal(await drawer.getByRole("link", { name: "View original", exact: true }).getAttribute("href"), "https://example.test/fictional");
       await f.page.keyboard.press("Escape");
       await openContentTools();
-      assert.equal(await f.page.getByText("Content tools were not generated for this report.", { exact: true }).isVisible(), true);
+      assert.equal(await f.page.getByText("Content ideas and briefs are generated on demand from this saved report", { exact: false }).isVisible(), true);
       assert.equal(await button("Save to Planner").count(), 0);
       assert.equal(plannerMutations().length, 0);
       await button("Save report").click();
@@ -863,22 +861,102 @@ export function plannerWorkspaceRegressions(f) {
     }],
     ["Final optional content failure preserves research and stable save recovery", async () => {
       await f.openResearch();
-      await f.submitResearch("Fictional optional outage", { contentUnavailable: true });
-      assert.equal(f.calls.find((call) => call.path === "/api/v1/research/report").body.include_content_tools, true);
-      assert.deepEqual(f.optionalCalls, ["strategy"]);
-      assert.equal(await f.page.getByText("Fictional sourced synthesis fictional-1: context from collected source material.", { exact: true }).isVisible(), true);
+      await f.submitResearch("Fictional optional outage", { researchOnly: true, saveAfter: true });
       await openContentTools();
-      await f.page.getByText("Content generation is unavailable. Your research is preserved and can be saved.", { exact: true }).waitFor();
-      assert.equal(plannerMutations().length, 0);
-      f.fault({ action: "save", mode: "drop-after" });
-      await button("Save report").click(); await button("Retry saving report").waitFor();
-      await button("Retry saving report").click(); await f.page.getByText("Saved to history.", { exact: true }).waitFor();
-      const saves = f.calls.filter((call) => call.path === "/api/v1/research/reports/save");
-      assert.equal(saves.length, 2); assert.deepEqual(saves[0].body, saves[1].body);
-      assert.equal(saves[0].body.snapshot.status, "content_unavailable");
-      assert.equal(saves[0].body.snapshot.ideation, null);
+      f.fault({ action: "content", mode: "reject", status: 502, code: "content_generation_unavailable" });
+      await f.page.getByRole("button", { name: "Generate content ideas and briefs", exact: true }).click();
+      await f.page.locator(".content-generation .form-error").waitFor();
+      assert.equal(await f.page.getByRole("heading", { name: "Research findings", exact: true }).isVisible(), true);
+      assert.equal(await f.page.getByText("Saved to history.", { exact: true }).isVisible(), true);
       assert.equal(f.reports.size, 1);
       await f.snapshot("optional-content-failure");
+    }],
+    ["Content tools report generated state only when ideas or briefs exist", async () => {
+      await f.openResearch();
+      await f.submitResearch("Fictional generated content", { researchOnly: true, saveAfter: true });
+      await openContentTools();
+      await f.generateContent();
+      assert.match(await f.page.locator(".turn-meta").innerText(), /Research only/);
+      assert.match(await f.page.locator(".report-brief-line").innerText(), /finding citing source text/);
+      assert.doesNotMatch(await f.page.locator(".report-brief-line").innerText(), /source-backed finding/);
+      assert.equal(await f.page.getByText("Fictional import idea", { exact: true }).isVisible(), true);
+      assert.equal(await f.page.getByText("No content ideas were generated for this report.", { exact: true }).count(), 0);
+      await f.snapshot("content-generated");
+    }],
+    ["Content panel reports actual idea and brief availability", async () => {
+      const cases = [
+        ["Fictional ideas only", { ideasOnly: true }, "No content briefs were generated for this report."],
+        ["Fictional briefs only", { briefsOnly: true }, "No content ideas were generated for this report."],
+      ];
+      for (const [topic, options, expected] of cases) {
+        await f.openResearch();
+        await f.submitResearch(topic, { ...options, researchOnly: true, saveAfter: true });
+        await openContentTools();
+        await f.generateContent();
+        assert.equal(await f.page.getByText(expected, { exact: true }).isVisible(), true);
+      }
+    }],
+    ["On-demand content saves a new report and reopens with content intact", async () => {
+      await f.openResearch();
+      await f.submitResearch("Fictional on-demand persistence", { researchOnly: true, saveAfter: true });
+      await openContentTools();
+      await f.generateContent();
+      assert.equal(await f.page.getByText("Fictional import idea", { exact: true }).isVisible(), true);
+      const ids = [...f.reports.keys()];
+      assert.equal(ids.length, 2, "source research row and derived content row are distinct");
+      const derivedId = ids.at(-1);
+      await f.page.goto(`${f.origin}/report/${derivedId}`);
+      await openContentTools();
+      await f.page.getByRole("heading", { name: "Content ideas", exact: true }).waitFor();
+      assert.equal(await f.page.getByText("Fictional import idea", { exact: true }).isVisible(), true);
+      assert.match(await f.page.locator(".report-persistence").innerText(), /Saved to history/);
+      await f.snapshot("on-demand-content-reopened");
+    }],
+    ["Pending on-demand content blocks duplicates and cancellation stays honest", async () => {
+      await f.openResearch();
+      await f.submitResearch("Fictional on-demand cancel", { researchOnly: true, saveAfter: true });
+      await openContentTools();
+      f.fault({ action: "content", mode: "delay-before" });
+      await f.page.getByRole("button", { name: "Generate content ideas and briefs", exact: true }).click();
+      await f.stalled();
+      assert.equal(await f.page.getByRole("button", { name: "Stop waiting", exact: true }).isVisible(), true);
+      assert.equal(await f.page.getByRole("button", { name: "Generate content ideas and briefs", exact: true }).count(), 0);
+      await f.page.getByRole("button", { name: "Stop waiting", exact: true }).click();
+      await f.page.getByText(/Stopped waiting\. Generation may still finish/).waitFor();
+      assert.equal(f.calls.filter((call) => call.path.endsWith("/content")).length, 1);
+      await f.release();
+      await f.snapshot("on-demand-content-cancelled");
+    }],
+    ["Partial source failure keeps successful results and uses partial wording", async () => {
+      await f.openResearch();
+      await f.submitResearch("Fictional partial source", { sourcePartial: true });
+      const meta = f.page.locator(".turn-meta");
+      assert.doesNotMatch(await meta.innerText(), /unavailable/);
+      assert.equal(await f.page.locator(".report").isVisible(), true);
+      await openScopeDetails();
+      const warning = f.page.locator(".scope-warning").filter({ hasText: /Some retrieval targets failed/ });
+      assert.equal(await warning.isVisible(), true);
+      assert.doesNotMatch(await warning.innerText(), /No results from it are included/);
+      const coverage = f.page.locator(".coverage-panel");
+      assert.equal(await coverage.getByText("Execution: Attempted; partial", { exact: true }).isVisible(), true);
+      assert.equal(await coverage.getByText(/Results from completed targets, if any, are included/).isVisible(), true);
+    }],
+    ["No evidence with a failed source exposes the failure instead of an empty success", async () => {
+      await f.openResearch();
+      await f.submitResearch("Fictional failed empty source", { noEvidence: true, sourceFailed: true });
+      const meta = f.page.locator(".turn-meta");
+      assert.match(await meta.innerText(), /Research only/);
+      assert.doesNotMatch(await meta.innerText(), /included/);
+      assert.equal(await f.page.getByText("No research findings are available in this report.", { exact: true }).isVisible(), true);
+      assert.match(await f.page.locator(".report").innerText(), /Sources attempted: YouTube, Public web/);
+      await openScopeDetails();
+      const warning = f.page.locator(".scope-warning").filter({ hasText: /All retrieval targets for this source failed/ });
+      assert.equal(await warning.isVisible(), true);
+      const coverage = f.page.locator(".coverage-panel");
+      assert.equal(await coverage.getByText(/All retrieval targets for this source failed/).isVisible(), true);
+      assert.equal(await coverage.getByText("Execution: Attempted; failed", { exact: true }).isVisible(), true);
+      assert.equal(await f.page.getByText("No content ideas were generated for this report.", { exact: true }).count(), 0);
+      await f.snapshot("no-evidence-failed-source");
     }],
     ["Corrected synthesis failures retain labelled excerpts, date context and stable save recovery", async () => {
       for (const reason of ["unavailable", "malformed", "grounding"]) {
@@ -1024,12 +1102,11 @@ export function plannerWorkspaceRegressions(f) {
       await f.openResearch();
       f.fault({ action: "generate", mode: "delay-after" });
       await f.page.getByLabel("Topic", { exact: true }).fill("A research");
-      await f.page.getByRole("checkbox", { name: "Generate content ideas and briefs", exact: true }).check();
       await button("Generate research report").click(); await f.stalled();
       await f.switchAccount(f.B);
-      await button("Generate research report").waitFor();
       await f.page.getByLabel("Topic", { exact: true }).fill("B unsaved research");
-      assert.equal(await f.page.getByRole("checkbox", { name: "Generate content ideas and briefs", exact: true }).isChecked(), false);
+      await f.page.getByRole("button", { name: "Continue", exact: true }).click();
+      await button("Generate research report").waitFor();
       await f.release();
       await f.page.waitForTimeout(100);
       assert.equal(await f.page.locator(".report").count(), 0);
@@ -1038,14 +1115,13 @@ export function plannerWorkspaceRegressions(f) {
     }],
     ["Final research-only and opt-in controls remain keyboard accessible at mobile width", async () => {
       await f.openResearch(); await f.page.setViewportSize({ width: 360, height: 800 });
-      const optIn = f.page.getByRole("checkbox", { name: "Generate content ideas and briefs", exact: true });
-      await optIn.focus(); await f.page.keyboard.press("Space"); assert.equal(await optIn.isChecked(), true);
-      await f.page.keyboard.press("Space"); assert.equal(await optIn.isChecked(), false);
+      assert.equal(await f.page.getByRole("checkbox", { name: "Generate content ideas and briefs", exact: true }).count(), 0);
       await f.metrics("research-request-360");
       await f.submitResearch("Fictional mobile research", { researchOnly: true, researchFirst: true });
       await f.metrics("research-only-360");
       await contentTools().focus(); await f.page.keyboard.press("Enter");
       assert.equal(await contentTools().evaluate((element) => element.parentElement.open), true);
+      assert.equal(await f.page.getByRole("button", { name: "Save report", exact: true }).isVisible(), true);
       assert.equal(plannerMutations().length, 0);
       await f.snapshot("final-research-360");
     }],
@@ -1062,9 +1138,9 @@ export function plannerWorkspaceRegressions(f) {
       assert.match(await f.page.locator(".source-coverage-note").innerText(), /no country restriction/);
       assert.equal(await f.page.getByLabel("From", { exact: true }).isVisible(), true);
       assert.equal(await f.page.getByLabel("To", { exact: true }).isVisible(), true);
-      // Content tools are optional and unchecked by default.
-      const optIn = f.page.getByRole("checkbox", { name: "Generate content ideas and briefs", exact: true });
-      assert.equal(await optIn.isChecked(), false);
+      // Content generation moved to the saved report.
+      assert.equal(await f.page.getByRole("checkbox", { name: "Generate content ideas and briefs", exact: true }).count(), 0);
+      assert.match(await f.page.locator(".content-on-demand-note").innerText(), /saved report/);
       // Submit: global request with both sources and no markets.
       await button("Generate research report").click();
       await f.waitFor(async () => (await f.page.locator("#submitted-json").innerText()).length > 0);
@@ -1073,9 +1149,8 @@ export function plannerWorkspaceRegressions(f) {
       assert.deepEqual(body.markets, []);
       assert.equal(body.result_limit, 50);
       assert.equal(body.include_content_tools, false);
-      // Keyboard: the optional-content checkbox is reachable and operable.
-      await optIn.focus(); await f.page.keyboard.press("Space");
-      assert.equal(await optIn.isChecked(), true);
+      // Keyboard: the primary action remains reachable.
+      await button("Generate research report").focus();
       for (const width of [360, 768, 1440, 720]) {
         await f.page.setViewportSize({ width, height: 900 });
         await f.metrics(`simple-form-${width}`); await f.snapshot(`simple-form-${width}`);
@@ -1122,13 +1197,141 @@ export function plannerWorkspaceRegressions(f) {
       await f.metrics("auth-login-360");
       await f.snapshot("auth-login-360");
       // A callback page with no valid token lands on the invalid panel.
-      await f.page.goto(f.origin + "/accept-invite");
+      await f.page.goto(f.origin + "/accept-invite#error=access_denied&error_code=otp_expired&type=invite");
       await f.page.getByText(/invalid, expired, or already used/, { exact: false }).waitFor({ timeout: 10000 });
+      assert.equal(await f.page.getByLabel("New password", { exact: true }).count(), 0);
+      assert.equal(await f.page.getByText("Checking link…", { exact: true }).count(), 0);
       await f.metrics("auth-invite-invalid-360");
       await f.snapshot("auth-invite-invalid-360");
-      await f.page.goto(f.origin + "/reset-password");
+      await f.page.goto(f.origin + "/reset-password#error=access_denied&error_code=otp_expired&type=recovery");
       await f.page.getByText(/invalid, expired, or already used/, { exact: false }).waitFor({ timeout: 10000 });
+      assert.equal(await f.page.getByLabel("New password", { exact: true }).count(), 0);
+      assert.equal(await f.page.getByText("Checking link…", { exact: true }).count(), 0);
       await f.metrics("auth-reset-invalid-360");
+    }],
+    ["Actual reset-password route recovers through Retry to the eligible password form", async () => {
+      await f.page.goto(f.origin + "/");
+      const session = await f.currentSession();
+      await f.page.getByRole("button", { name: "Sign out", exact: true }).click();
+      await f.page.waitForURL(f.origin + "/login");
+      f.userHold(true);
+      await f.page.clock.install();
+      const hash = new URLSearchParams({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+        expires_in: "3600",
+        token_type: "bearer",
+        type: "recovery",
+      });
+      await f.page.goto(`${f.origin}/reset-password#${hash.toString()}`);
+      await f.page.getByText("Checking link…", { exact: true }).waitFor();
+      await f.page.clock.fastForward(16_000);
+      await f.page.getByText("We could not finish checking this link", { exact: false }).waitFor();
+      assert.equal(await f.page.getByLabel("New password", { exact: true }).count(), 0);
+
+      const retry = f.page.getByRole("button", { name: "Retry link check", exact: true });
+      await retry.click();
+      f.userHold(false);
+      await f.releaseUser();
+      await f.page.getByLabel("New password", { exact: true }).waitFor({ timeout: 10000 });
+      assert.equal(await f.page.getByRole("button", { name: "Set password", exact: true }).isVisible(), true);
+      assert.equal(await f.page.getByText("Checking link…", { exact: true }).count(), 0);
+      assert.equal(await f.page.getByText("We could not finish checking this link", { exact: false }).count(), 0);
+      assert.equal(await f.page.getByText(/invalid, expired, or already used/, { exact: false }).count(), 0);
+      await f.snapshot("actual-reset-success");
+    }],
+    ["Actual invite route shows recovery when session lookup stops waiting", async () => {
+      await f.page.goto(f.origin + "/");
+      await f.expireSession();
+      f.authHold(true);
+      await f.page.clock.install();
+      await f.page.goto(f.origin + "/accept-invite#type=invite");
+      await f.page.getByText("Checking link…", { exact: true }).waitFor();
+      await f.page.clock.fastForward(16_000);
+      await f.page.getByText("We could not finish checking this link", { exact: false }).waitFor();
+      assert.equal(await f.page.getByLabel("New password", { exact: true }).count(), 0);
+      assert.equal(await f.page.getByText("Checking link…", { exact: true }).count(), 0);
+      const retry = f.page.getByRole("button", { name: "Retry link check", exact: true });
+      assert.equal(await retry.isVisible(), true);
+      await f.snapshot("actual-invite-recovery");
+      await retry.click();
+      f.authHold(false);
+      await f.releaseAuth();
+      await f.page.waitForFunction(() => !document.body.innerText.includes("Checking link…"));
+      assert.equal(await f.page.getByLabel("New password", { exact: true }).count(), 0);
+      assert.equal(await f.page.getByText(/invalid, expired|We could not finish/, { exact: false }).count() > 0, true);
+    }],
+    ["Actual invite route recovers through Retry to the eligible password form", async () => {
+      await f.page.goto(f.origin + "/");
+      const session = await f.currentSession();
+      await f.page.getByRole("button", { name: "Sign out", exact: true }).click();
+      await f.page.waitForURL(f.origin + "/login");
+      f.userHold(true);
+      await f.page.clock.install();
+      const hash = new URLSearchParams({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+        expires_in: "3600",
+        token_type: "bearer",
+        type: "invite",
+      });
+      await f.page.goto(`${f.origin}/accept-invite#${hash.toString()}`);
+      await f.page.getByText("Checking link…", { exact: true }).waitFor();
+      await f.page.clock.fastForward(16_000);
+      await f.page.getByText("We could not finish checking this link", { exact: false }).waitFor();
+      assert.equal(await f.page.getByLabel("New password", { exact: true }).count(), 0);
+
+      const retry = f.page.getByRole("button", { name: "Retry link check", exact: true });
+      await retry.click();
+      f.userHold(false);
+      await f.releaseUser();
+      await f.page.getByLabel("New password", { exact: true }).waitFor({ timeout: 10000 });
+      assert.equal(await f.page.getByRole("button", { name: "Set password", exact: true }).isVisible(), true);
+      assert.equal(await f.page.getByText("Checking link…", { exact: true }).count(), 0);
+      assert.equal(await f.page.getByText("We could not finish checking this link", { exact: false }).count(), 0);
+      assert.equal(await f.page.getByText(/invalid, expired, or already used/, { exact: false }).count(), 0);
+      await f.snapshot("actual-invite-success");
+    }],
+    ["Actual reset-password route shows recovery when session lookup stops waiting", async () => {
+      await f.page.goto(f.origin + "/");
+      await f.expireSession();
+      f.authHold(true);
+      await f.page.clock.install();
+      await f.page.goto(f.origin + "/reset-password#type=recovery");
+      await f.page.getByText("Checking link…", { exact: true }).waitFor();
+      await f.page.clock.fastForward(16_000);
+      await f.page.getByText("We could not finish checking this link", { exact: false }).waitFor();
+      assert.equal(await f.page.getByLabel("New password", { exact: true }).count(), 0);
+      assert.equal(await f.page.getByText("Checking link…", { exact: true }).count(), 0);
+      const retry = f.page.getByRole("button", { name: "Retry link check", exact: true });
+      assert.equal(await retry.isVisible(), true);
+      await f.snapshot("actual-reset-recovery");
+      await retry.click();
+      f.authHold(false);
+      await f.releaseAuth();
+      await f.page.waitForFunction(() => !document.body.innerText.includes("Checking link…"));
+      assert.equal(await f.page.getByLabel("New password", { exact: true }).count(), 0);
+      assert.equal(await f.page.getByText(/invalid, expired|We could not finish/, { exact: false }).count() > 0, true);
+    }],
+    ["Callback recovery is visible and keyboard operable without a password form", async () => {
+      await f.page.setViewportSize({ width: 360, height: 800 });
+      await f.page.goto(f.origin + "/test-fixtures/CallbackRecovery");
+      await f.page.getByRole("heading", { name: "Choose a new password", exact: true }).waitFor();
+      assert.match(
+        await f.page.getByText("We could not finish checking this link", { exact: false }).innerText(),
+        /does not mean it is invalid/,
+      );
+      assert.match(await f.page.getByText("You can try the link check again", { exact: false }).innerText(), /retry may still wait/);
+      assert.equal(await f.page.getByLabel("New password", { exact: true }).count(), 0);
+      assert.equal(await f.page.getByText("Checking link…", { exact: true }).count(), 0);
+      const retry = f.page.getByRole("button", { name: "Retry link check", exact: true });
+      await retry.focus();
+      await f.page.keyboard.press("Enter");
+      await f.page.getByText("1", { exact: true }).waitFor();
+      const signIn = f.page.getByRole("link", { name: "Go to sign in", exact: true });
+      assert.equal(await signIn.getAttribute("href"), "/login");
+      await f.metrics("callback-recovery-360");
+      await f.snapshot("callback-recovery-360");
     }],
     ["Viewport/device-density emulation (720 CSS px, DPR 2) keeps content readable with no page overflow", async () => {
       await f.seedSavedReport({ researchFirst: true }); await f.openResearch();
@@ -1154,11 +1357,11 @@ export function plannerWorkspaceRegressions(f) {
       await f.seedSavedReport({ researchFirst: true }); await f.openResearch();
       const report = f.page.locator(".report");
       await report.waitFor();
+      const reportAnimation = await report.evaluate((element) => getComputedStyle(element).animationName);
+      assert.equal(reportAnimation, "none");
       // Content is present and fully opaque immediately; no reliance on motion.
       assert.equal(await report.isVisible(), true);
-      const duration = await report.evaluate((element) => getComputedStyle(element).animationDuration);
-      assert.match(duration, /^(0\.001ms|1e-06s)$/);
-      // The single entrance animation is neutralized, not merely faster.
+      // Reduced motion removes the entrance animation instead of shortening it.
       assert.equal(await f.page.getByRole("heading", { name: "Research findings", exact: true }).isVisible(), true);
       assert.equal(await f.page.locator(".reference-card").first().isVisible(), true);
       await f.metrics("reduced-motion-1440");
@@ -1174,6 +1377,7 @@ export function plannerWorkspaceRegressions(f) {
       const nav = f.page.getByRole("navigation", { name: "Primary", exact: true });
       await nav.waitFor();
       assert.equal(await nav.getByRole("link", { name: "Research", exact: true }).getAttribute("aria-current"), "page");
+      assert.equal(await nav.getByRole("link", { name: "Discover", exact: true }).count(), 0);
       assert.equal(await f.page.locator(".menu-toggle").isVisible(), false);
       await f.metrics("shell-desktop");
 
@@ -1190,11 +1394,40 @@ export function plannerWorkspaceRegressions(f) {
       const mobileNav = f.page.getByRole("navigation", { name: "Primary mobile", exact: true });
       await mobileNav.waitFor();
       assert.equal(await mobileNav.getByRole("link", { name: "Reports", exact: true }).isVisible(), true);
+      assert.equal(await mobileNav.getByRole("link", { name: "Discover", exact: true }).count(), 0);
       await f.metrics("shell-mobile");
       await mobileNav.getByRole("link", { name: "Reports", exact: true }).focus();
       await f.page.keyboard.press("Enter");
       await f.page.waitForURL(f.origin + "/past-reports");
       assert.equal(await f.page.locator(".menu-toggle").getAttribute("aria-expanded"), "false", "menu must close after navigation");
+    }],
+    ["Explore sources is a secondary Research entry point with a return path", async () => {
+      await f.page.setViewportSize({ width: 1440, height: 900 });
+      await f.page.goto(f.origin + "/");
+      const nav = f.page.getByRole("navigation", { name: "Primary", exact: true });
+      await nav.waitFor();
+      assert.equal(await nav.getByRole("link", { name: "Discover", exact: true }).count(), 0);
+      await f.page.getByLabel("Topic", { exact: true }).fill("Fictional explore setup");
+      await f.page.getByRole("button", { name: "Continue", exact: true }).click();
+      const explore = f.page.getByRole("link", { name: "Explore sources", exact: true });
+      assert.equal(await explore.isVisible(), true);
+      await explore.click();
+      await f.page.waitForURL(f.origin + "/discover");
+      assert.equal(await f.page.getByRole("heading", { name: "Explore sources", exact: true }).isVisible(), true);
+      await f.snapshot("explore-sources-1440");
+      assert.match(
+        await f.page.getByText("Search indexed titles and snippets", { exact: false }).innerText(),
+        /does not generate an AI report/,
+      );
+      const back = f.page.getByRole("link", { name: "Back to Research", exact: true });
+      assert.equal(await back.isVisible(), true);
+      await back.click();
+      await f.page.waitForURL(f.origin + "/");
+      await f.page.getByRole("heading", { name: "What would you like to research?", exact: true }).waitFor();
+      assert.equal(await f.page.getByLabel("Topic", { exact: true }).inputValue(), "");
+      await f.page.getByLabel("Topic", { exact: true }).fill("Fictional explore return");
+      await f.page.getByRole("button", { name: "Continue", exact: true }).click();
+      assert.equal(await f.page.getByRole("button", { name: "Generate research report", exact: true }).isVisible(), true);
     }],
     ["Research control boundaries meet 3:1 in default and hover states", async () => {
       await f.page.setViewportSize({ width: 1440, height: 900 });
@@ -1209,16 +1442,16 @@ export function plannerWorkspaceRegressions(f) {
         const ratio = (fg, bg) => { const a = luminance(fg), b = luminance(bg); const [hi, lo] = a > b ? [a, b] : [b, a]; return (hi + 0.05) / (lo + 0.05); };
         const boundary = (element) => { const style = getComputedStyle(element); return ratio(parse(style.borderTopColor), parse(style.backgroundColor)); };
         const topic = document.getElementById("topic");
-        const sourceOption = document.querySelector(".research-form .source-option");
+        const primary = document.querySelector(".research-form .primary-button");
         const advance = (element) => { const s = getComputedStyle(element); return ratio(parse(s.borderTopColor), parse(s.backgroundColor)); };
         return {
           topicDefault: boundary(topic),
-          sourceOptionDefault: advance(sourceOption),
+          primaryDefault: advance(primary),
           topicBorder: getComputedStyle(topic).borderTopColor,
         };
       });
       assert(result.topicDefault >= 3, `topic default boundary ${result.topicDefault.toFixed(2)}:1`);
-      assert(result.sourceOptionDefault >= 3, `source option default boundary ${result.sourceOptionDefault.toFixed(2)}:1`);
+      assert(result.primaryDefault >= 3, `primary action boundary ${result.primaryDefault.toFixed(2)}:1`);
       // Hover states must also meet 3:1.
       await f.page.locator("#topic").hover();
       const hoverRatio = await f.page.evaluate(() => {
@@ -1331,7 +1564,6 @@ export function plannerWorkspaceRegressions(f) {
       await f.page.getByLabel("Topic", { exact: true }).fill("Fictional global topic");
       await f.page.getByLabel("From", { exact: true }).fill("2026-08-01");
       await f.page.getByLabel("To", { exact: true }).fill("2026-08-31");
-      await f.page.getByRole("checkbox", { name: "Generate content ideas and briefs", exact: true }).check();
       f.fault({ action: "generate", mode: "reject", status: 503, code: "research_source_not_configured" });
       await button("Generate research report").click(); await button("Retry").waitFor();
       assert.equal(await f.page.getByText(/selected research source isn't configured/).isVisible(), true);
@@ -1498,7 +1730,8 @@ export function plannerWorkspaceRegressions(f) {
       await topic.fill("Fictional duplicate guard");
       await button("Generate research report").click();
       await f.stalled();
-      assert.equal(await button("Generating report…").isDisabled(), true, "the action is disabled while busy");
+      assert.equal(await f.page.getByRole("button", { name: "New research", exact: true }).isDisabled(), true, "starting another request is blocked while busy");
+      assert.equal(await f.page.getByRole("button", { name: "Generate research report", exact: true }).count(), 0, "the setup form is no longer visible during results");
       assert.equal(
         f.calls.filter((call) => call.path === "/api/v1/research/report").length,
         1,
@@ -1509,43 +1742,21 @@ export function plannerWorkspaceRegressions(f) {
       assert.equal(f.calls.filter((call) => call.path === "/api/v1/research/report").length, 1);
       assert.equal(plannerMutations().length, 0);
     }],
-    ["Composer sticks only where there is room and stays reachable", async () => {
-      await f.openResearch();
-      await f.page.setViewportSize({ width: 1440, height: 1000 });
-      // Examples are available before the first run, not only after one.
+    ["Setup form fits desktop and mobile without clipping its primary action", async () => {
+      await f.page.goto(f.origin + "/");
       assert.equal(await f.page.locator('[aria-label="Example topics"]').isVisible(), true);
+      await f.page.getByLabel("Topic", { exact: true }).fill("Fictional setup layout");
+      await f.page.getByRole("button", { name: "Continue", exact: true }).click();
+      await f.page.setViewportSize({ width: 1440, height: 1000 });
       await settleAnimations();
-      await f.snapshot("home-empty-1440");
+      await f.snapshot("setup-1440");
       await f.page.setViewportSize({ width: 360, height: 800 });
       await settleAnimations();
-      await f.snapshot("home-empty-360");
-      await f.page.setViewportSize({ width: 1440, height: 1000 });
-      await f.submitResearch("Fictional composer reach", { researchOnly: true, researchFirst: true });
-      // ...and they stay available while working in a session.
-      assert.equal(await f.page.locator('[aria-label="Example topics"]').isVisible(), true);
-      const panel = f.page.locator(".form-panel");
-      assert.equal(await panel.evaluate((element) => getComputedStyle(element).position), "sticky");
-      // The sidebar is narrow: its date fields must stack and stay usable.
-      const dateTops = await panel.locator(".form-row").first().evaluate(
-        (row) => [...row.children].map((child) => Math.round(child.getBoundingClientRect().top)),
-      );
-      assert.notEqual(dateTops[0], dateTops[1], "From and To stack in the narrow sidebar");
-      const dateWidths = await panel.locator(".form-row input").evaluateAll(
-        (elements) => elements.map((element) => Math.round(element.getBoundingClientRect().width)),
-      );
-      assert.ok(Math.min(...dateWidths) >= 200, `date fields must stay usable, got ${dateWidths.join("/")}`);
-      // Short viewport: normal flow, so no control sits in a nested scroll area.
-      await f.page.setViewportSize({ width: 1440, height: 560 });
-      assert.equal(await panel.evaluate((element) => getComputedStyle(element).position), "static");
       const submit = f.page.getByRole("button", { name: "Generate research report", exact: true });
       await submit.scrollIntoViewIfNeeded();
       assert.equal(await submit.isVisible(), true, "the primary action stays reachable");
-      assert.equal(await panel.evaluate((element) => getComputedStyle(element).overflowY), "visible");
-      // Narrow viewport: stacked, still reachable.
-      await f.page.setViewportSize({ width: 360, height: 800 });
-      assert.equal(await panel.evaluate((element) => getComputedStyle(element).position), "static");
-      await f.metrics("research-composer-360");
-      assert.equal(plannerMutations().length, 0);
+      assert.equal(await f.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
+      await f.snapshot("setup-360");
     }],
     ["Alpha brand assets load locally across workspace and authentication", async () => {
       await f.openResearch();
@@ -1692,6 +1903,7 @@ export function plannerWorkspaceRegressions(f) {
       f.fault({ action: "changes", mode: "delay-before" });
       await f.openResearch();
       await f.page.getByText("Comparing with the previous report…", { exact: true }).waitFor();
+      await f.stalled();
       await f.release();
       const result = f.page.getByText(/1 added, 1 removed finding statements/);
       await result.waitFor();
@@ -1730,41 +1942,118 @@ export function plannerWorkspaceRegressions(f) {
       assert.equal(plannerMutations().length, 0);
       await f.snapshot("comparison-retry");
     }],
-    ["Research guide uses the real local font and keyboard-reachable shortcuts", async () => {
-      await f.openResearch();
+    ["Fillable home carries a draft through setup and back without submitting", async () => {
+      await f.page.goto(f.origin + "/");
       await f.page.evaluate(() => document.fonts.ready.then(() => {}));
+      const homeTopic = f.page.getByLabel("Topic", { exact: true });
+      assert.equal(await f.page.getByRole("heading", { name: "What would you like to research?", exact: true }).isVisible(), true);
+      assert.equal(await homeTopic.isVisible(), true);
+      assert.equal(await f.page.getByRole("button", { name: "Continue", exact: true }).isVisible(), true);
+      assert.equal(await f.page.locator('[aria-label="Example topics"] button').count(), 6);
+      assert.equal(await f.page.getByRole("button", { name: "Generate research report", exact: true }).count(), 0);
+      assert.equal(await f.page.getByLabel("Preset", { exact: true }).count(), 0);
       const typography = await f.page.evaluate(() => ({
         family: getComputedStyle(document.body).fontFamily,
         faces: [...document.fonts].map((face) => ({ family: face.family, status: face.status })),
         fonts: performance.getEntriesByType("resource").filter((entry) => /\.(woff2?|ttf)(\?|$)/.test(entry.name)).map((entry) => new URL(entry.name).origin),
       }));
       assert.match(typography.family, /manrope/i);
-      assert(typography.faces.some((face) => /manrope/i.test(face.family) && face.status === "loaded"), "the bundled font must actually load, not just appear in CSS");
-      assert(typography.fonts.length > 0 && typography.fonts.every((origin) => origin === f.origin), "font requests stay on the app origin");
-      const guide = f.page.getByRole("complementary", { name: "Start with the source.", exact: true });
-      assert.equal(await guide.getByRole("heading", { name: "YouTube", exact: true }).isVisible(), true);
-      assert.equal(await guide.getByRole("heading", { name: "Public web", exact: true }).isVisible(), true);
-      assert.match(await guide.innerText(), /Publication dates can be unknown/);
-      for (const width of [1440, 768, 360]) {
-        await f.page.setViewportSize({ width, height: 1000 });
-        await f.page.evaluate(() => window.scrollTo(0, 0));
-        await settleAnimations();
-        await f.metrics(`workbench-${width}`);
-        await f.snapshot(`workbench-${width}`, { fullPage: false });
-      }
-      const shortcuts = guide.getByRole("navigation", { name: "Research shortcuts", exact: true });
-      const history = shortcuts.getByRole("link", { name: /^Saved research/ });
-      assert.equal(await history.getAttribute("href"), "/past-reports");
-      await history.focus();
-      assert.notEqual(await history.evaluate((element) => getComputedStyle(element).outlineStyle), "none");
-      await f.snapshot("workbench-mobile-guide", { fullPage: false });
-      await f.page.keyboard.press("Enter");
-      await f.page.getByRole("heading", { level: 1, name: "Saved research", exact: true }).waitFor();
+      assert(typography.faces.some((face) => /manrope/i.test(face.family) && face.status === "loaded"));
+      assert(typography.fonts.length > 0 && typography.fonts.every((origin) => origin === f.origin));
+      await f.page.setViewportSize({ width: 1440, height: 1000 });
+      await f.snapshot("home-fillable-1440");
+      await f.page.setViewportSize({ width: 360, height: 800 });
+      assert.equal(await f.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
+      const headers = await f.page.evaluate(() => [...document.querySelectorAll("header")].map((element) => ({
+        className: element.className,
+        position: getComputedStyle(element).position,
+        top: Math.round(element.getBoundingClientRect().top),
+      })));
+      assert.equal(headers.length, 1, JSON.stringify(headers));
+      assert.equal(headers[0].position, "static");
+      await f.snapshot("home-fillable-360");
+      await f.snapshot("home-fillable-360-viewport", { fullPage: false });
+      await f.page.setViewportSize({ width: 1440, height: 1000 });
+
+      await homeTopic.fill("   ");
+      await f.page.getByRole("button", { name: "Continue", exact: true }).click();
+      await f.page.getByText("Enter a topic to continue.", { exact: true }).waitFor();
+      assert.equal(await homeTopic.getAttribute("aria-invalid"), "true");
+      assert.equal(await f.page.getByRole("button", { name: "Generate research report", exact: true }).count(), 0);
+
+      await f.page.getByRole("button", { name: "Coffee", exact: true }).click();
+      assert.equal(await homeTopic.inputValue(), "Coffee");
+      assert.equal(await f.page.getByRole("button", { name: "Generate research report", exact: true }).count(), 0, "suggestions must not continue or submit");
+      assert.equal(f.calls.filter((call) => call.path === "/api/v1/research/report").length, 0);
+      await homeTopic.fill("  Skincare  ");
+      await homeTopic.press("Enter");
+      await f.page.getByRole("button", { name: "Generate research report", exact: true }).waitFor();
+      assert.equal(await f.page.getByLabel("Topic", { exact: true }).inputValue(), "Skincare");
+      await f.page.waitForFunction(() => document.activeElement?.id === "simple-date-preset");
+      assert.equal(f.calls.filter((call) => call.path === "/api/v1/research/report").length, 0);
+
+      await f.page.getByLabel("Preset", { exact: true }).selectOption("last_90d");
+      await f.page.getByLabel("Topic", { exact: true }).fill("Typed only topic");
+      const dialogCount = f.dialogs.length;
+      await f.page.getByRole("button", { name: "Back to start", exact: true }).click();
+      await f.page.getByRole("heading", { name: "What would you like to research?", exact: true }).waitFor();
+      assert.equal(f.dialogs.length, dialogCount, "Back to start retains the draft without a discard prompt");
+      assert.equal(await f.page.evaluate(() => document.activeElement?.id), "home-topic");
+      assert.equal(await f.page.getByLabel("Topic", { exact: true }).inputValue(), "Typed only topic");
+      await f.page.getByRole("button", { name: "Continue", exact: true }).click();
+      await f.page.getByRole("button", { name: "Generate research report", exact: true }).waitFor();
+      assert.equal(await f.page.getByLabel("Topic", { exact: true }).inputValue(), "Typed only topic");
+      assert.equal(await f.page.getByLabel("Preset", { exact: true }).inputValue(), "last_90d");
+      assert.equal(await f.page.getByRole("checkbox", { name: "Generate content ideas and briefs", exact: true }).count(), 0);
+      assert.equal(f.calls.filter((call) => call.path === "/api/v1/research/report").length, 0);
+      await f.page.setViewportSize({ width: 1440, height: 1000 });
+      await f.snapshot("home-setup-draft-1440");
+      await f.page.setViewportSize({ width: 360, height: 800 });
+      assert.equal(await f.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
+      await f.snapshot("home-setup-draft-360");
+    }],
+    ["New research clears results, confirms unsaved output, and preserves saved reports", async () => {
+      await f.openResearch();
+      await f.submitResearch("Fictional saved new research");
+      assert.equal(await f.page.evaluate(() => document.activeElement?.id), "results-heading");
+      assert.equal(await f.page.getByRole("button", { name: "Generate research report", exact: true }).count(), 0, "the report replaces the setup form");
+      assert.equal(await f.page.locator(".report").isVisible(), true);
+      await f.snapshot("result-primary-1440");
+      await f.page.setViewportSize({ width: 360, height: 800 });
+      await f.snapshot("result-primary-360");
+      await f.page.setViewportSize({ width: 1440, height: 1000 });
+      await button("Save report").click();
+      await f.page.getByText("Saved to history.").waitFor();
+      const savedDialogCount = f.dialogs.length;
+      await f.page.getByRole("button", { name: "New research", exact: true }).click();
+      await f.page.getByRole("heading", { name: "What would you like to research?", exact: true }).waitFor();
+      assert.equal(f.dialogs.length, savedDialogCount, "a saved report needs no discard confirmation");
+      assert.equal(await f.page.getByLabel("Topic", { exact: true }).inputValue(), "");
+      assert.equal(await f.page.getByRole("button", { name: "Generate research report", exact: true }).count(), 0);
+      const generationCalls = f.calls.filter((call) => call.path === "/api/v1/research/report").length;
+      await f.page.reload();
+      await f.page.getByRole("heading", { name: "What would you like to research?", exact: true }).waitFor();
+      assert.equal(await f.page.locator(".report").count(), 0);
+      assert.equal(f.calls.filter((call) => call.path === "/api/v1/research/report").length, generationCalls, "refresh must not resubmit research");
+      await f.page.goto(f.origin + "/past-reports");
+      await f.page.getByText("Fictional saved new research", { exact: false }).waitFor();
+
       await f.page.goto(f.origin + "/");
-      await f.page.getByRole("navigation", { name: "Research shortcuts", exact: true }).getByRole("link", { name: /^Shared planner/ }).click();
-      await f.page.getByRole("heading", { level: 1, name: "Shared planner", exact: true }).waitFor();
-      assert.equal(f.calls.filter((call) => call.path === "/api/v1/research/report").length, 0, "shortcuts must never trigger generation");
-      assert.equal(plannerMutations().length, 0);
+      await f.page.getByLabel("Topic", { exact: true }).fill("Fictional unsaved new research");
+      await f.page.getByRole("button", { name: "Continue", exact: true }).click();
+      await f.page.getByRole("button", { name: "Generate research report", exact: true }).click();
+      await f.page.locator(".report").waitFor();
+      const unsavedDialogCount = f.dialogs.length;
+      f.setDialogAction("dismiss");
+      await f.page.getByRole("button", { name: "New research", exact: true }).click();
+      assert.equal(await f.page.locator(".report").isVisible(), true, "dismissing discard keeps the report visible");
+      assert.equal(await f.page.getByRole("heading", { name: "What would you like to research?", exact: true }).count(), 0);
+      f.setDialogAction("accept");
+      await f.page.getByRole("button", { name: "New research", exact: true }).click();
+      await f.page.getByRole("heading", { name: "What would you like to research?", exact: true }).waitFor();
+      assert.equal(f.dialogs.length, unsavedDialogCount + 2);
+      assert.match(f.dialogs.at(-1), /not saved/);
+      assert.equal(await f.page.getByLabel("Topic", { exact: true }).inputValue(), "");
     }],
   ];
 }

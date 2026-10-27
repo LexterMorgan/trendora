@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { AuthShell, AuthNotice, AuthUnavailable } from "@/components/auth/AuthShell";
 import { SignOutButton } from "@/components/SignOutButton";
 import { gateDecision } from "@/lib/auth/session";
+import { getSessionStore } from "@/lib/auth/client";
 import { useSession } from "@/lib/auth/use-session";
 
 /**
@@ -37,6 +38,23 @@ export function Protected({ children }: { children: ReactNode }) {
         <p className="loading-note" role="status">
           Checking your session…
         </p>
+        {session.initializationFailed && (
+          <>
+            <p className="auth-error" role="alert">
+              We could not finish checking your session. This does not sign you
+              out.
+            </p>
+            <div className="auth-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => getSessionStore().retryInitialization()}
+              >
+                Retry session check
+              </button>
+            </div>
+          </>
+        )}
       </main>
     );
   }

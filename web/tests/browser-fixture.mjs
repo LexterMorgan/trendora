@@ -6,6 +6,7 @@ import path from "node:path";
 import zlib from "node:zlib";
 
 import { plannerWorkspaceRegressions } from "./planner-workspace.browser.mjs";
+import { cancellationRegressions } from "./cancellation.browser.mjs";
 
 const A = "00000000-0000-4000-8000-000000000001";
 const B = "00000000-0000-4000-8000-000000000002";
@@ -245,6 +246,16 @@ function fictionalReport(topic, options = {}) {
     report.research.references = [];
     for (const field of ["evidence", "interpretation", "strategy", "ideation"]) report[field] = null;
   }
+  if (report.ideation && options.ideasOnly) report.ideation.content_briefs = [];
+  if (report.ideation && options.briefsOnly) report.ideation.content_ideas = [];
+  if (report.ideation && options.noContent) {
+    report.ideation.content_ideas = [];
+    report.ideation.content_briefs = [];
+  }
+  if (options.sourceFailed || options.sourcePartial) {
+    const source = report.research.coverage.sources.find((item) => item.source_code === "public_web");
+    if (source) source.reason = options.sourcePartial ? "source_partial" : "source_failed";
+  }
   if (options.mixedPlatforms) {
     const original = report.research.references[0];
     report.research.references = [
@@ -279,7 +290,7 @@ function fictionalReport(topic, options = {}) {
 export async function createMockBackend() {
   const records = new Map(), reports = new Map(), keys = new Map(), origins = new Map(), receiptProofs = new Map(), calls = [], optionalCalls = [], interpretationCalls = [];
   const nonce = randomUUID();
-  let frontend, origin, fault = null, held = null, generationOptions = {}, imageMode = "ok";
+  let frontend, origin, fault = null, held = null, generationOptions = {}, imageMode = "ok", authHold = false, heldAuth = null, userHold = false, heldUser = null;
   const post = (values, actor) => ({ ...blank(), id: randomUUID(), version: 1, content_revision: 1, created_by: actor, updated_by: actor, created_at: "2026-10-01T00:00:00Z", updated_at: "2026-10-01T00:00:00Z", archived_at: null, ...values });
   function reply(response, status, body) {
     response.writeHead(status, { "content-type": "application/json", "cache-control": "no-store", "access-control-allow-origin": frontend ?? "null", "access-control-allow-headers": "authorization,apikey,content-type,x-client-info,x-supabase-api-version", "access-control-allow-methods": "GET,POST,PUT,OPTIONS" });
@@ -293,10 +304,14 @@ export async function createMockBackend() {
     let raw = ""; for await (const chunk of request) raw += chunk;
     let body; try { body = raw ? JSON.parse(raw) : null; } catch { return error(response, 422, "invalid_request"); }
     if (pathname === "/auth/v1/token") {
+      if (authHold) await new Promise((resolve) => { heldAuth = resolve; });
       const id = body?.email === "b@example.test" ? B : A;
       return reply(response, 200, { access_token: token(id), refresh_token: `fictional-refresh-${id}`, token_type: "bearer", expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, user: user(id) });
     }
-    if (pathname === "/auth/v1/user") return reply(response, 200, user(actorFrom(request) ?? A));
+    if (pathname === "/auth/v1/user") {
+      if (userHold) await new Promise((resolve) => { heldUser = resolve; });
+      return reply(response, 200, user(actorFrom(request) ?? A));
+    }
     if (pathname === "/auth/v1/logout") return reply(response, 200, {});
     const actor = actorFrom(request), call = { method: request.method, path: pathname, actor, body, completed: false };
     calls.push(call);
@@ -304,7 +319,8 @@ export async function createMockBackend() {
       if (!actor) return error(response, 401, "auth_missing");
       const askMatch = pathname.match(/^\/api\/v1\/research\/reports\/([^/]+)\/ask$/);
       const changesMatch = pathname.match(/^\/api\/v1\/research\/reports\/([^/]+)\/changes$/);
-      const action = askMatch ? "ask" : changesMatch ? "changes" : pathname === "/api/v1/research/report" ? "generate" : pathname === "/api/v1/research/reports/save" ? "save" : pathname.startsWith("/api/v1/research/reports/") ? "report" : pathname.endsWith("/import") ? "import" : pathname.endsWith("/origin") ? "origin" : pathname.endsWith("/archive") ? "archive" : pathname.endsWith("/restore") ? "restore" : request.method === "PUT" ? "update" : request.method === "POST" ? "create" : pathname.endsWith("/members") ? "members" : pathname.endsWith("/posts") ? "list" : "get";
+      const contentMatch = pathname.match(/^\/api\/v1\/research\/reports\/([^/]+)\/content$/);
+      const action = askMatch ? "ask" : changesMatch ? "changes" : contentMatch ? "content" : pathname === "/api/v1/discover" ? "discover" : pathname === "/api/v1/research/report" ? "generate" : pathname === "/api/v1/research/reports/save" ? "save" : pathname.startsWith("/api/v1/research/reports/") ? "report" : pathname.endsWith("/import") ? "import" : pathname.endsWith("/origin") ? "origin" : pathname.endsWith("/archive") ? "archive" : pathname.endsWith("/restore") ? "restore" : request.method === "PUT" ? "update" : request.method === "POST" ? "create" : pathname.endsWith("/members") ? "members" : pathname.endsWith("/posts") ? "list" : "get";
       const currentFault = fault?.action === action ? fault : null;
       if (currentFault) {
         fault = null;
@@ -316,13 +332,29 @@ export async function createMockBackend() {
         if (currentFault?.mode === "delay-after") await new Promise((resolve) => { held = resolve; });
         reply(response, status, payload);
       }
+      if (action === "discover") {
+        const query = (url.searchParams.get("q") ?? "").trim();
+        return await finish(200, {
+          query,
+          status: "ok",
+          sources: query ? [{
+            source_code: "public_web",
+            content_external_id: "https://example.test/discover",
+            title: "Fictional discovery result",
+            url: "https://example.test/discover",
+            published_at: null,
+            description: "Fictional indexed description",
+          }] : [],
+        });
+      }
       if (action === "generate") {
         if (!generationOptions.insufficient && !generationOptions.noEvidence) {
           interpretationCalls.push("interpretation");
           if (generationOptions.interpretationFailure === "malformed") interpretationCalls.push("interpretation");
         }
         if (body.include_content_tools === true) optionalCalls.push("strategy", ...(generationOptions.contentUnavailable ? [] : ["ideation"]));
-        const report = fictionalReport(body.topic, { ...generationOptions, publicWeb: body.sources?.[0] === "public_web", requestMarkets: body.markets, requestSources: body.sources, sourceSummaries: body.include_content_tools !== undefined, researchOnly: body.include_content_tools === false });
+        const researchOnlyReport = generationOptions.researchOnly || generationOptions.contentUnavailable || generationOptions.insufficient || generationOptions.researchUnavailable;
+        const report = fictionalReport(body.topic, { ...generationOptions, publicWeb: body.sources?.[0] === "public_web", requestMarkets: body.markets, requestSources: body.sources, sourceSummaries: body.include_content_tools === true || researchOnlyReport, researchOnly: researchOnlyReport });
         const receipt = `fictional-opaque.${randomUUID()}`;
         report.persistence.recovery_receipt = receipt;
         receiptProofs.set(receipt, { actor, snapshot: JSON.stringify(Object.fromEntries(snapshotFields.map((field) => [field, report[field]]))) });
@@ -347,6 +379,35 @@ export async function createMockBackend() {
           })
           .map(([id, entry]) => ({ id, created_at: "2026-10-01T00:00:00Z", status: entry.report.status, topic: entry.report.research?.query?.topic ?? "Fictional saved report", markets: entry.report.research?.query?.markets ?? ["SG"], source_codes: entry.report.research?.query?.sources ?? ["youtube"] }));
         return reply(response, 200, summaries.slice(offset, offset + limit));
+      }
+      if (action === "content") {
+        const saved = reports.get(decodeURIComponent(contentMatch[1]));
+        if (!saved) return error(response, 404, "not_found");
+        if (saved.report.strategy && saved.report.ideation) return await finish(200, saved.report);
+        if (generationOptions.contentUnavailable) {
+          optionalCalls.push("strategy");
+          return error(response, 502, "content_generation_unavailable");
+        }
+        optionalCalls.push("strategy", "ideation");
+        const generated = fictionalReport(saved.report.research?.query?.topic ?? "Fictional saved report", {
+          ...generationOptions,
+          researchOnly: false,
+          contentUnavailable: false,
+          insufficient: false,
+          researchUnavailable: false,
+          requestMarkets: saved.report.research?.query?.markets,
+          requestSources: saved.report.research?.query?.sources,
+        });
+        const nextId = randomUUID();
+        const next = {
+          ...saved.report,
+          status: "completed",
+          strategy: generated.strategy,
+          ideation: generated.ideation,
+          persistence: { status: "saved", request_id: null, report_id: nextId, snapshot_origin: "server_generated", error_code: null },
+        };
+        reports.set(nextId, { report: next, outOfHistory: false });
+        return await finish(200, next);
       }
       if (action === "ask") {
         const saved = reports.get(decodeURIComponent(askMatch[1]));
@@ -435,8 +496,18 @@ export async function createMockBackend() {
   origin = `http://127.0.0.1:${server.address().port}`;
   return {
     origin, nonce, calls, optionalCalls, interpretationCalls, records, reports, setFrontend(value) { frontend = value; },
-    reset() { assert.equal(held, null); records.clear(); reports.clear(); keys.clear(); origins.clear(); receiptProofs.clear(); calls.length = 0; optionalCalls.length = 0; interpretationCalls.length = 0; fault = null; generationOptions = {}; imageMode = "ok"; },
+    reset() {
+      if (heldAuth) { heldAuth(); heldAuth = null; }
+      if (heldUser) { heldUser(); heldUser = null; }
+      authHold = false;
+      userHold = false;
+      assert.equal(held, null); records.clear(); reports.clear(); keys.clear(); origins.clear(); receiptProofs.clear(); calls.length = 0; optionalCalls.length = 0; interpretationCalls.length = 0; fault = null; generationOptions = {}; imageMode = "ok";
+    },
     fault(value) { assert.equal(fault, null); fault = value; },
+    authHold(value) { authHold = value; },
+    async releaseAuth() { if (heldAuth) { heldAuth(); heldAuth = null; } },
+    userHold(value) { userHold = value; },
+    async releaseUser() { assert.equal(typeof heldUser, "function"); heldUser(); heldUser = null; },
     setImageMode(value) { imageMode = value; },
     imageMode() { return imageMode; },
     stalled: () => waitFor(() => typeof held === "function"),
@@ -460,7 +531,7 @@ export async function createMockBackend() {
     seedSavedReports(optionsList) {
       return optionsList.map((options) => this.seedSavedReport(options));
     },
-    async close() { if (held) { held(); held = null; } server.closeAllConnections(); await new Promise((resolve) => server.close(resolve)); },
+    async close() { if (held) { held(); held = null; } if (heldAuth) { heldAuth(); heldAuth = null; } if (heldUser) { heldUser(); heldUser = null; } server.closeAllConnections(); await new Promise((resolve) => server.close(resolve)); },
   };
 }
 
@@ -470,7 +541,8 @@ export async function runBrowserScenarios({ chromium, origin, mock, root, env, e
   mock.setFrontend(origin);
   const browser = await chromium.launch({ headless: true, executablePath, downloadsPath: path.join(root, "runtime"), tracesDir: path.join(root, "runtime"), env, args: ["--disable-gpu", "--disable-background-networking", "--disable-component-update", "--disable-sync", "--disable-domain-reliability", "--no-first-run", "--metrics-recording-only", "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1"] });
   registerBrowserCleanup(() => browser.close());
-  const names = plannerWorkspaceRegressions({}).map(([name]) => name);
+  const scenarios = [...plannerWorkspaceRegressions({}), ...cancellationRegressions({})];
+  const names = scenarios.map(([name]) => name);
   try {
     for (let index = 0; index < names.length; index++) {
       mock.reset();
@@ -490,24 +562,71 @@ export async function runBrowserScenarios({ chromium, origin, mock, root, env, e
         blocked.push({ index, url: url.origin + url.pathname }); return route.abort("blockedbyclient");
       });
       const page = await context.newPage(); page.setDefaultTimeout(5000);
+      const dialogs = [];
+      let dialogAction = "accept";
       page.on("pageerror", (err) => diagnostics.push({ index, type: "pageerror", message: err.message }));
       page.on("console", (message) => { if (message.type() === "error") diagnostics.push({ index, type: "console", message: message.text() }); });
-      page.on("dialog", (dialog) => dialog.accept());
+      page.on("dialog", (dialog) => {
+        dialogs.push(dialog.message());
+        if (dialogAction === "dismiss") dialog.dismiss();
+        else dialog.accept();
+      });
       const snapshot = async (name, { fullPage = true } = {}) => {
         await page.evaluate(() => document.fonts.ready.then(() => {}));
         return page.screenshot({ path: path.join(root, `${index + 1}-${name}.png`), fullPage, scale: "css", animations: "disabled" });
       };
       let selectedReport = null;
       const fixture = {
-        page, origin, A, B, calls: mock.calls, optionalCalls: mock.optionalCalls, interpretationCalls: mock.interpretationCalls, records: mock.records, reports: mock.reports, waitFor, snapshot,
+        page, origin, A, B, calls: mock.calls, optionalCalls: mock.optionalCalls, interpretationCalls: mock.interpretationCalls, records: mock.records, reports: mock.reports, waitFor, snapshot, dialogs,
+        setDialogAction: (value) => { dialogAction = value; },
         newPost: async () => { await page.goto(origin + "/planner/new"); await page.getByLabel("Title", { exact: true }).waitFor(); },
-        openResearch: async () => { await page.goto(origin + (selectedReport ? `/report/${selectedReport}` : "/")); await (selectedReport ? page.locator(".report") : page.getByRole("button", { name: "Generate research report", exact: true })).waitFor(); },
-        submitResearch: async (topic, options = {}) => { mock.generationOptions(options); await page.getByLabel("Topic", { exact: true }).fill(topic); await page.getByRole("checkbox", { name: "Generate content ideas and briefs", exact: true }).setChecked(!options.researchOnly); await page.getByRole("button", { name: "Generate research report", exact: true }).click(); await page.locator(".report").waitFor(); },
+        openResearch: async () => {
+          await page.goto(origin + (selectedReport ? `/report/${selectedReport}` : "/"));
+          if (selectedReport) {
+            await page.locator(".report").waitFor();
+            return;
+          }
+          await page.getByLabel("Topic", { exact: true }).fill("Fictional setup topic");
+          await page.getByRole("button", { name: "Continue", exact: true }).click();
+          await page.getByRole("button", { name: "Generate research report", exact: true }).waitFor();
+        },
+        submitResearch: async (topic, options = {}) => { mock.generationOptions(options); await page.getByLabel("Topic", { exact: true }).fill(topic); await page.getByRole("button", { name: "Generate research report", exact: true }).click(); await page.locator(".report").waitFor(); if (options.saveAfter) { const save = page.getByRole("button", { name: "Save report", exact: true }); if (await save.count()) { await save.click(); await page.getByText("Saved to history.", { exact: true }).waitFor(); } } },
+        saveCurrentReport: async () => { const save = page.getByRole("button", { name: "Save report", exact: true }); if (await save.count()) { await save.click(); await page.getByText("Saved to history.", { exact: true }).waitFor(); } },
+        generateContent: async () => { const summary = page.locator(".report summary").filter({ hasText: /^Content tools \(optional\)$/ }); await summary.waitFor(); if (!await summary.evaluate((el) => el.parentElement.open)) await summary.click(); await page.getByRole("button", { name: "Generate content ideas and briefs", exact: true }).click(); await page.getByRole("heading", { name: "Content ideas", exact: true }).waitFor(); },
         seedSavedReport: async (options) => { selectedReport = mock.seedSavedReport(options); return selectedReport; },
         seedSavedReports: (optionsList) => mock.seedSavedReports(optionsList),
         fault: (value) => mock.fault(value), stalled: () => mock.stalled(), release: () => mock.release(),
         setImageMode: (value) => mock.setImageMode(value),
         images,
+        authHold: (value) => mock.authHold(value),
+        releaseAuth: () => mock.releaseAuth(),
+        userHold: (value) => mock.userHold(value),
+        releaseUser: () => mock.releaseUser(),
+        async currentSession() {
+          return page.evaluate(async ({ mockOrigin }) => {
+            const response = await fetch(mockOrigin + "/auth/v1/token?grant_type=password", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ email: "a@example.test", password: "fictional-only-password" }),
+            });
+            return response.json();
+          }, { mockOrigin: mock.origin });
+        },
+        async expireSession() {
+          await page.evaluate(async ({ mockOrigin }) => {
+            const response = await fetch(mockOrigin + "/auth/v1/token?grant_type=password", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ email: "a@example.test", password: "fictional-only-password" }),
+            });
+            const session = await response.json();
+            session.expires_at = Math.floor(Date.now() / 1000) - 60;
+            session.expires_in = -60;
+            const key = Object.keys(localStorage).find((item) => item.startsWith("sb-") && item.endsWith("-auth-token"));
+            if (!key) throw Error("No fictional SDK session to expire");
+            localStorage.setItem(key, JSON.stringify(session));
+          }, { mockOrigin: mock.origin });
+        },
         async switchAccount(id) {
           const previousWorkspace = await page.locator("main.workspace").elementHandle();
           assert(previousWorkspace, "Authenticated workspace must be mounted before switching");
@@ -541,7 +660,7 @@ export async function runBrowserScenarios({ chromium, origin, mock, root, env, e
       try {
         await page.goto(origin + "/login"); await page.getByLabel("Email", { exact: true }).fill("a@example.test"); await page.getByLabel("Password", { exact: true }).fill("fictional-only-password");
         await page.getByRole("button", { name: "Sign in", exact: true }).click(); await page.waitForURL(origin + "/");
-        await plannerWorkspaceRegressions(fixture)[index][1]();
+        await [...plannerWorkspaceRegressions(fixture), ...cancellationRegressions(fixture)][index][1]();
         assert(!diagnostics.some((e) => e.index === index && e.type === "pageerror"), "Uncaught browser error");
         assert(!mock.calls.some((c) => c.mockError), "Mock backend assertion failed");
         assert(!blocked.some((c) => c.index === index), "Unexpected external service request");

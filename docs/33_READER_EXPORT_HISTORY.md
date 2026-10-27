@@ -121,7 +121,8 @@ immutable snapshot (`status`, `research`, `evidence`, `interpretation`,
 `strategy`, `ideation`), is not fingerprinted, and is not persisted. Saved and
 legacy reports show that diagnostics were not recorded; they do not display
 invented zeroes. Persisting telemetry would require a separate schema decision
-and migration.
+and migration. The on-demand content endpoint returns fresh `run_details` for
+its own operation; the derived saved snapshot still omits them.
 
 The UI keeps three clocks distinct: browser wait (submit to response), backend
 run duration, and per-attempt AI request time. While the synchronous request is

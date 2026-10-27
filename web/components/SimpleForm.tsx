@@ -1,38 +1,50 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 
 import {
   DATE_PRESETS,
   DEFAULT_RESULT_LIMIT,
-  EXAMPLE_QUERIES,
   GLOBAL_COVERAGE_NOTE,
   presetRange,
   todayISODate,
   toISODate,
+  type ResearchDraft,
   type ResearchFormValues,
 } from "@/components/ResearchForm";
 
 interface SimpleFormProps {
   onSubmit: (values: ResearchFormValues) => void;
   disabled: boolean;
-  initialValues?: Partial<ResearchFormValues>;
+  initialValues?: ResearchDraft;
+  initialPreset?: string;
+  onDraftChange?: (draft: ResearchDraft) => void;
 }
 
 /**
  * Simplified research request: topic + timeframe, run globally across the
  * configured topic-search sources. No country, source, or depth selection.
- * Content ideas and briefs stay an explicit, unchecked-by-default opt-in.
+ * Research runs first; content ideas and briefs are generated on demand from
+ * the completed report.
  */
-export function SimpleForm({ onSubmit, disabled, initialValues }: SimpleFormProps) {
+export function SimpleForm({ onSubmit, disabled, initialValues, initialPreset, onDraftChange }: SimpleFormProps) {
   const [topic, setTopic] = useState(initialValues?.topic ?? "");
   const [localError, setLocalError] = useState<string | null>(null);
-  const [includeContentTools, setIncludeContentTools] = useState(initialValues?.include_content_tools ?? false);
 
-  const [preset, setPreset] = useState<string>(initialValues?.date_from || initialValues?.date_to ? "custom" : "last_30d");
+  const [preset, setPreset] = useState<string>(initialPreset ?? (initialValues?.date_from || initialValues?.date_to ? "custom" : "last_30d"));
   const [dateFrom, setDateFrom] = useState<string>(initialValues?.date_from ?? "");
   const [dateTo, setDateTo] = useState<string>(initialValues?.date_to ?? "");
   const [maxDate, setMaxDate] = useState<string>("");
+
+  useEffect(() => {
+    onDraftChange?.({
+      topic,
+      date_from: dateFrom || undefined,
+      date_to: dateTo || undefined,
+      preset,
+    });
+  }, [topic, dateFrom, dateTo, preset, onDraftChange]);
 
   function refreshMaxDate() {
     setMaxDate(todayISODate());
@@ -88,7 +100,7 @@ export function SimpleForm({ onSubmit, disabled, initialValues }: SimpleFormProp
       markets: [],
       sources: ["youtube", "public_web"],
       result_limit: DEFAULT_RESULT_LIMIT,
-      include_content_tools: includeContentTools,
+      include_content_tools: false,
     };
     // Only send an explicit window when the user actually set one; otherwise
     // omit the fields so the adapter applies its default last-30-days window.
@@ -113,24 +125,6 @@ export function SimpleForm({ onSubmit, disabled, initialValues }: SimpleFormProp
           required
           disabled={disabled}
         />
-      </div>
-
-      <div className="form-field" aria-label="Example topics">
-        <span className="form-label">Example topics</span>
-        <div className="example-queries">
-          {EXAMPLE_QUERIES.map((query) => (
-            <button
-              key={query}
-              type="button"
-              className={topic === query ? "example-query is-selected" : "example-query"}
-              aria-pressed={topic === query}
-              disabled={disabled}
-              onClick={() => setTopic(query)}
-            >
-              {query}
-            </button>
-          ))}
-        </div>
       </div>
 
       <fieldset className="date-fieldset" aria-describedby="date-range-help">
@@ -182,14 +176,20 @@ export function SimpleForm({ onSubmit, disabled, initialValues }: SimpleFormProp
         </div>
       </fieldset>
 
-      <label className="source-option">
-        <input type="checkbox" checked={includeContentTools} onChange={(event) => setIncludeContentTools(event.target.checked)} disabled={disabled} />
-        <span className="source-name">Generate content ideas and briefs</span>
-      </label>
+      <p className="date-help content-on-demand-note">
+        Content ideas and briefs can be generated from the saved report after research.
+      </p>
 
       <button type="submit" className="primary-button" disabled={disabled}>
         {disabled ? "Generating report…" : "Generate research report"}
       </button>
+
+      <p className="composer-explore">
+        Want to inspect indexed titles and snippets before generating a report?
+      </p>
+      <Link className="composer-explore-link" href="/discover">
+        Explore sources
+      </Link>
 
       {localError && (
         <p className="form-error" role="alert">

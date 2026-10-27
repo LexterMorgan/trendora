@@ -38,6 +38,7 @@ shared workflow. Not company-wide content management.
 | --- | --- |
 | **Research** | Topic plus timeframe. Collects material from the configured sources only. |
 | **Grounded findings** | Findings must cite supplied source text. Citations are structural, not proof the statement is true. |
+| **On-demand content** | A saved report can generate gaps, opportunities, ideas, and briefs with its own bounded operation. Failure leaves research intact. |
 | **Ask this report** | A question against a saved report. Answers cite source identities the report already holds, not exact supporting fields. |
 | **Run-over-run diff** | Compares findings with the nearest older report of the same topic. Exact match only. |
 | **Discover** | Public-web gateway search. No YouTube, no AI, no scoring, no research handoff. |
@@ -89,6 +90,9 @@ flowchart LR
    labelled excerpt text instead of inventing prose.
 7. **Snapshot.** The finished report is stored as one immutable row. Reading it
    later needs no model call.
+8. **Optional content, later.** A completed saved report can generate strategy,
+   ideas, and briefs on demand. That operation has its own budget and appends a
+   new completed snapshot; the original research snapshot is never edited.
 
 ---
 
@@ -116,7 +120,7 @@ simple. Every read is gated by session verification plus an active membership.
 
 | Table | Holds |
 | --- | --- |
-| `research_reports` | One immutable snapshot per run: query, coverage, references, evidence, interpretation, strategy, ideation. |
+| `research_reports` | Append-only report snapshots: query, coverage, references, evidence, interpretation, strategy, ideation. On-demand content adds a derived completed snapshot rather than editing the source row. |
 | `planner_posts` | Planned content: title, platform, caption, brief, planned date, status, assignee. |
 | `planner_post_origin_sources` | Which saved report a planner post came from. |
 | `planner_post_activity` | Append-only activity log. |
@@ -138,8 +142,12 @@ explicit operation.
 - "Ask this report" answers cite source identities the saved report already
   holds. Citations are source-level; they do not identify exact supporting
   fields and do not prove semantic support.
-- Cancelling Ask ends this browser's wait. The router or upstream provider may
-  still finish the request, and cancellation does not guarantee a refund.
+- Cancelling Ask or on-demand content ends this browser's wait. The router or
+  upstream provider may still finish the request, and cancellation does not
+  guarantee a refund or that a derived report was not written.
+- On-demand content is validated against the stored evidence and findings.
+  Successful content is persisted as a new completed report snapshot. A failed
+  operation does not replace the source report or previously valid content.
 - Run-over-run diff is exact match after whitespace and case normalization.
   No fuzzy matching, no similarity score. Expired prior reports cannot be
   compared.
@@ -198,6 +206,28 @@ with Ctrl+C in its own terminal; do not use `pkill` patterns or old PIDs.
 
 Required variable names, the search container, and the optional AI router are
 covered in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+## Alpha status and known limits
+
+This is **v0.1.0-alpha**, not production-ready.
+
+- Research synthesis is bounded by a shared AI-phase deadline and at most one
+  malformed-output retry. A retry is skipped when the remaining time is shorter
+  than the failed attempt. Truncated, malformed, or ungrounded output falls back
+  to labelled source excerpts.
+- The configured model route is probabilistic. Structural citations prove that
+  evidence was supplied and resolves to a stored field; they do not prove
+  factual support. The saved evaluation cases include wrong-reference and
+  unsupported-qualifier examples for review.
+- On-demand content requires a saved, non-expired report with findings. It runs
+  separately from research and shares one budget across strategy and ideation.
+  Cancellation stops the browser wait, not necessarily upstream work.
+- Public-web results are indexed titles/snippets, not fetched pages. The search
+  adapter does not enforce the requested timeframe and publication dates may be
+  missing or unverified.
+- Saved reports omit fresh `run_details`; capture the fresh response when
+  diagnosing timing or retries.
+- Four live examples do not establish general reliability.
 
 ## Tests
 

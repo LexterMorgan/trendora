@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 import { Header } from "@/components/Header";
 import { Protected } from "@/components/Protected";
@@ -22,7 +23,7 @@ interface DiscoverResponseJson {
   sources: DiscoverSourceJson[];
 }
 
-type Phase = "idle" | "loading" | "done" | "error";
+type Phase = "idle" | "loading" | "done" | "error" | "cancelled";
 
 export default function DiscoverPage() {
   return (
@@ -37,11 +38,36 @@ function Discover() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [result, setResult] = useState<DiscoverResponseJson | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const pending = useRef<AbortController | null>(null);
+  const requestId = useRef(0);
+
+  useEffect(() => () => {
+    requestId.current += 1;
+    pending.current?.abort();
+    pending.current = null;
+  }, []);
+
+  function cancel() {
+    const controller = pending.current;
+    if (!controller) return;
+    requestId.current += 1;
+    pending.current = null;
+    controller.abort();
+    setResult(null);
+    setError(null);
+    setPhase("cancelled");
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = query.trim();
     if (!trimmed || phase === "loading") return;
+    const id = ++requestId.current;
+    const controller = new AbortController();
+    pending.current?.abort();
+    pending.current = controller;
     setPhase("loading");
     setError(null);
     setResult(null);
@@ -49,16 +75,28 @@ function Discover() {
       const params = new URLSearchParams({ q: trimmed, limit: "10" });
       const payload = await requestJson<DiscoverResponseJson>(
         `/api/discover?${params.toString()}`,
+        { signal: controller.signal },
       );
+      if (id !== requestId.current || pending.current !== controller) return;
       setResult(payload);
       setPhase("done");
     } catch (err) {
-      setError(
-        err instanceof ResearchApiError
-          ? err.message
-          : "The search could not be completed.",
-      );
+      if (
+        id !== requestId.current ||
+        controller.signal.aborted ||
+        (err instanceof Error && err.name === "AbortError")
+      ) return;
+      const message = err instanceof ResearchApiError
+        ? err.code === "discover_timeout"
+          ? "Search took too long. Try a narrower query."
+          : err.kind === "network"
+            ? "The search service could not be reached. Try again."
+            : err.message
+        : "The search could not be completed.";
+      setError(message);
       setPhase("error");
+    } finally {
+      if (pending.current === controller) pending.current = null;
     }
   }
 
@@ -69,7 +107,9 @@ function Discover() {
         ? "Searching the public web…"
         : phase === "error"
           ? "Search failed."
-          : result?.status === "source_unavailable"
+          : phase === "cancelled"
+            ? "Stopped waiting. The search service may still finish. You can edit the query and search again."
+            : result?.status === "source_unavailable"
             ? "Public web search is unavailable right now."
             : result && result.sources.length === 0
               ? "No results."
@@ -79,11 +119,17 @@ function Discover() {
 
   return (
     <main className="workspace">
-      <Header section="Discover" />
+      <Header section="Explore sources" />
       <section className="page-heading">
         <div>
-          <h1>Discover</h1>
-          <p>Search indexed public-web results for a topic.</p>
+          <Link href="/" className="text-link discover-back-link">
+            Back to Research
+          </Link>
+          <h1>Explore sources</h1>
+          <p>
+            Search indexed titles and snippets from the public web. This page
+            does not generate an AI report.
+          </p>
         </div>
       </section>
 
@@ -91,6 +137,7 @@ function Discover() {
         <div className="form-field discover-query">
           <label htmlFor="discover-query">Search the public web</label>
           <input
+            ref={inputRef}
             id="discover-query"
             type="search"
             value={query}
@@ -108,13 +155,22 @@ function Discover() {
         >
           {phase === "loading" ? "Searching…" : "Search"}
         </button>
+        {phase === "loading" && (
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={cancel}
+          >
+            Cancel search
+          </button>
+        )}
       </form>
 
-      <p className="loading-note" role="status">
+      <p className="loading-note discover-status" role="status">
         {statusText}
       </p>
       {error && (
-        <p className="form-error" role="alert">
+        <p className="form-error discover-status" role="alert">
           {error}
         </p>
       )}

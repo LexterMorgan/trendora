@@ -165,3 +165,13 @@ test("deriveCallbackPhase: token checks still win over an accepted verdict", () 
     "acceptance cannot move the form onto a different account",
   );
 });
+
+
+test("deriveCallbackPhase: an explicit rejection is invalid while the session loads", () => {
+  const parsed = parseAuthCallback("#access_token=link-tok&type=recovery");
+  assert.equal(
+    deriveCallbackPhase(parsed, "recovery", "loading", null, false),
+    "invalid",
+    "a rejected link must not wait indefinitely for a session",
+  );
+});

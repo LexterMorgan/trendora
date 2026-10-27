@@ -10,6 +10,7 @@
  */
 
 import { plannerWorkspaceRegressions } from "./planner-workspace.browser.mjs";
+import { cancellationRegressions } from "./cancellation.browser.mjs";
 
 function fakeFixture() {
   // The module only builds closures at load time; it does not touch the
@@ -19,7 +20,10 @@ function fakeFixture() {
 
 let scenarios;
 try {
-  scenarios = plannerWorkspaceRegressions(fakeFixture());
+  scenarios = [
+    ...plannerWorkspaceRegressions(fakeFixture()),
+    ...cancellationRegressions(fakeFixture()),
+  ];
 } catch (error) {
   console.error("browser module failed to load:", error);
   process.exit(1);

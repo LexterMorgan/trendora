@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "dataset_id": "trendora-live-acceptance-2026-10-27-skincare",
+  "description": "Sanitized evaluation cases preserved from one controlled live Skincare acceptance report. These are semantic support judgments for review, not keyword-overlap scores or model opinions.",
+  "source": {
+    "kind": "controlled_live_acceptance",
+    "report_id": "ebffbd2a-5f3b-4077-890e-b0e08c87b73f",
+    "topic": "Skincare",
+    "date_from": "2026-09-28",
+    "date_to": "2026-10-27",
+    "captured_at": "2026-10-27T01:09:00+07:00",
+    "sanitized": true
+  },
+  "cases": [
+    {
+      "id": "live-skincare-finding-5-wrong-citation",
+      "finding_index": 5,
+      "statement": "TikTok warns of BPOM‑listed dangerous skincare (HB Khanza & FA Body Lotion with mercury).",
+      "cited_evidence": {
+        "source_code": "public_web",
+        "content_external_id": "https://www.tiktok.com/@dr.giovanniabraham/video/7644556317285256468",
+        "field": "description",
+        "title": "Ini list skincare yang bagus! #skincaretips #facewas - TikTok",
+        "description": "27 Mei 2026 ... Ini list skincare yang bagus! #skincaretips #facewas Rekomendasi Skincare Di TurkiRekomendasi Nama SkincareRekomendasi Skincare Mencerahkan ...",
+        "url": "https://www.tiktok.com/@dr.giovanniabraham/video/7644556317285256468"
+      },
+      "details_in_pack_elsewhere": {
+        "source_code": "public_web",
+        "content_external_id": "https://www.tiktok.com/@dr.giovanniabraham/video/7572938649872928007",
+        "url": "https://www.tiktok.com/@dr.giovanniabraham/video/7572938649872928007",
+        "field": "title",
+        "title": "Daftar Skincare Berbahaya BPOM: HB Khanza & FA, Cek Sekarang!",
+        "description": "15 Nov 2025 ... 2. **FS (F&A) Body Lotion:** Sama seperti Dubai Ria, produk ini juga mengandung merkuri dan harus dihindari. Selain itu, ada beberapa skincare ..."
+      },
+      "support_judgment": "unsupported_by_cited_evidence",
+      "citation_mapping": "wrong_reference",
+      "rationale": "The cited TikTok field contains no BPOM, HB Khanza, FA Body Lotion, or mercury detail. The same details exist in a different collected TikTok reference, so the cited identity is wrong. Citation existence does not make the statement supported.",
+      "human_confirmation": "pending"
+    },
+    {
+      "id": "live-skincare-finding-3-unsupported-personalized-qualifier",
+      "finding_index": 3,
+      "statement": "Nabila Skincare Instagram promotes personalized solutions for skin problems.",
+      "cited_evidence": {
+        "source_code": "public_web",
+        "content_external_id": "https://www.instagram.com/nabilaskincareofficial/",
+        "field": "description",
+        "title": "Nabila Skincare Official (@nabilaskincareofficial) - Instagram",
+        "description": "30K followers · 7.8K+ following · 1414 posts · @nabilaskincareofficial: “Temukan Solusi Masalah Kulitmu bersama Nabila✨ Hasil Nyata ...",
+        "url": "https://www.instagram.com/nabilaskincareofficial/"
+      },
+      "details_in_pack_elsewhere": null,
+      "support_judgment": "partially_supported",
+      "citation_mapping": "correct_reference",
+      "rationale": "The cited description supports finding solutions for skin problems and real results. The qualifier personalized appears nowhere in the cited field or the collected pack, so that qualifier is unsupported.",
+      "human_confirmation": "pending"
+    }
+  ]
+}

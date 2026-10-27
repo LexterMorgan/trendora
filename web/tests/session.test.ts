@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  SessionWaitError,
   createSessionStore,
   gateDecision,
   type AuthAdapter,
@@ -300,4 +301,206 @@ test("establishedToken tracks the session, not the refreshes", async () => {
     "t3",
     "a link-driven session replaces the established token without an epoch bump",
   );
+});
+
+
+function stalledAdapter() {
+  let resolve!: (value: AuthSessionLike | null) => void;
+  let reject!: (reason: unknown) => void;
+  let calls = 0;
+  const adapter: AuthAdapter = {
+    getInitialSession: () => {
+      calls += 1;
+      return new Promise<AuthSessionLike | null>((res, rej) => {
+        resolve = res;
+        reject = rej;
+      });
+    },
+    onAuthChange: () => () => {},
+    signOut: async () => {},
+  };
+  return {
+    adapter,
+    get calls() { return calls; },
+    resolve(value: AuthSessionLike | null) { resolve(value); },
+    reject(reason: unknown) { reject(reason); },
+  };
+}
+
+test("a never-settling initial lookup becomes a retryable loading state", async () => {
+  const pending = stalledAdapter();
+  const store = createSessionStore(pending.adapter, { initialTimeoutMs: 0 });
+  store.start();
+  await flush();
+
+  assert.equal(store.getSessionState().status, "loading");
+  assert.equal(store.getSessionState().initializationFailed, true);
+  assert.equal(gateDecision(store.getSessionState().status), "loading");
+
+  store.retryInitialization();
+  assert.equal(store.getSessionState().initializationFailed, false);
+  pending.resolve({ user: { id: "user-a" }, access_token: "t1" });
+  await flush();
+  assert.equal(store.getSessionState().status, "signedIn");
+  assert.equal(store.getSessionState().userId, "user-a");
+});
+
+test("a rejected initial lookup stays retryable instead of forcing logout", async () => {
+  let attempts = 0;
+  const adapter: AuthAdapter = {
+    async getInitialSession() {
+      attempts += 1;
+      if (attempts === 1) throw new Error("fictional transient auth failure");
+      return { user: { id: "user-a" }, access_token: "t1" };
+    },
+    onAuthChange: () => () => {},
+    signOut: async () => {},
+  };
+  const store = createSessionStore(adapter, { initialTimeoutMs: 1_000 });
+  store.start();
+  await flush();
+  assert.equal(store.getSessionState().status, "loading");
+  assert.equal(store.getSessionState().initializationFailed, true);
+
+  store.retryInitialization();
+  await flush();
+  assert.equal(store.getSessionState().status, "signedIn");
+  assert.equal(store.getSessionState().userId, "user-a");
+  assert.equal(store.getSessionState().initializationFailed, false);
+});
+
+test("token lookup timeout is temporary and does not clear the signed-in session", async () => {
+  const pending = stalledAdapter();
+  const store = createSessionStore(pending.adapter, { initialTimeoutMs: 1_000, tokenTimeoutMs: 0 });
+  store.start();
+  pending.resolve({ user: { id: "user-a" }, access_token: "t1" });
+  await flush();
+  assert.equal(store.getSessionState().status, "signedIn");
+
+  await assert.rejects(store.getAccessToken(), (err: unknown) => {
+    assert.ok(err instanceof SessionWaitError);
+    assert.equal(err.code, "auth_timeout");
+    return true;
+  });
+  assert.equal(store.getSessionState().status, "signedIn");
+  assert.equal(store.getSessionState().userId, "user-a");
+  assert.equal(store.getSessionState().epoch, 0);
+});
+
+
+function queuedAdapter() {
+  const pending: Array<{
+    resolve: (value: AuthSessionLike | null) => void;
+    reject: (reason: unknown) => void;
+  }> = [];
+  let listener:
+    | ((event: AuthEventName, session: AuthSessionLike | null) => void)
+    | null = null;
+  const adapter: AuthAdapter = {
+    getInitialSession: () => new Promise<AuthSessionLike | null>((resolve, reject) => {
+      pending.push({ resolve, reject });
+    }),
+    onAuthChange(cb) {
+      listener = cb;
+      return () => {
+        listener = null;
+      };
+    },
+    signOut: async () => {},
+  };
+  return {
+    adapter,
+    get waiting() { return pending.length; },
+    resolve(index: number, session: AuthSessionLike | null) { pending[index].resolve(session); },
+    reject(index: number, reason: unknown) { pending[index].reject(reason); },
+    emit(event: AuthEventName, session: AuthSessionLike | null) { listener?.(event, session); },
+  };
+}
+
+test("a late non-null INITIAL_SESSION cannot replace a newer account", async () => {
+  const auth = queuedAdapter();
+  const store = createSessionStore(auth.adapter, { initialTimeoutMs: 1_000 });
+  store.start();
+  auth.resolve(0, { user: { id: "user-a" }, access_token: "tok-a" });
+  await flush();
+  auth.emit("SIGNED_IN", { user: { id: "user-b" }, access_token: "tok-b" });
+  store.denyAccess(store.getSessionBinding(), "auth_not_member", "Fictional denial");
+  const newer = store.getSessionState();
+
+  auth.emit("INITIAL_SESSION", { user: { id: "user-a" }, access_token: "tok-a" });
+
+  assert.equal(store.getSessionState().userId, "user-b");
+  assert.equal(store.getSessionState().epoch, newer.epoch);
+  assert.equal(store.getSessionState().establishedToken, "tok-b");
+  assert.equal(store.getSessionState().denied?.code, "auth_not_member");
+});
+
+test("a late non-null INITIAL_SESSION cannot resurrect a logged-out session", async () => {
+  const auth = queuedAdapter();
+  const store = createSessionStore(auth.adapter, { initialTimeoutMs: 1_000 });
+  store.start();
+  auth.resolve(0, { user: { id: "user-a" }, access_token: "tok-a" });
+  await flush();
+  store.invalidate();
+
+  auth.emit("INITIAL_SESSION", { user: { id: "user-a" }, access_token: "tok-a" });
+
+  assert.equal(store.getSessionState().status, "signedOut");
+  assert.equal(store.getSessionState().userId, null);
+  assert.equal(store.getSessionState().establishedToken, null);
+});
+
+test("retry B wins when the timed-out lookup A resolves later", async () => {
+  const auth = queuedAdapter();
+  const store = createSessionStore(auth.adapter, { initialTimeoutMs: 0 });
+  store.start();
+  await flush();
+  assert.equal(store.getSessionState().initializationFailed, true);
+
+  store.retryInitialization();
+  auth.resolve(1, { user: { id: "user-b" }, access_token: "tok-b" });
+  await flush();
+  const newer = store.getSessionState();
+  assert.equal(newer.userId, "user-b");
+
+  auth.resolve(0, { user: { id: "user-a" }, access_token: "tok-a" });
+  await flush();
+
+  assert.equal(store.getSessionState().userId, "user-b");
+  assert.equal(store.getSessionState().epoch, newer.epoch);
+  assert.equal(store.getSessionState().establishedToken, "tok-b");
+});
+
+test("late lookup A cannot overwrite retry B, including its denial state", async () => {
+  const auth = queuedAdapter();
+  const store = createSessionStore(auth.adapter, { initialTimeoutMs: 1_000 });
+  store.start();
+  store.retryInitialization();
+  auth.resolve(1, { user: { id: "user-b" }, access_token: "tok-b" });
+  await flush();
+  store.denyAccess(store.getSessionBinding(), "auth_not_member", "Fictional denial");
+  const newer = store.getSessionState();
+
+  auth.resolve(0, { user: { id: "user-a" }, access_token: "tok-a" });
+  await flush();
+
+  assert.equal(store.getSessionState().userId, "user-b");
+  assert.equal(store.getSessionState().epoch, newer.epoch);
+  assert.equal(store.getSessionState().establishedToken, "tok-b");
+  assert.equal(store.getSessionState().denied?.code, "auth_not_member");
+});
+
+test("legitimate initial and password-recovery events still establish sessions", async () => {
+  const auth = queuedAdapter();
+  const store = createSessionStore(auth.adapter, { initialTimeoutMs: 1_000 });
+  store.start();
+  auth.emit("INITIAL_SESSION", { user: { id: "user-a" }, access_token: "tok-a" });
+  assert.equal(store.getSessionState().userId, "user-a");
+
+  auth.emit("SIGNED_OUT", null);
+  assert.equal(store.getSessionState().status, "signedOut");
+  auth.emit("PASSWORD_RECOVERY", { user: { id: "user-b" }, access_token: "tok-b" });
+  assert.equal(store.getSessionState().status, "signedIn");
+  assert.equal(store.getSessionState().userId, "user-b");
+  assert.equal(store.getSessionState().establishedToken, "tok-b");
 });

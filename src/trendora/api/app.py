@@ -60,6 +60,13 @@ from trendora.api.deps import get_session
 from trendora.api.errors import ReportAskUngroundedError, register_error_handlers
 from trendora.api.models import ForecastResponse, to_forecast_response
 from trendora.api.report_save import ReportExpiredError, report_save_router
+from trendora.api.report_content import (
+    ReportContentConflictError,
+    ReportContentGenerationError,
+    ReportContentNotAvailableError,
+    ReportContentProviderUnavailableError,
+    build_content_context,
+)
 from trendora.api.report_snapshot import SNAPSHOT_FIELDS, snapshot_fingerprint
 from trendora.api.research_models import (
     ResearchRequest,
@@ -74,7 +81,9 @@ from trendora.api.research_report_models import (
     ReportAskResponse,
     ResearchReportRequest,
     ResearchReportResponse,
+    to_ideation_response,
     to_report_response,
+    to_strategy_response,
 )
 
 logger = logging.getLogger("trendora.api.app")
@@ -586,6 +595,161 @@ def create_app() -> FastAPI:
             date_to=date_to,
         )
         return [ReportSummaryResponse(**summary) for summary in summaries]
+
+    @app.post(
+        "/api/v1/research/reports/{report_id}/content",
+        response_model=ResearchReportResponse,
+        summary="Generate content ideas and briefs for a saved report",
+        description=(
+            "Generate grounded strategy and ideation on demand for one saved, "
+            "non-expired research report. The operation has its own bounded AI "
+            "budget. The original snapshot is never mutated; success appends a "
+            "new completed report snapshot with the same research, evidence, "
+            "and interpretation plus content. A failed operation leaves the "
+            "source report and any prior content unchanged."
+        ),
+        responses={
+            404: {"description": "Report not found"},
+            410: {"description": "Report source data has expired"},
+            422: {"description": "Report has no usable findings or content state is partial"},
+            502: {"description": "Content generation failed"},
+            503: {"description": "AI provider is not configured"},
+        },
+    )
+    def generate_report_content(
+        report_id: str,
+        session: Session = Depends(get_session),
+        member: Member = Depends(require_member),
+        now: datetime = Depends(get_utc_now),
+    ) -> ResearchReportResponse:
+        from trendora.api.report_snapshot import ReportSnapshot
+        from trendora.api.research_report_models import (
+            ResearchReportRequest,
+            RunDetailsResponse,
+        )
+        from trendora.research.ai_provider import build_ai_provider_config
+        from trendora.research.ideation import (
+            GroundedIdeationService,
+            OpenAICompatibleIdeationProvider,
+        )
+        from trendora.research.reporting import ResearchReportService
+        from trendora.research.run_details import collect_run_details, measure_stage
+        from trendora.research.strategy import (
+            GroundedStrategyService,
+            OpenAICompatibleStrategyProvider,
+        )
+        from trendora.research.repository import get_report_record_by_id
+
+        full_report = get_report_record_by_id(
+            session,
+            report_id,
+            visible_from=report_visible_from(member, now),
+            now=now,
+        )
+        if full_report is None:
+            raise HTTPException(status_code=404, detail="Report not found")
+        snapshot = full_report["report"]
+        if full_report.get("status") == "source_data_expired" or (
+            snapshot.get("status") == "source_data_expired"
+        ):
+            raise ReportExpiredError("This report's source data has expired.")
+        if snapshot.get("status") == "no_evidence" or not snapshot.get("evidence") or not snapshot.get("interpretation"):
+            raise ReportContentNotAvailableError(
+                "This report has no research findings to ground content generation."
+            )
+        existing_strategy = snapshot.get("strategy")
+        existing_ideation = snapshot.get("ideation")
+        if existing_strategy and existing_ideation:
+            response = ResearchReportResponse(**snapshot)
+            response.persistence = PersistenceOutcomeResponse(
+                status="saved",
+                request_id=None,
+                report_id=full_report["id"],
+                snapshot_origin=full_report.get("snapshot_origin", "legacy_unclassified"),
+                error_code=None,
+            )
+            return response
+        if existing_strategy or existing_ideation:
+            raise ReportContentConflictError(
+                "This report has partial content and will not be overwritten automatically."
+            )
+
+        settings = get_settings()
+        try:
+            config = build_ai_provider_config(
+                provider=settings.ai_provider,
+                model=settings.ai_model,
+                endpoint_url=settings.ai_endpoint_url,
+                api_key=settings.ai_api_key,
+                timeout_seconds=getattr(settings, "ai_timeout_seconds", None),
+            )
+        except Exception as exc:  # provider config is an availability failure
+            raise ReportContentProviderUnavailableError(
+                "Content generation is not configured."
+            ) from exc
+
+        service = ResearchReportService(
+            None,  # content generation does not collect or execute research
+            strategy=GroundedStrategyService(
+                OpenAICompatibleStrategyProvider(config)
+            ),
+            ideation=GroundedIdeationService(
+                OpenAICompatibleIdeationProvider(config)
+            ),
+            ai_phase_budget_seconds=config.timeout_seconds,
+        )
+        with collect_run_details() as details:
+            try:
+                pack, interpretation = build_content_context(snapshot)
+                strategy_result, ideation_result = service.generate_content(
+                    pack, interpretation
+                )
+            except Exception as exc:  # sanitized API mapping; no provider text
+                from trendora.research.exceptions import (
+                    ResearchAIProviderNotConfiguredError,
+                    ResearchAIProviderError,
+                    ResearchAIResponseError,
+                    ResearchInterpretationError,
+                )
+
+                if isinstance(exc, ResearchAIProviderNotConfiguredError):
+                    raise ReportContentProviderUnavailableError(
+                        "Content generation is not configured."
+                    ) from exc
+                if isinstance(exc, (
+                    ResearchAIProviderError, ResearchAIResponseError,
+                    ResearchInterpretationError,
+                )):
+                    raise ReportContentGenerationError(
+                        "Content generation failed; the research report is unchanged."
+                    ) from exc
+                raise
+
+            response = ResearchReportResponse(**snapshot)
+            response.status = "completed"
+            response.strategy = to_strategy_response(strategy_result)
+            response.ideation = to_ideation_response(ideation_result)
+            # The appended snapshot is validated before persistence. The source
+            # row is untouched, so its fingerprint and recovery receipt remain
+            # valid.
+            ReportSnapshot.model_validate(
+                response.model_dump(mode="json", include=set(SNAPSHOT_FIELDS))
+            )
+            query = snapshot["research"]["query"]
+            payload = ResearchReportRequest(
+                topic=query["topic"],
+                markets=query.get("markets"),
+                date_from=query.get("date_from"),
+                date_to=query.get("date_to"),
+                sources=query.get("sources"),
+                result_limit=query.get("result_limit"),
+                facebook_page_id=query.get("facebook_page_id"),
+                include_content_tools=False,
+            )
+            with measure_stage("persistence"):
+                response.persistence = _persist_research_report(payload, response, member.user_id)
+            response.run_details = RunDetailsResponse(**details.as_dict("none"))
+            return response
 
     @app.get(
         "/api/v1/research/reports/{report_id}",

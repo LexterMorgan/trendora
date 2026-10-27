@@ -6,9 +6,12 @@
  */
 
 export const EXAMPLE_QUERIES = [
-  "AI education tools for students",
-  "Online learning platform trends",
-  "STEM scholarships in Southeast Asia",
+  "Skincare",
+  "FPS games",
+  "Electric cars",
+  "Coffee",
+  "Streetwear",
+  "AI tools",
 ];
 
 export const DATE_PRESETS = [
@@ -27,6 +30,14 @@ export const GLOBAL_SOURCE_CODES = ["youtube", "public_web"] as const;
 
 export const GLOBAL_COVERAGE_NOTE =
   "Searches YouTube and the public web globally, with no country restriction. This is not comprehensive worldwide coverage. Public-web results are indexed titles and snippets; the timeframe is not enforced and publication dates are unverified, so undated results remain context.";
+
+export interface ResearchDraft {
+  topic?: string;
+  date_from?: string;
+  date_to?: string;
+  preset?: string;
+  include_content_tools?: boolean;
+}
 
 export interface ResearchFormValues {
   topic: string;

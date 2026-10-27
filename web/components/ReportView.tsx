@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
+  generateReportContent,
   type ResearchReportResponse,
 } from "@/lib/report-api";
 import type { ChainLink, ResolvedCitation } from "@/lib/report-provenance";
@@ -45,6 +46,8 @@ interface DrawerSelection {
 interface ReportViewProps {
   report: ResearchReportResponse;
   clientElapsedMs?: number;
+  onSaved?: (reportId: string) => void;
+  onReportUpdated?: (report: ResearchReportResponse) => void;
 }
 
 function citationsButton(
@@ -107,9 +110,19 @@ function plural(count: number, singular: string, pluralForm = `${singular}s`): s
   return `${count} ${count === 1 ? singular : pluralForm}`;
 }
 
-export function ReportView({ report, clientElapsedMs }: ReportViewProps) {
+export function ReportView({
+  report: initialReport,
+  clientElapsedMs,
+  onSaved,
+  onReportUpdated,
+}: ReportViewProps) {
+  const [contentReport, setContentReport] = useState<ResearchReportResponse | null>(null);
+  const report = contentReport ?? initialReport;
   const [drawer, setDrawer] = useState<DrawerSelection | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [contentState, setContentState] = useState<"idle" | "loading" | "error" | "cancelled">("idle");
+  const [contentError, setContentError] = useState<string | null>(null);
+  const contentController = useRef<AbortController | null>(null);
   const printState = useRef<boolean[] | null>(null);
 
   // Native Ctrl+P bypasses the print button. Open every disclosure for the
@@ -138,6 +151,50 @@ export function ReportView({ report, clientElapsedMs }: ReportViewProps) {
       window.removeEventListener("afterprint", after);
     };
   }, []);
+  useEffect(() => () => {
+    contentController.current?.abort();
+    contentController.current = null;
+  }, []);
+
+  async function handleGenerateContent() {
+    if (!reportId || contentState === "loading") return;
+    const controller = new AbortController();
+    contentController.current = controller;
+    setContentState("loading");
+    setContentError(null);
+    try {
+      const updated = await generateReportContent(reportId, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      setContentReport(updated);
+      const nextId = updated.persistence?.report_id ?? null;
+      if (nextId) {
+        setReportId(nextId);
+        onSaved?.(nextId);
+      }
+      onReportUpdated?.(updated);
+      setContentState("idle");
+    } catch (err) {
+      if (controller.signal.aborted) {
+        setContentState("cancelled");
+        return;
+      }
+      setContentError(
+        err instanceof Error
+          ? err.message
+          : "Content generation failed. Your research is unchanged.",
+      );
+      setContentState("error");
+    } finally {
+      if (contentController.current === controller) contentController.current = null;
+    }
+  }
+
+  function cancelContentGeneration() {
+    contentController.current?.abort();
+    contentController.current = null;
+    setContentState("cancelled");
+  }
+
   // The canonical report id is shared here so a successful recovery reaches
   // every import button. It starts from the generation outcome and is updated
   // once by the persistence panel after a confirmed save.
@@ -172,7 +229,7 @@ export function ReportView({ report, clientElapsedMs }: ReportViewProps) {
   }
 
   if (report.status === "no_evidence") {
-    return <NoEvidenceView report={report} />;
+    return <NoEvidenceView report={report} onSaved={onSaved} />;
   }
 
   const ideas = report.ideation?.content_ideas ?? [];
@@ -357,10 +414,16 @@ export function ReportView({ report, clientElapsedMs }: ReportViewProps) {
 
   return (
     <div className="report rise-in">
-      <ReportPersistencePanel report={report} onResolved={setReportId} />
+      <ReportPersistencePanel
+        report={report}
+        onResolved={(id) => {
+          setReportId(id);
+          onSaved?.(id);
+        }}
+      />
       <section className="report-brief" aria-label="Report brief">
         <p className="report-brief-line">
-          {plural(primaryFindings.length, "source-backed finding")}
+          {plural(primaryFindings.length, "finding citing source text", "findings citing source text")}
           {" · "}
           {plural(references.length, "source")}
           {gapCount > 0 && <>{" · "}{plural(gapCount, "content gap")}</>}
@@ -511,12 +574,42 @@ export function ReportView({ report, clientElapsedMs }: ReportViewProps) {
 
       <details className="report-section report-secondary-details">
         <summary>Content tools (optional)</summary>
-        {report.status === "content_unavailable" ? (
-          <p className="drawer-muted">Content generation is unavailable. Your research is preserved and can be saved.</p>
-        ) : !report.strategy && !report.ideation && (
-          <p className="drawer-muted">Content tools were not generated for this report.</p>
+        {report.strategy || report.ideation ? (
+          <>
+            <p className="section-note">
+              Generated from this report’s stored evidence and findings. Citations show source evidence, not factual verification.
+            </p>
+            {contentIdeas}
+          </>
+        ) : (
+          <div className="content-generation">
+            <p className="drawer-muted">
+              Content ideas and briefs are generated on demand from this saved report, with their own bounded time budget. Research is already saved.
+            </p>
+            {contentState === "loading" && (
+              <p className="loading-note" role="status">Generating content ideas and briefs…</p>
+            )}
+            {contentState === "cancelled" && (
+              <p className="form-error" role="status">
+                Stopped waiting. Generation may still finish on the server; reopen this report to check.
+              </p>
+            )}
+            {contentState === "error" && contentError && (
+              <p className="form-error" role="alert">{contentError}</p>
+            )}
+            {contentState === "loading" ? (
+              <button type="button" className="secondary-button" onClick={cancelContentGeneration}>
+                Stop waiting
+              </button>
+            ) : reportId ? (
+              <button type="button" className="primary-button" onClick={handleGenerateContent}>
+                {contentState === "error" ? "Retry content generation" : "Generate content ideas and briefs"}
+              </button>
+            ) : (
+              <p className="drawer-muted">Save this report before generating content.</p>
+            )}
+          </div>
         )}
-        {contentIdeas}
       {report.strategy && (
         <details className="report-section report-secondary-details">
           <summary>Gaps and opportunities</summary>
@@ -596,6 +689,10 @@ function ReportScope({ report }: { report: ResearchReportResponse }) {
   // A partial search is reported by the source itself, even when that source
   // appears in executed_sources, so the warning cannot be inferred from the
   // executed list alone.
+  const executionIssueSources = (research.coverage?.sources ?? []).filter(
+    (source) => source.reason === "source_failed" || source.reason === "source_partial",
+  );
+  const sourceExecutionLabel = executionIssueSources.length ? "Sources attempted" : "Sources searched";
   const partialReasons = (research.coverage?.sources ?? [])
     .map((source) => ({ code: source.source_code, text: COVERAGE_REASON_TEXT[source.reason ?? ""] }))
     .filter((entry): entry is { code: string; text: string } => Boolean(entry.text));
@@ -605,7 +702,7 @@ function ReportScope({ report }: { report: ResearchReportResponse }) {
       <h3 className="section-title">Research scope</h3>
       <ul className="provenance-list scope-summary">
         <li>Requested timeframe: {query?.date_from || "Unknown"} to {query?.date_to || "Unknown"}</li>
-        <li>Sources searched: {searchedLabel}</li>
+        <li>{sourceExecutionLabel}: {searchedLabel}</li>
         <li>References: {referencesLabel}</li>
       </ul>
 
@@ -641,7 +738,7 @@ function ReportScope({ report }: { report: ResearchReportResponse }) {
           <li>Scope: {query?.markets?.length ? query.markets.join(", ") : "Global (no country restriction)"}</li>
           <li>Requested timeframe: {query?.date_from || "Unknown"} to {query?.date_to || "Unknown"}</li>
           <li>Requested sources: {requested.map(sourceLabel).join(", ") || "Unavailable"}</li>
-          <li>Sources searched: {searchedLabel}</li>
+          <li>{sourceExecutionLabel}: {searchedLabel}</li>
           <li>References: {referencesLabel}</li>
           <li>
             Collection dates: {knownDates.join(", ") || "Unknown"}
@@ -655,10 +752,10 @@ function ReportScope({ report }: { report: ResearchReportResponse }) {
   );
 }
 
-function NoEvidenceView({ report }: { report: ResearchReportResponse }) {
+function NoEvidenceView({ report, onSaved }: { report: ResearchReportResponse; onSaved?: (reportId: string) => void }) {
   return (
     <div className="report">
-      <ReportPersistencePanel report={report} />
+      <ReportPersistencePanel report={report} onResolved={onSaved} />
       <div className="empty-state">
         <h3 className="section-title">Research findings</h3>
         <p>No research findings are available in this report.</p>

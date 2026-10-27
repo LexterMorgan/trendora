@@ -182,6 +182,10 @@ class ResearchApplicationService:
         # sources still produce an honestly partial report. If every target
         # fails, the run still fails closed (clear sanitized error).
         run.execute_sources(entries, tolerate_failures=True)
+        for source_code in run.fully_failed_sources:
+            run.note_partial_coverage(source_code, CoverageReason.SOURCE_FAILED)
+        for source_code in run.partially_failed_sources:
+            run.note_partial_coverage(source_code, CoverageReason.SOURCE_PARTIAL)
         # Surface a partial public-social search through the existing coverage
         # entry (no new report field): only when the source ran and its batch
         # reported failed or skipped queries.

@@ -51,6 +51,12 @@ from trendora.research.patterns import PatternAggregate
 
 DEFAULT_TIMEOUT_SECONDS = 30.0
 MAX_TOKENS = 4096
+# Research-context synthesis has a measured truncation risk at the shared
+# 4,096 allowance: a successful six-finding run used 3,808 completion tokens,
+# while a later attempt hit the cap exactly. The configured route advertises a
+# much larger output limit, so only research-context synthesis gets this larger
+# bounded allowance. Legacy interpretation, strategy, and ideation keep 4,096.
+RESEARCH_MAX_TOKENS = 8192
 # Research-context synthesis asks for a small set of short findings. These bound
 # the request and the accepted response; they do not change the shared output
 # allowance, which also serves the legacy interpretation, strategy, and ideation
@@ -89,6 +95,7 @@ def request_controls(
     *,
     schema_name: str | None = None,
     schema_model: type[BaseModel] | None = None,
+    max_tokens: int = MAX_TOKENS,
 ) -> dict[str, Any]:
     """JSON controls attached to every AI Chat Completions request.
 
@@ -107,6 +114,7 @@ def request_controls(
     never sent to other providers.
     """
     controls = dict(_COMMON_REQUEST_CONTROLS)
+    controls["max_tokens"] = max_tokens
     normalized = provider.strip().lower()
     if normalized in REASONING_CONTROLLED_PROVIDERS:
         controls["reasoning"] = {"effort": "low", "exclude": True}
@@ -313,6 +321,9 @@ def build_grounded_request(config: AIProviderConfig, pack: EvidencePack) -> dict
             config.provider,
             schema_name="trendora_interpretation_v1",
             schema_model=ProviderInterpretationResponse,
+            max_tokens=(
+                RESEARCH_MAX_TOKENS if pack.research_query is not None else MAX_TOKENS
+            ),
         ),
     }
 

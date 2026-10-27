@@ -221,6 +221,10 @@ def _to_interpretation(result: InterpretationResult | None) -> InterpretationRes
     )
 
 
+def to_strategy_response(result: StrategicResult | None) -> StrategicResultResponse | None:
+    return _to_strategy(result)
+
+
 def _to_strategy(result: StrategicResult | None) -> StrategicResultResponse | None:
     if result is None:
         return None
@@ -243,6 +247,10 @@ def _to_strategy(result: StrategicResult | None) -> StrategicResultResponse | No
             for opportunity in result.opportunities
         ],
     )
+
+
+def to_ideation_response(result: IdeationResult | None) -> IdeationResultResponse | None:
+    return _to_ideation(result)
 
 
 def _to_ideation(result: IdeationResult | None) -> IdeationResultResponse | None:

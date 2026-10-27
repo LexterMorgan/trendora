@@ -9,6 +9,7 @@ const SERVER_SNAPSHOT: SessionState = {
   status: "loading",
   userId: null,
   epoch: 0,
+  initializationFailed: false,
   establishedToken: null,
   denied: null,
 };

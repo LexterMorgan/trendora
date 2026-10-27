@@ -3,6 +3,7 @@
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 import json
+import time
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -26,6 +27,10 @@ from trendora.research.ai_provider import (
     AIProviderConfig,
     MAX_RESEARCH_FINDINGS,
     OpenAICompatibleInterpretationProvider,
+)
+from trendora.research.strategy import (
+    GroundedStrategyService,
+    OpenAICompatibleStrategyProvider,
 )
 from trendora.research.interpretation import (
     AIInterpretation, EvidencePack, FactCitation, InterpretationResult,
@@ -301,6 +306,162 @@ def test_interpretation_timeout_is_logged_distinctly(caplog):
     # The distinct class is logged; no provider text leaks.
     assert "ResearchAITimeoutError" in caplog.text
     assert "timed out" not in caplog.text
+
+
+def test_retry_is_skipped_when_remaining_budget_cannot_cover_the_failed_attempt(caplog):
+    import logging
+
+    service = _report_service([])
+    calls = []
+    def fail(pack, *, deadline=None):
+        calls.append(1)
+        time.sleep(0.02)
+        raise ResearchAIResponseError("fictional truncated response", reason_code="output_length")
+    service._interpretation.interpret = fail
+
+    class ShortDeadline:
+        def expired(self):
+            return False
+
+        def remaining(self):
+            return 0.001
+
+    service._ai_deadline = lambda: ShortDeadline()
+    with caplog.at_level(logging.WARNING, logger="trendora.research.reporting"):
+        report = service.build_report(**_query(), include_content_tools=False)
+    assert len(calls) == 1
+    assert report.status is ResearchReportStatus.RESEARCH_COMPLETED
+    assert report.interpretation_result.model_provenance.provider == "source_evidence"
+    assert "reason=insufficient_budget_for_retry" in caplog.text
+    assert "research.report.ai_retry " not in caplog.text
+
+
+def test_generate_content_uses_one_optional_deadline_without_research():
+    events = []
+    service = _report_service(events)
+    source = service.build_report(**_query(), include_content_tools=False)
+    events.clear()
+
+    class ContentDeadline:
+        def expired(self):
+            return False
+
+        def remaining(self):
+            return 5.0
+
+    strategy, ideation = service.generate_content(
+        source.evidence_pack,
+        source.interpretation_result,
+        deadline=ContentDeadline(),
+    )
+    assert events == ["strategy", "ideation"]
+    assert strategy is not None and ideation is not None
+
+
+def test_content_operation_uses_its_service_budget_when_no_deadline_is_passed(caplog):
+    import logging
+
+    service = _report_service([])
+    service._ai_phase_budget_seconds = 5.0
+
+    def fail(context, *, deadline=None):
+        assert deadline is not None
+        raise ResearchAITimeoutError("fictional content timeout")
+
+    service._strategy = SimpleNamespace(generate=fail)
+    source = service.build_report(**_query(), include_content_tools=False)
+    with caplog.at_level(logging.WARNING, logger="trendora.research.reporting"):
+        with pytest.raises(ResearchAITimeoutError):
+            service.generate_content(source.evidence_pack, source.interpretation_result)
+    assert "stage=strategy" in caplog.text
+    assert "deadline_remaining_ms=None" not in caplog.text
+
+
+def test_content_timeout_logs_the_failed_stage_and_stage_state(caplog):
+    import logging
+
+    service = _report_service([])
+    def fail(context, *, deadline=None):
+        raise ResearchAITimeoutError("fictional content timeout")
+    service._strategy = SimpleNamespace(generate=fail)
+    with caplog.at_level(logging.WARNING, logger="trendora.research.reporting"):
+        report = service.build_report(**_query(), include_content_tools=True)
+    assert report.status is ResearchReportStatus.CONTENT_UNAVAILABLE
+    assert "stage=strategy" in caplog.text
+    assert "error=ResearchAITimeoutError" in caplog.text
+    assert "stage_state=stage_started" in caplog.text
+    assert "request_state" not in caplog.text
+    assert "fictional content timeout" not in caplog.text
+
+
+def test_deadline_can_expire_after_orchestration_check_before_transport(caplog):
+    import logging
+
+    class ExpiresAtTransport:
+        def expired(self):
+            return False
+
+        def remaining(self):
+            return 0.0
+
+    requests = []
+    transport = httpx.MockTransport(
+        lambda request: requests.append(request) or httpx.Response(200, json={})
+    )
+    config = AIProviderConfig(
+        provider="fictional", model="fictional-model",
+        endpoint_url="http://fictional.test/v1/chat/completions", api_key="fictional-key",
+    )
+    service = _report_service([])
+    service._ai_deadline = lambda: ExpiresAtTransport()
+    service._strategy = GroundedStrategyService(
+        OpenAICompatibleStrategyProvider(config, transport=transport)
+    )
+    with caplog.at_level(logging.WARNING, logger="trendora.research.reporting"):
+        report = service.build_report(**_query(), include_content_tools=True)
+    assert report.status is ResearchReportStatus.CONTENT_UNAVAILABLE
+    assert requests == []
+    assert "stage=strategy" in caplog.text
+    assert "stage_state=stage_started" in caplog.text
+    assert "request_state" not in caplog.text
+    assert "ResearchAITimeoutError" in caplog.text
+
+
+def test_ideation_failure_logs_ideation_after_successful_strategy(caplog):
+    import logging
+
+    service = _report_service([])
+    def fail(context, *, deadline=None):
+        raise ResearchAITimeoutError("fictional ideation timeout")
+    service._ideation = SimpleNamespace(generate=fail)
+    with caplog.at_level(logging.WARNING, logger="trendora.research.reporting"):
+        report = service.build_report(**_query(), include_content_tools=True)
+    assert report.status is ResearchReportStatus.CONTENT_UNAVAILABLE
+    assert report.strategic_result is report.ideation_result is None
+    assert "stage=ideation" in caplog.text
+    assert "stage_state=stage_started" in caplog.text
+
+
+def test_expired_budget_before_content_request_is_distinct_in_logs(caplog):
+    import logging
+    from types import SimpleNamespace
+
+    class ExpiredDeadline:
+        def expired(self):
+            return True
+
+        def remaining(self):
+            return 0.0
+
+    service = _report_service([])
+    service._ai_deadline = lambda: ExpiredDeadline()
+    with caplog.at_level(logging.WARNING, logger="trendora.research.reporting"):
+        report = service.build_report(**_query(), include_content_tools=True)
+    assert report.status is ResearchReportStatus.CONTENT_UNAVAILABLE
+    assert "stage=strategy" in caplog.text
+    assert "stage_state=deadline_exhausted_before_request" in caplog.text
+    assert "request_state" not in caplog.text
+    assert "deadline_remaining_ms=0" in caplog.text
 
 
 def test_unresolvable_synthesis_and_empty_synthesis_fall_back_to_cited_excerpts():

@@ -6,6 +6,15 @@
 
 Backend: **750 unit tests passing** (+33 new). No DB, connector, M5, or frontend changes; no dependency added.
 
+## Current alpha note
+
+The original M23A auto-content pipeline has been superseded for new UI requests:
+research runs alone, and a saved report can generate content on demand through
+`POST /api/v1/research/reports/{report_id}/content`. That operation has its own
+budget and appends a derived completed snapshot without mutating the source.
+The historical sections below describe the original contract and remain useful
+for compatibility context, not as the current default workflow.
+
 ## 1. Orchestration order
 
 ```text
