@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 
+import pytest
 from fastapi.testclient import TestClient
 
 from tests.support.app import create_test_app
@@ -15,9 +16,30 @@ from trendora.api.research_report_models import (
     to_report_response,
 )
 from trendora.api.report_content import build_content_context
+from trendora.config import reset_settings_cache
 from trendora.research.reporting import ResearchReportService
 
 PATH = "/api/v1/research/reports/source-id/content"
+
+
+@pytest.fixture(autouse=True)
+def _ai_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make the content route's provider configuration deterministic.
+
+    The route builds its AI clients from settings, so without these values the
+    endpoint answers 503 and the test would only pass on a machine with a real
+    ``.env``. No request is made: generation itself is monkeypatched.
+    """
+    for key, value in {
+        "TRENDORA_AI_PROVIDER": "openai-compatible",
+        "TRENDORA_AI_MODEL": "test-model",
+        "TRENDORA_AI_ENDPOINT_URL": "https://example.test/v1/chat/completions",
+        "TRENDORA_AI_API_KEY": "test-key",
+    }.items():
+        monkeypatch.setenv(key, value)
+    reset_settings_cache()
+    yield
+    reset_settings_cache()
 
 
 def _source_snapshot():
