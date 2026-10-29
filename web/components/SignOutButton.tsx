@@ -16,6 +16,7 @@ export function SignOutButton({ className = "secondary-button" }: { className?: 
     <button
       type="button"
       className={`${className} sign-out-button`}
+      aria-label="Sign out"
       disabled={pending}
       onClick={() => {
         setPending(true);

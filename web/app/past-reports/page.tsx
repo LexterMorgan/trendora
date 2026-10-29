@@ -10,8 +10,8 @@ import {
   type ReportSummaryResponse,
 } from "@/lib/trendora-api";
 import { ApiErrorPanel, type ApiErrorState } from "@/components/ApiErrorPanel";
-import { Header } from "@/components/Header";
 import { Protected } from "@/components/Protected";
+import { AppShell } from "@/components/research/AppShell";
 import { formatDate } from "@/lib/format";
 
 const PAGE_SIZE = 50;
@@ -132,14 +132,13 @@ function PastReportsContent() {
   }
 
   return (
-    <main className="workspace history-workspace">
-      <Header section="Reports" />
-      <section className="page-heading">
+    <AppShell view="reports" section="Reports">
+      <div className="history-workspace research-page">
+        <section className="page-heading">
         <div>
           <h1>Saved research</h1>
           <p>Return to your findings, sources, and the evidence behind them.</p>
         </div>
-        {reports.length > 0 && <Link className="primary-button" href="/">New research</Link>}
       </section>
 
       <form className="history-filters" onSubmit={applyFilters} aria-label="Filter saved reports">
@@ -265,6 +264,7 @@ function PastReportsContent() {
           </nav>
         </>
       )}
-    </main>
+      </div>
+    </AppShell>
   );
 }

@@ -546,7 +546,13 @@ export async function runBrowserScenarios({ chromium, origin, mock, root, env, e
   try {
     for (let index = 0; index < names.length; index++) {
       mock.reset();
-      const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: index === 9 ? 2 : 1, serviceWorkers: "block" });
+      const recordShell = names[index]?.startsWith("Kurage shell");
+      const context = await browser.newContext({
+        viewport: { width: 1440, height: 1000 },
+        deviceScaleFactor: index === 9 ? 2 : 1,
+        serviceWorkers: "block",
+        ...(recordShell ? { recordVideo: { dir: path.join(root, "video"), size: { width: 1440, height: 1000 } } } : {}),
+      });
       await context.route("**/*", (route) => {
         const url = new URL(route.request().url());
         if ([origin, mock.origin].includes(url.origin)) return route.continue();
@@ -651,7 +657,7 @@ export async function runBrowserScenarios({ chromium, origin, mock, root, env, e
           await page.addInitScript(change, mode); await page.evaluate(change, mode);
         },
         async metrics(label) {
-          const data = await page.evaluate(() => ({ viewport: innerWidth, scrollWidth: document.documentElement.scrollWidth, bodyWidth: document.body.scrollWidth, controls: [...document.querySelectorAll("a,button,input,textarea,select,summary")].filter((e) => e.getClientRects().length).map((e) => { const r = e.getBoundingClientRect(); return { id: e.id, text: e.innerText, width: r.width, height: r.height, left: r.left, right: r.right }; }) }));
+          const data = await page.evaluate(() => ({ viewport: innerWidth, viewportHeight: innerHeight, scrollWidth: document.documentElement.scrollWidth, scrollHeight: document.documentElement.scrollHeight, bodyWidth: document.body.scrollWidth, bodyHeight: document.body.scrollHeight, controls: [...document.querySelectorAll("a,button,input,textarea,select,summary")].filter((e) => e.getClientRects().length && !e.closest("[inert]") && !e.closest('[aria-hidden="true"]') && getComputedStyle(e).visibility !== "hidden").map((e) => { const r = e.getBoundingClientRect(); return { id: e.id, text: e.innerText, width: r.width, height: r.height, left: r.left, right: r.right }; }) }));
           await output(`${index + 1}-${label}-metrics.json`, data);
           assert(data.scrollWidth <= data.viewport + 1); assert(data.bodyWidth <= data.viewport + 1);
           assert(!data.controls.some((c) => c.left < -1 || c.right > data.viewport + 1), "Clipped control"); return data;

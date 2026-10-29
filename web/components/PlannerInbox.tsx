@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-import { Header } from "@/components/Header";
 import { ApiErrorPanel, type ApiErrorState } from "@/components/ApiErrorPanel";
 import { ResearchApiError } from "@/lib/api";
 import { listPlannerPosts, type PlannerSummary } from "@/lib/planner-api";
@@ -64,8 +63,7 @@ export function PlannerInbox() {
   }
 
   return (
-    <main className="workspace planner-workspace">
-      <Header section="Shared planner" />
+    <div className="planner-workspace research-page">
       <section className="planner-heading">
         <div>
           <h1>Shared planner</h1>
@@ -118,6 +116,6 @@ export function PlannerInbox() {
           <button type="button" className="secondary-button" disabled={!hasMore} onClick={() => changePage(offset + PAGE_SIZE)}>Next</button>
         </nav>
       )}
-    </main>
+    </div>
   );
 }

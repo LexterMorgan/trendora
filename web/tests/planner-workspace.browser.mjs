@@ -1370,46 +1370,51 @@ export function plannerWorkspaceRegressions(f) {
       await f.snapshot("reduced-motion-360");
       await f.page.emulateMedia({ reducedMotion: "no-preference" });
     }],
-    ["Header nav marks the current destination and the mobile menu is labelled and keyboard operable", async () => {
-      // Desktop: primary destinations are visible with an aria-current marker.
+    ["Shared rail marks the current destination and its mobile drawer is keyboard operable", async () => {
       await f.page.setViewportSize({ width: 1440, height: 900 });
       await f.openResearch();
       const nav = f.page.getByRole("navigation", { name: "Primary", exact: true });
       await nav.waitFor();
-      assert.equal(await nav.getByRole("link", { name: "Research", exact: true }).getAttribute("aria-current"), "page");
-      assert.equal(await nav.getByRole("link", { name: "Discover", exact: true }).count(), 0);
-      assert.equal(await f.page.locator(".menu-toggle").isVisible(), false);
-      await f.metrics("shell-desktop");
+      assert.equal(await nav.locator("a,button").count(), 4);
+      assert.equal(await nav.getByRole("button", { name: "New research", exact: true }).getAttribute("aria-current"), "page");
+      assert.equal(await nav.getByRole("link", { name: "Reports", exact: true }).count(), 1);
+      assert.equal(await nav.getByRole("link", { name: "Planner", exact: true }).count(), 1);
+      assert.equal(await nav.getByRole("link", { name: "Explore sources", exact: true }).count(), 1);
+      assert.equal(await f.page.locator(".research-menu-button").isVisible(), false);
+      await f.metrics("shared-rail-desktop");
 
-      // Narrow: the row collapses into a labelled Menu control, not a bare icon.
       await f.page.setViewportSize({ width: 360, height: 800 });
-      assert.equal(await nav.isVisible(), false);
-      const menu = f.page.locator(".menu-toggle");
+      const menu = f.page.locator(".research-menu-button");
       await menu.waitFor();
+      await f.page.waitForFunction(() => document.querySelector(".research-rail")?.getAttribute("aria-hidden") === "true");
+      assert.equal(await nav.isVisible(), false);
       assert.equal(await menu.getAttribute("aria-expanded"), "false");
-      assert.match(await menu.innerText(), /Menu/);
       await menu.focus();
       await f.page.keyboard.press("Enter");
       assert.equal(await menu.getAttribute("aria-expanded"), "true");
-      const mobileNav = f.page.getByRole("navigation", { name: "Primary mobile", exact: true });
-      await mobileNav.waitFor();
-      assert.equal(await mobileNav.getByRole("link", { name: "Reports", exact: true }).isVisible(), true);
-      assert.equal(await mobileNav.getByRole("link", { name: "Discover", exact: true }).count(), 0);
-      await f.metrics("shell-mobile");
-      await mobileNav.getByRole("link", { name: "Reports", exact: true }).focus();
+      await nav.waitFor();
+      await f.page.waitForFunction(() => {
+        const rail = document.querySelector(".research-rail");
+        return rail ? rail.getBoundingClientRect().left >= -0.5 : false;
+      });
+      assert.equal(await nav.getByRole("link", { name: "Reports", exact: true }).isVisible(), true);
+      assert.equal(await nav.getByRole("link", { name: "Planner", exact: true }).isVisible(), true);
+      assert.equal(await nav.getByRole("link", { name: "Explore sources", exact: true }).isVisible(), true);
+      await f.metrics("shared-rail-mobile");
+      await nav.getByRole("link", { name: "Reports", exact: true }).focus();
       await f.page.keyboard.press("Enter");
       await f.page.waitForURL(f.origin + "/past-reports");
-      assert.equal(await f.page.locator(".menu-toggle").getAttribute("aria-expanded"), "false", "menu must close after navigation");
+      assert.equal(await f.page.locator(".research-menu-button").getAttribute("aria-expanded"), "false", "menu must close after navigation");
     }],
     ["Explore sources is a secondary Research entry point with a return path", async () => {
       await f.page.setViewportSize({ width: 1440, height: 900 });
       await f.page.goto(f.origin + "/");
       const nav = f.page.getByRole("navigation", { name: "Primary", exact: true });
       await nav.waitFor();
-      assert.equal(await nav.getByRole("link", { name: "Discover", exact: true }).count(), 0);
+      assert.equal(await nav.getByRole("link", { name: "Explore sources", exact: true }).count(), 1);
       await f.page.getByLabel("Topic", { exact: true }).fill("Fictional explore setup");
       await f.page.getByRole("button", { name: "Continue", exact: true }).click();
-      const explore = f.page.getByRole("link", { name: "Explore sources", exact: true });
+      const explore = f.page.locator(".composer-explore-link");
       assert.equal(await explore.isVisible(), true);
       await explore.click();
       await f.page.waitForURL(f.origin + "/discover");
@@ -1419,9 +1424,8 @@ export function plannerWorkspaceRegressions(f) {
         await f.page.getByText("Search indexed titles and snippets", { exact: false }).innerText(),
         /does not generate an AI report/,
       );
-      const back = f.page.getByRole("link", { name: "Back to Research", exact: true });
-      assert.equal(await back.isVisible(), true);
-      await back.click();
+      assert.equal(await f.page.getByRole("link", { name: "Back to Research", exact: true }).count(), 0);
+      await f.page.getByRole("navigation", { name: "Primary", exact: true }).getByRole("button", { name: "New research", exact: true }).click();
       await f.page.waitForURL(f.origin + "/");
       await f.page.getByRole("heading", { name: "What would you like to research?", exact: true }).waitFor();
       assert.equal(await f.page.getByLabel("Topic", { exact: true }).inputValue(), "");
@@ -1463,43 +1467,57 @@ export function plannerWorkspaceRegressions(f) {
       });
       assert(hoverRatio >= 3, `topic hover boundary ${hoverRatio.toFixed(2)}:1`);
     }],
-    ["An open mobile menu cannot disrupt the header across the desktop breakpoint", async () => {
+    ["Shared rail survives the mobile/desktop breakpoint without overlapping chrome", async () => {
       await f.page.setViewportSize({ width: 360, height: 800 });
       await f.openResearch();
-      const menu = f.page.locator(".menu-toggle");
+      const menu = f.page.locator(".research-menu-button");
       await menu.click();
       assert.equal(await menu.getAttribute("aria-expanded"), "true");
-      const mobileNav = f.page.getByRole("navigation", { name: "Primary mobile", exact: true });
-      await mobileNav.waitFor();
-      // Cross to desktop with the menu still open.
+      const nav = f.page.getByRole("navigation", { name: "Primary", exact: true });
+      await nav.waitFor();
+      assert.equal(await nav.getByRole("link", { name: "Reports", exact: true }).isVisible(), true);
+
       await f.page.setViewportSize({ width: 1440, height: 900 });
-      assert.equal(await mobileNav.isVisible(), false, "mobile menu must be hidden on desktop");
-      assert.equal(await f.page.locator(".header-nav").isVisible(), true);
+      await f.page.waitForFunction(() => {
+        const rail = document.querySelector(".research-rail");
+        return rail ? rail.getBoundingClientRect().left >= -0.5 : false;
+      });
       assert.equal(await menu.isVisible(), false);
-      // No overlapping controls: every visible control stays within the viewport
-      // and the header controls do not intersect each other.
+      assert.equal(await f.page.locator(".research-rail").isVisible(), true);
+      assert.equal(await nav.isVisible(), true);
       for (const width of [1440, 1024, 769]) {
         await f.page.setViewportSize({ width, height: 900 });
-        assert.equal(await mobileNav.isVisible(), false);
-        assert.equal(await f.page.locator(".header-nav").isVisible(), true);
-        await f.metrics(`menu-open-desktop-${width}`);
-        const headerControls = await f.page.locator(".unified-header a, .unified-header button").evaluateAll((elements) =>
+        assert.equal(await menu.isVisible(), false);
+        assert.equal(await f.page.locator(".research-rail").isVisible(), true);
+        assert.equal(await f.page.locator(".research-sidebar-toggle").isVisible(), true, `top-left toggle visible at ${width}px`);
+        assert.equal(await f.page.locator(".research-rail-toggle").count(), 0, `rail-foot toggle removed at ${width}px`);
+        await f.metrics(`shared-rail-desktop-${width}`);
+        const railControls = await f.page.locator(".research-rail a, .research-rail button").evaluateAll((elements) =>
           elements.filter((e) => e.getClientRects().length).map((e) => { const r = e.getBoundingClientRect(); return { text: e.textContent, left: r.left, right: r.right, top: r.top, bottom: r.bottom }; }));
-        for (let i = 0; i < headerControls.length; i += 1) {
-          for (let j = i + 1; j < headerControls.length; j += 1) {
-            const a = headerControls[i], b = headerControls[j];
+        for (let i = 0; i < railControls.length; i += 1) {
+          for (let j = i + 1; j < railControls.length; j += 1) {
+            const a = railControls[i], b = railControls[j];
             const overlap = a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
-            assert.equal(overlap, false, `header controls overlap at ${width}px: ${a.text} / ${b.text}`);
+            assert.equal(overlap, false, `rail controls overlap at ${width}px: ${a.text} / ${b.text}`);
           }
         }
       }
-      // Return to mobile: the disclosure is still usable.
+
       await f.page.setViewportSize({ width: 360, height: 800 });
+      await menu.waitFor();
+      await f.page.waitForFunction(() => document.querySelector(".research-menu-button")?.getAttribute("aria-expanded") === "false");
       assert.equal(await menu.isVisible(), true);
+      assert.equal(await menu.getAttribute("aria-expanded"), "false", "crossing to desktop closes the drawer");
+      await menu.click();
       assert.equal(await menu.getAttribute("aria-expanded"), "true");
-      assert.equal(await mobileNav.isVisible(), true);
-      await f.metrics("menu-open-mobile-again");
-      await f.snapshot("menu-breakpoint-return");
+      await nav.waitFor();
+      await f.page.waitForFunction(() => {
+        const rail = document.querySelector(".research-rail");
+        return rail ? rail.getBoundingClientRect().left >= -0.5 : false;
+      });
+      assert.equal(await nav.isVisible(), true);
+      await f.metrics("shared-rail-mobile-again");
+      await f.snapshot("shared-rail-breakpoint-return");
     }],
     ["A saved report keeps Reports active in the navigation", async () => {
       const id = await f.seedSavedReport({ topic: "Fictional saved nav", researchFirst: true });
@@ -1760,17 +1778,22 @@ export function plannerWorkspaceRegressions(f) {
     }],
     ["Alpha brand assets load locally across workspace and authentication", async () => {
       await f.openResearch();
-      const logo = f.page.locator(".brand-link .brand-art");
+      const logo = f.page.locator(".research-brand-mark");
       await logo.waitFor();
       await f.waitFor(() => logo.evaluate((image) => image.complete && image.naturalWidth > 0));
       assert.equal(new URL(await logo.getAttribute("src"), f.origin).origin, f.origin);
-      assert.equal(await f.page.getByRole("link", { name: "Trendora home", exact: true }).count(), 1);
+      assert.equal(await f.page.getByRole("button", { name: "Trendora home", exact: true }).count(), 1);
       for (const width of [1440, 768, 360]) {
         await f.page.setViewportSize({ width, height: 1000 });
         await settleAnimations();
         await f.metrics(`alpha-home-${width}`);
         await f.snapshot(`alpha-home-${width}`);
       }
+      await f.page.locator(".research-menu-button").click();
+      await f.page.waitForFunction(() => {
+        const rail = document.querySelector(".research-rail");
+        return rail ? rail.getBoundingClientRect().left >= -0.5 : false;
+      });
       await button("Sign out").click();
       await f.page.waitForURL(f.origin + "/login");
       const authLogo = f.page.locator(".auth-brand .brand-art");
@@ -1970,7 +1993,8 @@ export function plannerWorkspaceRegressions(f) {
         top: Math.round(element.getBoundingClientRect().top),
       })));
       assert.equal(headers.length, 1, JSON.stringify(headers));
-      assert.equal(headers[0].position, "static");
+      assert.notEqual(headers[0].position, "fixed");
+      assert.notEqual(headers[0].position, "sticky");
       await f.snapshot("home-fillable-360");
       await f.snapshot("home-fillable-360-viewport", { fullPage: false });
       await f.page.setViewportSize({ width: 1440, height: 1000 });
@@ -2054,6 +2078,480 @@ export function plannerWorkspaceRegressions(f) {
       assert.equal(f.dialogs.length, unsavedDialogCount + 2);
       assert.match(f.dialogs.at(-1), /not saved/);
       assert.equal(await f.page.getByLabel("Topic", { exact: true }).inputValue(), "");
+    }],
+    ["Kurage shell maps real destinations and keeps the landing local", async () => {
+      await f.page.setViewportSize({ width: 1440, height: 1000 });
+      await f.page.goto(f.origin + "/");
+      await f.page.locator(".research-shell").waitFor();
+      const nav = f.page.getByRole("navigation", { name: "Primary", exact: true });
+      await nav.waitFor();
+      const newResearch = nav.getByRole("button", { name: "New research", exact: true });
+      assert.equal(await newResearch.getAttribute("aria-current"), "page");
+      assert.equal(await nav.getByRole("link", { name: "Reports", exact: true }).getAttribute("href"), "/past-reports");
+      assert.equal(await nav.getByRole("link", { name: "Planner", exact: true }).getAttribute("href"), "/planner");
+      assert.equal(await nav.getByRole("link", { name: "Explore sources", exact: true }).getAttribute("href"), "/discover");
+      assert.equal(await f.page.getByRole("link", { name: "History", exact: true }).getAttribute("href"), "/past-reports");
+      assert.equal(await f.page.getByRole("heading", { name: "What would you like to research?", exact: true }).isVisible(), true);
+
+      const topic = f.page.locator("#home-topic");
+      await topic.fill("Fictional shell topic");
+      await f.page.getByRole("button", { name: "Skincare", exact: true }).click();
+      assert.equal(await topic.inputValue(), "Skincare");
+      assert.equal(f.calls.filter((call) => call.path === "/api/v1/research/report").length, 0);
+      assert.equal(await f.page.getByRole("button", { name: "Generate research report", exact: true }).count(), 0);
+
+      await f.page.locator(".research-sidebar-toggle").click();
+      assert.equal(await f.page.locator(".research-shell").getAttribute("data-rail"), "expanded");
+      assert.equal(await f.page.locator(".research-sidebar-toggle").getAttribute("aria-expanded"), "true");
+      assert.equal(await f.page.evaluate(() => localStorage.getItem("trendora:research-rail")), "expanded");
+      assert.equal(await nav.getByRole("button", { name: "New research", exact: true }).isVisible(), true);
+      await f.snapshot("kurage-shell-expanded-1440");
+      await f.page.locator(".research-sidebar-toggle").click();
+      assert.equal(await f.page.locator(".research-shell").getAttribute("data-rail"), "collapsed");
+      assert.equal(await f.page.locator(".research-sidebar-toggle").getAttribute("aria-expanded"), "false");
+      assert.equal(await f.page.evaluate(() => localStorage.getItem("trendora:research-rail")), "collapsed");
+
+      await f.page.waitForFunction(() => document.querySelector(".research-ocean")?.getAttribute("data-ocean-running") === "true");
+      await f.page.waitForFunction(() => Number(document.querySelector(".research-ocean")?.getAttribute("data-ocean-fps")) > 0);
+      const oceanMetrics = await f.page.locator(".research-ocean").evaluate((element) => ({
+        cells: Number(element.getAttribute("data-ocean-cells")),
+        dpr: Number(element.getAttribute("data-ocean-dpr")),
+        fps: Number(element.getAttribute("data-ocean-fps")),
+      }));
+      assert(oceanMetrics.cells > 0 && oceanMetrics.cells <= 12000, JSON.stringify(oceanMetrics));
+      assert(oceanMetrics.dpr > 0 && oceanMetrics.dpr <= 2, JSON.stringify(oceanMetrics));
+      assert(oceanMetrics.fps > 0 && oceanMetrics.fps <= 32, JSON.stringify(oceanMetrics));
+      console.log("OCEAN_METRICS " + JSON.stringify(oceanMetrics));
+      await f.page.getByRole("button", { name: "Pause motion", exact: true }).click();
+      await f.page.waitForFunction(() => document.querySelector(".research-ocean")?.getAttribute("data-ocean-running") === "false");
+      assert.equal(await f.page.getByRole("button", { name: "Resume motion", exact: true }).isVisible(), true);
+      await f.page.getByRole("button", { name: "Resume motion", exact: true }).click();
+      await f.page.waitForFunction(() => document.querySelector(".research-ocean")?.getAttribute("data-ocean-running") === "true");
+
+      const resources = await f.page.evaluate(() => performance.getEntriesByType("resource").map((entry) => new URL(entry.name).origin));
+      assert(resources.every((origin) => origin === f.origin), `Unexpected external resource: ${resources.filter((origin) => origin !== f.origin).join(", ")}`);
+      await f.metrics("kurage-shell-1440");
+      await f.snapshot("kurage-shell-1440");
+    }],
+    ["Research theme toggle is topbar-only, persists, and keeps the ocean alive", async () => {
+      await f.page.setViewportSize({ width: 1440, height: 1000 });
+      await f.page.goto(f.origin + "/");
+      const shell = f.page.locator(".research-shell");
+      await shell.waitFor();
+      await f.page.waitForFunction(() => document.querySelector(".research-shell")?.getAttribute("data-theme") === "dark");
+      const nav = f.page.getByRole("navigation", { name: "Primary", exact: true });
+      assert.equal(await nav.locator("a,button").count(), 4, "rail must keep exactly four destinations");
+      assert.equal(await nav.getByRole("button", { name: /Switch to (light|dark) mode/ }).count(), 0);
+      const toggle = f.page.getByRole("button", { name: "Switch to light mode", exact: true });
+      assert.equal(await toggle.getAttribute("aria-pressed"), "false");
+      await toggle.click();
+      await f.page.waitForFunction(() => document.querySelector(".research-shell")?.getAttribute("data-theme") === "light");
+      assert.equal(await shell.evaluate((element) => element.classList.contains("is-light")), true);
+      assert.equal(await f.page.getByRole("button", { name: "Switch to dark mode", exact: true }).getAttribute("aria-pressed"), "true");
+      assert.equal(await f.page.locator(".research-ocean").getAttribute("data-ocean-theme"), "light");
+      assert.equal(await f.page.evaluate(() => getComputedStyle(document.querySelector(".research-shell")).getPropertyValue("--rs-bg").trim()), "#f5f6f8");
+      assert.equal(await f.page.locator(".research-ocean").getAttribute("data-ocean-running"), "true");
+      await f.snapshot("theme-light-1440");
+
+      await f.page.reload();
+      await shell.waitFor();
+      await f.page.waitForFunction(() => document.querySelector(".research-shell")?.getAttribute("data-theme") === "light");
+      assert.equal(await f.page.getByRole("button", { name: "Switch to dark mode", exact: true }).getAttribute("aria-pressed"), "true");
+      assert.equal(await f.page.locator(".research-ocean").getAttribute("data-ocean-theme"), "light");
+
+      await f.page.locator(".research-sidebar-toggle").click();
+      assert.equal(await shell.getAttribute("data-rail"), "expanded");
+      await f.page.getByRole("button", { name: "Pause motion", exact: true }).click();
+      await f.page.waitForFunction(() => document.querySelector(".research-ocean")?.getAttribute("data-ocean-running") === "false");
+      await f.page.getByRole("button", { name: "Switch to dark mode", exact: true }).click();
+      await f.page.waitForFunction(() => document.querySelector(".research-ocean")?.getAttribute("data-ocean-theme") === "dark");
+      assert.equal(await f.page.locator(".research-ocean").getAttribute("data-ocean-running"), "false", "paused ocean must update palette without restarting");
+      await f.page.getByRole("button", { name: "Switch to light mode", exact: true }).click();
+      await f.page.waitForFunction(() => document.querySelector(".research-ocean")?.getAttribute("data-ocean-theme") === "light");
+      assert.equal(await f.page.locator(".research-ocean").getAttribute("data-ocean-running"), "false");
+      await f.page.getByRole("button", { name: "Resume motion", exact: true }).click();
+      await f.page.waitForFunction(() => document.querySelector(".research-ocean")?.getAttribute("data-ocean-running") === "true");
+      await f.page.locator(".research-sidebar-toggle").click();
+
+      await f.page.locator("#home-topic").fill("Fictional theme persistence");
+      await f.page.getByRole("button", { name: "Continue", exact: true }).click();
+      await f.page.getByRole("button", { name: "Generate research report", exact: true }).waitFor();
+      await f.page.getByRole("button", { name: "Back to start", exact: true }).click();
+      await shell.waitFor();
+      await f.page.waitForFunction(() => document.querySelector(".research-shell")?.getAttribute("data-theme") === "light");
+      assert.equal(await f.page.locator(".research-ocean").getAttribute("data-ocean-theme"), "light");
+
+      await f.page.setViewportSize({ width: 360, height: 800 });
+      await f.snapshot("theme-light-360");
+      await f.metrics("theme-light-360");
+      await f.page.getByRole("button", { name: "Switch to dark mode", exact: true }).click();
+      await f.page.waitForFunction(() => document.querySelector(".research-shell")?.getAttribute("data-theme") === "dark");
+      assert.equal(await f.page.locator(".research-ocean").getAttribute("data-ocean-theme"), "dark");
+      await f.page.setViewportSize({ width: 1440, height: 1000 });
+      await f.snapshot("theme-dark-1440");
+    }],
+    ["Shared shell spans Research, Reports, Planner and Discover with one theme and rail", async () => {
+      await f.page.setViewportSize({ width: 1440, height: 1000 });
+      await f.page.goto(f.origin + "/");
+      await f.page.locator(".research-shell").waitFor();
+      await f.page.getByRole("button", { name: "Switch to light mode", exact: true }).click();
+      await f.page.waitForFunction(() => document.querySelector(".research-shell")?.getAttribute("data-theme") === "light");
+
+      const routes = [
+        { path: "/", name: "research", activeRole: "button", activeName: "New research", ocean: true, motion: true },
+        { path: "/past-reports", name: "reports", activeRole: "link", activeName: "Reports", ocean: false, motion: false },
+        { path: "/planner", name: "planner", activeRole: "link", activeName: "Planner", ocean: false, motion: false },
+        { path: "/discover", name: "discover", activeRole: "link", activeName: "Explore sources", ocean: false, motion: false },
+      ];
+      for (const route of routes) {
+        await f.page.goto(f.origin + route.path);
+        const shell = f.page.locator(".research-shell");
+        await shell.waitFor();
+        await f.page.waitForFunction(() => document.querySelector(".research-shell")?.getAttribute("data-theme") === "light");
+        const nav = f.page.getByRole("navigation", { name: "Primary", exact: true });
+        await nav.waitFor();
+        assert.equal(await nav.locator("a,button").count(), 4, `${route.name} must keep four destinations`);
+        assert.equal(await nav.getByRole(route.activeRole, { name: route.activeName, exact: true }).getAttribute("aria-current"), "page", `${route.name} active state`);
+        assert.equal(await f.page.locator(".research-ocean").count(), route.ocean ? 1 : 0, `${route.name} ocean presence`);
+        assert.equal(await f.page.getByRole("button", { name: /Pause motion|Resume motion/ }).count(), route.motion ? 1 : 0, `${route.name} motion control`);
+        assert.equal(await f.page.getByRole("button", { name: "Switch to dark mode", exact: true }).count(), 1, `${route.name} theme control`);
+        assert.equal(await f.page.locator("main").count(), 1, `${route.name} must have one main`);
+        assert.equal(await f.page.locator(".research-topbar").count(), 1, `${route.name} must have one topbar`);
+        assert.equal(await f.page.locator(".unified-header").count(), 0, `${route.name} must not keep the old Header`);
+        assert.equal(await f.page.locator(".research-rail-toggle").count(), 0, `${route.name} must not keep the rail-foot toggle`);
+        assert.equal(await f.page.locator(".research-sidebar-toggle").count(), 1, `${route.name} must keep the topbar toggle`);
+        assert.equal(await f.page.locator(".research-rail-foot > button").count(), route.motion ? 2 : 1, `${route.name} rail foot`);
+        assert.equal(await f.page.locator(".research-ocean canvas").count(), route.ocean ? 1 : 0, `${route.name} canvas presence`);
+        const grid = await f.page.locator(".research-main-column").evaluate((element) => {
+          const style = getComputedStyle(element);
+          return {
+            image: style.backgroundImage,
+            size: style.backgroundSize,
+            animation: style.animationName,
+            transition: style.transitionDuration,
+            after: getComputedStyle(element, "::after").backgroundImage,
+          };
+        });
+        if (route.ocean) {
+          assert.equal(grid.image, "none", "home keeps its grid on the ocean layer");
+        } else {
+          assert.match(grid.image, /linear-gradient/);
+          assert.deepEqual(grid.size.split(",").map((value) => value.trim()), ["10px 15px", "10px 15px"]);
+          assert.match(grid.image, /rgba\(32, 37, 46, 0\.0\d+\)/);
+          assert.equal(grid.after, "none", "non-home pages must not add a halo");
+        }
+        assert.equal(grid.animation, "none");
+        assert.equal(grid.transition, "0s");
+        if (route.name === "reports") {
+          assert.equal(await f.page.locator(".page-heading").getByRole("link", { name: "New research", exact: true }).count(), 0);
+        }
+        if (route.name === "discover") {
+          assert.equal(await f.page.getByRole("link", { name: "Back to Research", exact: true }).count(), 0);
+        }
+        await f.metrics(`shared-${route.name}-light`);
+        await f.snapshot(`shared-${route.name}-light`, { fullPage: false });
+      }
+
+      // The rail state survives a reload and a client navigation.
+      await f.page.locator(".research-sidebar-toggle").click();
+      assert.equal(await f.page.locator(".research-shell").getAttribute("data-rail"), "expanded");
+      await f.snapshot("shared-discover-expanded-light", { fullPage: false });
+      await f.page.reload();
+      await f.page.locator(".research-shell").waitFor();
+      await f.page.waitForFunction(() => document.querySelector(".research-shell")?.getAttribute("data-rail") === "expanded");
+      await f.page.goto(f.origin + "/planner");
+      await f.page.locator(".research-shell").waitFor();
+      await f.page.waitForFunction(() => document.querySelector(".research-shell")?.getAttribute("data-rail") === "expanded");
+      await f.page.locator(".research-sidebar-toggle").click();
+      await f.page.goto(f.origin + "/discover");
+      await f.page.locator(".research-shell").waitFor();
+      await f.page.waitForFunction(() => document.querySelector(".research-shell")?.getAttribute("data-rail") === "collapsed");
+
+      // Setup and results stay under the same shell with no ocean or motion control.
+      await f.page.goto(f.origin + "/");
+      await f.page.locator("#home-topic").fill("Fictional shared shell report");
+      await f.page.getByRole("button", { name: "Continue", exact: true }).click();
+      await f.page.getByRole("button", { name: "Generate research report", exact: true }).waitFor();
+      assert.equal(await f.page.locator(".research-shell").getAttribute("data-theme"), "light");
+      assert.equal(await f.page.locator(".research-ocean").count(), 0);
+      assert.equal(await f.page.getByRole("button", { name: /Pause motion|Resume motion/ }).count(), 0);
+      assert.equal(await f.page.locator("main").count(), 1);
+      assert.equal(await f.page.locator(".research-rail-foot > button").count(), 1, "setup rail foot has sign out only");
+      const setupGrid = await f.page.locator(".research-main-column").evaluate((element) => ({ image: getComputedStyle(element).backgroundImage, size: getComputedStyle(element).backgroundSize }));
+      assert.match(setupGrid.image, /rgba\(32, 37, 46, 0\.0\d+\)/);
+      assert.deepEqual(setupGrid.size.split(",").map((value) => value.trim()), ["10px 15px", "10px 15px"]);
+      await f.snapshot("shared-setup-light", { fullPage: false });
+
+      await f.submitResearch("Fictional shared shell report");
+      await f.page.locator(".report").waitFor();
+      await settleAnimations();
+      assert.equal(await f.page.locator(".research-shell").getAttribute("data-theme"), "light");
+      assert.equal(await f.page.locator(".research-ocean").count(), 0);
+      assert.equal(await f.page.getByRole("button", { name: /Pause motion|Resume motion/ }).count(), 0);
+      assert.equal(await f.page.locator("main").count(), 1);
+      const resultsGrid = await f.page.locator(".research-main-column").evaluate((element) => getComputedStyle(element).backgroundImage);
+      assert.match(resultsGrid, /rgba\(32, 37, 46, 0\.0\d+\)/);
+      await f.snapshot("shared-results-light", { fullPage: false });
+
+      await f.page.getByRole("button", { name: "Switch to dark mode", exact: true }).click();
+      await f.page.waitForFunction(() => document.querySelector(".research-shell")?.getAttribute("data-theme") === "dark");
+      assert.equal(await f.page.locator(".research-ocean").count(), 0);
+      const darkResultsGrid = await f.page.locator(".research-main-column").evaluate((element) => getComputedStyle(element).backgroundImage);
+      assert.match(darkResultsGrid, /rgba\(255, 255, 255, 0\.02\d\)/);
+      await settleAnimations();
+      await f.snapshot("shared-results-dark", { fullPage: false });
+      for (const route of [
+        { path: "/past-reports", name: "reports" },
+        { path: "/planner", name: "planner" },
+        { path: "/discover", name: "discover" },
+      ]) {
+        await f.page.goto(f.origin + route.path);
+        await f.page.locator(".research-shell").waitFor();
+        await f.page.waitForFunction(() => document.querySelector(".research-shell")?.getAttribute("data-theme") === "dark");
+        assert.equal(await f.page.locator(".research-ocean").count(), 0);
+        assert.equal(await f.page.locator(".research-ocean canvas").count(), 0);
+        const darkGrid = await f.page.locator(".research-main-column").evaluate((element) => getComputedStyle(element).backgroundImage);
+        assert.match(darkGrid, /rgba\(255, 255, 255, 0\.02\d\)/);
+        await f.snapshot(`shared-${route.name}-dark`, { fullPage: false });
+      }
+
+      // The setup form also reads in dark mode under the shared shell.
+      await f.page.goto(f.origin + "/");
+      await f.page.locator("#home-topic").fill("Fictional shared shell setup dark");
+      await f.page.getByRole("button", { name: "Continue", exact: true }).click();
+      await f.page.getByRole("button", { name: "Generate research report", exact: true }).waitFor();
+      assert.equal(await f.page.locator(".research-shell").getAttribute("data-theme"), "dark");
+      assert.equal(await f.page.locator(".research-ocean").count(), 0);
+      await f.snapshot("shared-setup-dark", { fullPage: false });
+
+      // History and New research are real controls on every migrated page.
+      await f.page.goto(f.origin + "/discover");
+      await f.page.locator(".research-shell").waitFor();
+      await f.page.getByRole("link", { name: "History", exact: true }).click();
+      await f.page.waitForURL(f.origin + "/past-reports");
+      await f.page.locator(".research-shell").waitFor();
+      await f.page.getByRole("navigation", { name: "Primary", exact: true }).getByRole("button", { name: "New research", exact: true }).click();
+      await f.page.waitForURL(f.origin + "/");
+      await f.page.locator(".research-shell").waitFor();
+      await f.page.waitForFunction(() => document.querySelector(".research-shell")?.getAttribute("data-theme") === "dark");
+    }],
+    ["Shell state is layout-owned, synchronized and does not reset on navigation", async () => {
+      await f.page.setViewportSize({ width: 1440, height: 1000 });
+      const hydration = [];
+      const onConsole = (message) => {
+        if (message.type() === "error" && /hydrat|did not match|server rendered/i.test(message.text())) hydration.push(message.text());
+      };
+      f.page.on("console", onConsole);
+      await f.page.goto(f.origin + "/");
+      const shell = f.page.locator(".research-shell");
+      await shell.waitFor();
+      const topbar = f.page.locator(".research-sidebar-toggle");
+      const rail = f.page.locator(".research-rail");
+      const main = f.page.locator(".research-main-column");
+      assert.equal(await topbar.isVisible(), true, "desktop top-left toggle is visible");
+      assert.equal(await f.page.locator(".research-rail-toggle").count(), 0, "rail-foot toggle is removed");
+      assert.equal(await f.page.locator(".research-topbar > button").first().getAttribute("class"), "research-sidebar-toggle");
+      assert.equal(await topbar.getAttribute("aria-controls"), "research-rail");
+      assert.equal(await topbar.getAttribute("aria-expanded"), "false");
+      assert.equal(await topbar.getAttribute("aria-label"), "Expand sidebar");
+      assert.equal(await f.page.locator(".research-rail-foot > button").count(), 2, "home rail foot has motion and sign out");
+      const collapsedFootWidths = await f.page.locator(".research-rail-foot > button").evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().width));
+      assert.deepEqual(collapsedFootWidths.map((width) => Math.round(width)), [48, 48], "collapsed rail foot controls stay icon-sized");
+      await f.page.waitForFunction(() => {
+        const column = document.querySelector(".research-main-column");
+        return column ? Math.round(column.getBoundingClientRect().left) === 72 : false;
+      });
+      const collapsedWidth = await rail.evaluate((element) => element.getBoundingClientRect().width);
+      const collapsedMainLeft = await main.evaluate((element) => element.getBoundingClientRect().left);
+      assert.equal(Math.round(collapsedWidth), 72);
+      assert.equal(Math.round(collapsedMainLeft), 72);
+
+      await topbar.click();
+      assert.equal(await shell.getAttribute("data-rail"), "expanded");
+      assert.equal(await topbar.getAttribute("aria-expanded"), "true");
+      assert.equal(await topbar.getAttribute("aria-label"), "Collapse sidebar");
+      assert.equal(await f.page.evaluate(() => localStorage.getItem("trendora:research-rail")), "expanded");
+      assert.equal(Math.round(await rail.evaluate((element) => element.getBoundingClientRect().width)), 248);
+      await f.page.waitForFunction((previousLeft) => {
+        const column = document.querySelector(".research-main-column");
+        return column ? column.getBoundingClientRect().left > previousLeft : false;
+      }, collapsedMainLeft);
+
+      // Layout-level state survives navigation without a collapsed flash.
+      await f.page.goto(f.origin + "/past-reports");
+      await shell.waitFor();
+      assert.equal(await shell.getAttribute("data-rail"), "expanded");
+      assert.equal(await topbar.getAttribute("aria-expanded"), "true");
+      await f.page.reload();
+      await shell.waitFor();
+      assert.equal(await shell.getAttribute("data-rail"), "expanded");
+
+      await f.page.getByRole("button", { name: "Switch to light mode", exact: true }).click();
+      assert.equal(await shell.getAttribute("data-theme"), "light");
+      assert.equal(await topbar.isVisible(), true, "top-left toggle remains visible in light mode");
+      await f.page.goto(f.origin + "/planner");
+      await shell.waitFor();
+      assert.equal(await shell.getAttribute("data-theme"), "light");
+      const lightGrid = await f.page.locator(".research-main-column").evaluate((element) => getComputedStyle(element).backgroundImage);
+      assert.match(lightGrid, /rgba\(32, 37, 46, 0\.0\d+\)/);
+      await f.page.reload();
+      await shell.waitFor();
+      assert.equal(await shell.getAttribute("data-theme"), "light");
+
+      await topbar.click();
+      assert.equal(await shell.getAttribute("data-rail"), "collapsed");
+      assert.equal(await topbar.getAttribute("aria-expanded"), "false");
+      assert.equal(await f.page.evaluate(() => localStorage.getItem("trendora:research-rail")), "collapsed");
+      await f.page.goto(f.origin + "/discover");
+      await shell.waitFor();
+      assert.equal(await shell.getAttribute("data-rail"), "collapsed");
+
+      await f.page.setViewportSize({ width: 360, height: 800 });
+      const menu = f.page.locator(".research-menu-button");
+      await menu.waitFor();
+      assert.equal(await topbar.isVisible(), false, "desktop toggle is hidden on mobile");
+      assert.equal(await f.page.locator(".research-rail-toggle").count(), 0, "rail-foot toggle is gone on mobile");
+      assert.equal(await menu.isVisible(), true);
+      assert.equal(await menu.getAttribute("aria-label"), "Open menu");
+      await menu.click();
+      assert.equal(await menu.getAttribute("aria-label"), "Close menu");
+      await f.page.waitForFunction(() => {
+        const rail = document.querySelector(".research-rail");
+        return rail ? rail.getAttribute("aria-hidden") !== "true" : false;
+      });
+      assert.equal(await f.page.getByRole("navigation", { name: "Primary", exact: true }).getByRole("link", { name: "Reports", exact: true }).isVisible(), true);
+      await f.page.keyboard.press("Escape");
+      assert.equal(await menu.getAttribute("aria-expanded"), "false");
+      assert.equal(await menu.getAttribute("aria-label"), "Open menu");
+
+      await f.page.waitForTimeout(250);
+      assert.deepEqual(hydration, []);
+      f.page.off("console", onConsole);
+    }],
+    ["Ocean unmounts on setup and remounts once on return", async () => {
+      await f.page.goto(f.origin + "/");
+      await f.page.locator(".research-ocean canvas").waitFor();
+      assert.equal(await f.page.locator(".research-ocean canvas").count(), 1);
+      assert.equal(await f.page.locator(".research-ocean").getAttribute("data-ocean-mounted"), "true");
+      await f.page.locator("#home-topic").fill("Fictional lifecycle topic");
+      await f.page.getByRole("button", { name: "Continue", exact: true }).click();
+      await f.page.getByRole("button", { name: "Generate research report", exact: true }).waitFor();
+      assert.equal(await f.page.locator(".research-ocean").count(), 0, "setup must not mount the ocean");
+      await f.page.getByRole("button", { name: "Back to start", exact: true }).click();
+      await f.page.locator(".research-ocean canvas").waitFor();
+      assert.equal(await f.page.locator(".research-ocean canvas").count(), 1, "returning home must mount exactly one ocean");
+      await f.page.waitForFunction(() => document.querySelector(".research-ocean")?.getAttribute("data-ocean-running") === "true");
+      await f.page.getByRole("button", { name: "Continue", exact: true }).click();
+      await f.page.getByRole("button", { name: "Generate research report", exact: true }).waitFor();
+      assert.equal(await f.page.locator(".research-ocean").count(), 0);
+      await f.page.getByRole("button", { name: "Back to start", exact: true }).click();
+      await f.page.locator(".research-ocean canvas").waitFor();
+      assert.equal(await f.page.locator(".research-ocean canvas").count(), 1);
+    }],
+    ["Headline pauses on composer focus and draft, then resumes", async () => {
+      await f.page.goto(f.origin + "/");
+      const visual = f.page.locator(".research-headline-visual");
+      await f.page.waitForFunction(() => document.querySelector(".research-headline-visual")?.getAttribute("data-active") === "true");
+      await f.page.locator("#home-topic").focus();
+      await f.page.waitForFunction(() => document.querySelector(".research-headline-visual")?.getAttribute("data-active") === "false");
+      await f.page.locator("#home-topic").fill("A draft topic");
+      await f.page.locator("#home-topic").blur();
+      assert.equal(await visual.getAttribute("data-active"), "false");
+      await f.page.locator("#home-topic").fill("");
+      await f.page.locator("#home-topic").blur();
+      await f.page.waitForFunction(() => document.querySelector(".research-headline-visual")?.getAttribute("data-active") === "true");
+      assert.equal(await f.page.getByRole("heading", { name: "What would you like to research?", exact: true }).isVisible(), true);
+    }],
+    ["Mobile drawer contains focus, closes on Escape, and leaves no hidden rail controls focusable", async () => {
+      await f.page.setViewportSize({ width: 360, height: 800 });
+      await f.page.goto(f.origin + "/");
+      const rail = f.page.locator(".research-rail");
+      const menu = f.page.locator(".research-menu-button");
+      await menu.waitFor();
+      assert.equal(await rail.evaluate((element) => element.inert), true);
+      await f.page.keyboard.press("Tab");
+      assert.equal(await f.page.evaluate(() => document.activeElement?.closest(".research-rail") === null), true, "closed rail must not receive focus");
+      await menu.click();
+      assert.equal(await menu.getAttribute("aria-expanded"), "true");
+      assert.equal(await rail.evaluate((element) => element.inert), false);
+      await f.page.waitForFunction(() => document.activeElement?.closest(".research-rail") !== null);
+      assert.equal(await f.page.evaluate(() => document.activeElement?.closest(".research-rail") !== null), true, "drawer must move focus inside");
+      await f.page.keyboard.press("Shift+Tab");
+      assert.equal(await f.page.evaluate(() => document.activeElement?.closest(".research-rail") !== null), true, "focus must remain contained");
+      await f.page.keyboard.press("Escape");
+      assert.equal(await menu.getAttribute("aria-expanded"), "false");
+      await f.page.waitForFunction(() => document.activeElement?.classList.contains("research-menu-button"));
+      assert.equal(await f.page.evaluate(() => document.activeElement?.classList.contains("research-menu-button")), true, "Escape must restore focus to the trigger");
+      assert.equal(await rail.evaluate((element) => element.inert), true);
+      await f.metrics("kurage-mobile-360");
+      await f.snapshot("kurage-mobile-360");
+    }],
+    ["Reduced motion starts static and hidden-tab pause restores the loop", async () => {
+      await f.page.emulateMedia({ reducedMotion: "reduce" });
+      await f.page.goto(f.origin + "/");
+      await f.page.locator(".research-ocean").waitFor();
+      assert.equal(await f.page.getByRole("button", { name: "Resume motion", exact: true }).isVisible(), true);
+      assert.equal(await f.page.locator(".research-headline-visual").getAttribute("data-active"), "false");
+      assert.equal(await f.page.locator(".research-ocean").getAttribute("data-ocean-running"), "false");
+      await f.page.getByRole("button", { name: "Resume motion", exact: true }).click();
+      await f.page.waitForFunction(() => document.querySelector(".research-ocean")?.getAttribute("data-ocean-running") === "true");
+      await f.page.evaluate(() => {
+        Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+      await f.page.waitForFunction(() => document.querySelector(".research-ocean")?.getAttribute("data-ocean-running") === "false");
+      await f.page.evaluate(() => {
+        Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+      await f.page.waitForFunction(() => document.querySelector(".research-ocean")?.getAttribute("data-ocean-running") === "true");
+      await f.snapshot("kurage-reduced-motion");
+    }],
+    ["Forced colors keeps the research controls usable and removes the ocean", async () => {
+      await f.page.emulateMedia({ forcedColors: "active" });
+      await f.page.goto(f.origin + "/");
+      await f.page.locator("#home-topic").waitFor();
+      assert.equal(await f.page.locator(".research-ocean").evaluate((element) => getComputedStyle(element).display), "none");
+      await f.page.locator("#home-topic").fill("Fictional forced colors");
+      await f.page.getByRole("button", { name: "Continue", exact: true }).click();
+      await f.page.getByRole("button", { name: "Generate research report", exact: true }).waitFor();
+      await f.metrics("kurage-forced-colors");
+    }],
+    ["Research shell holds 360, 768, 1024 and 1440 without overflow", async () => {
+      await f.page.goto(f.origin + "/");
+      await f.page.locator(".research-shell").waitFor();
+      await f.page.locator("#home-topic").fill("A deliberately long research topic about skincare, coffee, electric cars and streetwear across several markets");
+      for (const width of [360, 768, 1024, 1440]) {
+        await f.page.setViewportSize({ width, height: width === 1440 ? 1000 : 800 });
+        const shape = await f.page.evaluate(() => ({
+          shells: document.querySelectorAll(".research-shell").length,
+          headlines: document.querySelectorAll(".research-headline").length,
+          oceans: document.querySelectorAll(".research-ocean").length,
+          scrollHeight: document.documentElement.scrollHeight,
+          bodyHeight: document.body.scrollHeight,
+          viewport: innerHeight,
+        }));
+        assert.equal(shape.shells, 1, JSON.stringify(shape));
+        assert.equal(shape.headlines, 1, JSON.stringify(shape));
+        assert.equal(shape.oceans, 1, JSON.stringify(shape));
+        await f.metrics(`kurage-width-${width}`);
+        await f.snapshot(`kurage-width-${width}`);
+        await f.snapshot(`kurage-width-${width}-viewport`, { fullPage: false });
+      }
+      await f.page.setViewportSize({ width: 1440, height: 520 });
+      await f.metrics("kurage-short-1440");
+      await f.snapshot("kurage-short-1440");
+    }],
+    ["Canvas-unavailable fallback still supports topic and setup", async () => {
+      await f.page.addInitScript(() => {
+        HTMLCanvasElement.prototype.getContext = () => null;
+      });
+      await f.page.goto(f.origin + "/");
+      await f.page.locator("#home-topic").waitFor();
+      assert.equal(await f.page.locator(".research-ocean").count(), 1);
+      await f.page.locator("#home-topic").fill("Fictional no-canvas topic");
+      await f.page.getByRole("button", { name: "Continue", exact: true }).click();
+      await f.page.getByRole("button", { name: "Generate research report", exact: true }).waitFor();
     }],
   ];
 }

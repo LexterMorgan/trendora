@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import "./research-shell.css";
+import { ShellStateProvider } from "@/components/research/ShellStateProvider";
 
 const manrope = localFont({
   src: "./fonts/Manrope-Variable.ttf",
@@ -18,7 +20,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={manrope.variable}>
-      <body>{children}</body>
+      <body>
+        <ShellStateProvider>{children}</ShellStateProvider>
+      </body>
     </html>
   );
 }

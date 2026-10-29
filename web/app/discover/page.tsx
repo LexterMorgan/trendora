@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-
-import { Header } from "@/components/Header";
 import { Protected } from "@/components/Protected";
+import { AppShell } from "@/components/research/AppShell";
 import { requestJson } from "@/lib/api";
 import { ResearchApiError } from "@/lib/trendora-api";
 
@@ -118,13 +116,10 @@ function Discover() {
                 }.`;
 
   return (
-    <main className="workspace">
-      <Header section="Explore sources" />
-      <section className="page-heading">
+    <AppShell view="discover" section="Explore sources">
+      <div className="discover-page research-page">
+        <section className="page-heading">
         <div>
-          <Link href="/" className="text-link discover-back-link">
-            Back to Research
-          </Link>
           <h1>Explore sources</h1>
           <p>
             Search indexed titles and snippets from the public web. This page
@@ -194,6 +189,7 @@ function Discover() {
           ))}
         </ul>
       )}
-    </main>
+      </div>
+    </AppShell>
   );
 }
